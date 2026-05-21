@@ -1,9 +1,5 @@
 from __future__ import annotations
 
-import base64
-import os
-from pathlib import Path
-
 from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -23,23 +19,6 @@ from src.routes.search import router as search_router
 from src.routes.stream import router as stream_router
 from src.routes.tracks import router as tracks_router
 from src.services.ytdlp import YtDlpError, YtDlpTimeoutError
-
-_COOKIES_PATH = Path("/tmp/yt-cookies.txt")
-
-
-def _init_cookies() -> None:
-    raw = os.environ.get("YT_DLP_COOKIES", "") or os.environ.get("YT_COOKIES", "")
-    if raw:
-        try:
-            decoded = base64.b64decode(raw).decode("utf-8")
-            _COOKIES_PATH.write_text(decoded)
-            settings.yt_dlp_cookies_file = str(_COOKIES_PATH)
-            logger.info("Wrote cookies from env var to %s", _COOKIES_PATH)
-        except Exception as e:
-            logger.warning("Failed to decode cookies from env var: %s", e)
-
-
-_init_cookies()
 
 limiter = Limiter(
     key_func=get_remote_address,
