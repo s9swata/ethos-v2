@@ -1,14 +1,12 @@
 from __future__ import annotations
 
 import asyncio
-from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 from ytmusicapi import YTMusic
 
 from src.services.cache import cache_result
 
-_executor = ThreadPoolExecutor(max_workers=2)
 _ytmusic: YTMusic | None = None
 
 
@@ -23,7 +21,7 @@ def _get_client() -> YTMusic:
 async def search_artists(query: str, limit: int = 5) -> list[dict[str, Any]]:
     loop = asyncio.get_running_loop()
     raw = await loop.run_in_executor(
-        _executor,
+        None,
         lambda: _get_client().search(query, filter="artists", limit=limit),
     )
     return [_normalize_artist_search(r) for r in raw]
@@ -33,7 +31,7 @@ async def search_artists(query: str, limit: int = 5) -> list[dict[str, Any]]:
 async def get_artist(browse_id: str) -> dict[str, Any]:
     loop = asyncio.get_running_loop()
     return await loop.run_in_executor(
-        _executor,
+        None,
         lambda: _get_client().get_artist(browse_id),
     )
 
@@ -42,7 +40,7 @@ async def get_artist(browse_id: str) -> dict[str, Any]:
 async def search_songs(query: str, limit: int = 10) -> list[dict[str, Any]]:
     loop = asyncio.get_running_loop()
     raw = await loop.run_in_executor(
-        _executor,
+        None,
         lambda: _get_client().search(query, filter="songs", limit=limit),
     )
     return [_normalize_song(r) for r in raw]
@@ -68,7 +66,7 @@ def _normalize_song(r: dict[str, Any]) -> dict[str, Any]:
 async def search_albums(query: str, limit: int = 10) -> list[dict[str, Any]]:
     loop = asyncio.get_running_loop()
     raw = await loop.run_in_executor(
-        _executor,
+        None,
         lambda: _get_client().search(query, filter="albums", limit=limit),
     )
     return [_normalize_album_search(r) for r in raw]
@@ -92,7 +90,7 @@ def _normalize_album_search(r: dict[str, Any]) -> dict[str, Any]:
 async def search_playlists(query: str, limit: int = 10) -> list[dict[str, Any]]:
     loop = asyncio.get_running_loop()
     raw = await loop.run_in_executor(
-        _executor,
+        None,
         lambda: _get_client().search(query, filter="playlists", limit=limit),
     )
     return [_normalize_playlist(r) for r in raw]
@@ -191,10 +189,10 @@ async def unified_search(query: str, limit: int = 10) -> list[dict[str, Any]]:
         return _get_client().search(query, filter=f, limit=lim)
 
     songs_raw, albums_raw, artists_raw, playlists_raw = await asyncio.gather(
-        loop.run_in_executor(_executor, lambda: _search("songs", internal_limit)),
-        loop.run_in_executor(_executor, lambda: _search("albums", internal_limit)),
-        loop.run_in_executor(_executor, lambda: _search("artists", internal_limit)),
-        loop.run_in_executor(_executor, lambda: _search("playlists", internal_limit)),
+        loop.run_in_executor(None, lambda: _search("songs", internal_limit)),
+        loop.run_in_executor(None, lambda: _search("albums", internal_limit)),
+        loop.run_in_executor(None, lambda: _search("artists", internal_limit)),
+        loop.run_in_executor(None, lambda: _search("playlists", internal_limit)),
     )
 
     results: list[dict[str, Any]] = []
@@ -229,6 +227,6 @@ async def unified_search(query: str, limit: int = 10) -> list[dict[str, Any]]:
 async def get_album(browse_id: str) -> dict[str, Any]:
     loop = asyncio.get_running_loop()
     return await loop.run_in_executor(
-        _executor,
+        None,
         lambda: _get_client().get_album(browse_id),
     )

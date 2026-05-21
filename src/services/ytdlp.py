@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import re
-from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
@@ -11,9 +10,6 @@ from yt_dlp import YoutubeDL
 from src.config import settings
 from src.logger import logger
 from src.services.cache import cache_result
-
-_pool_semaphore = asyncio.Semaphore(settings.yt_dlp_max_concurrent)
-_executor = ThreadPoolExecutor(max_workers=5)
 
 
 class YtDlpError(Exception):
@@ -26,21 +22,6 @@ class YtDlpError(Exception):
 class YtDlpTimeoutError(Exception):
     def __init__(self):
         super().__init__(f"yt-dlp timed out after {settings.yt_dlp_timeout_ms}ms")
-
-
-def _base_params() -> dict[str, Any]:
-    return {
-        "quiet": True,
-        "no_warnings": True,
-        "simulate": True,
-    }
-
-
-def _client_params(client: str, use_desktop: bool = False) -> dict[str, Any]:
-    args: dict[str, list[str]] = {"player_client": [client]}
-    if use_desktop:
-        args["player_skip"] = ["webpage", "configs"]
-    return {"extractor_args": {"youtube": args}}
 
 
 def _sync_extract(url: str, params: dict[str, Any]) -> dict:
@@ -56,28 +37,19 @@ def _sync_extract(url: str, params: dict[str, Any]) -> dict:
 
 async def _extract(url: str, params: dict[str, Any] | None = None) -> dict:
     loop = asyncio.get_running_loop()
+    base: dict[str, Any] = {
+        "quiet": True,
+        "no_warnings": True,
+        "simulate": True,
+    }
+    merged = {**base, **(params or {})}
     try:
         return await asyncio.wait_for(
-            loop.run_in_executor(_executor, _sync_extract, url, params or _base_params()),
+            loop.run_in_executor(None, _sync_extract, url, merged),
             timeout=settings.yt_dlp_timeout_ms / 1000,
         )
     except asyncio.TimeoutError:
         raise YtDlpTimeoutError()
-
-
-async def _extract_with_rotation(url: str, use_desktop: bool = False, extra_params: dict[str, Any] | None = None) -> dict:
-    clients = settings.yt_dlp_clients_list
-    for client in clients:
-        params = {**_base_params(), **_client_params(client, use_desktop), **(extra_params or {})}
-        try:
-            async with _pool_semaphore:
-                return await _extract(url, params)
-        except YtDlpError as e:
-            if "Rate limited" in (e.stderr or "") and client != clients[-1]:
-                logger.warning("Rate-limited on %s, rotating to next client", client)
-                continue
-            raise
-    raise YtDlpError("All YouTube clients exhausted")
 
 
 def _parse_track(d: dict, fallback_artist: str | None = None) -> dict:
@@ -95,23 +67,18 @@ def _parse_track(d: dict, fallback_artist: str | None = None) -> dict:
 async def search(query: str, limit: int = 10) -> list[dict]:
     info = await _extract(
         f"ytsearch{limit}:{query}",
-        {**_base_params(), "extract_flat": "in_playlist", "noplaylist": True},
+        {"extract_flat": "in_playlist", "noplaylist": True},
     )
     return [_parse_track(e) for e in info.get("entries", []) if e]
 
 
 @cache_result(ttl=1800, namespace="ytdlp")
 async def get_info(url_or_id: str) -> dict:
-    info = await _extract_with_rotation(url_or_id)
-    formats = info.get("formats") or []
-    best_url = info.get("url", "")
+    url = f"https://www.youtube.com/watch?v={url_or_id}" if not url_or_id.startswith("http") else url_or_id
+    info = await _extract(url)
+    best_url = info.get("url") or ""
     if not best_url:
-        rf = info.get("requested_formats") or []
-        for f in rf:
-            if f.get("url"):
-                best_url = f["url"]
-                break
-    if not best_url:
+        formats = info.get("formats") or []
         for f in reversed(formats):
             if f.get("url") and ("audio only" in (f.get("format") or "") or f.get("vcodec") == "none"):
                 best_url = f["url"]
@@ -128,65 +95,29 @@ async def get_info(url_or_id: str) -> dict:
         "webpageUrl": info.get("webpage_url") or info.get("url"),
         "formats": [
             {"url": f.get("url"), "ext": f.get("ext"), "format": f.get("format"), "bitrate": f.get("tbr")}
-            for f in formats[:50]
+            for f in (info.get("formats") or [])[:50]
         ],
         "directUrl": best_url,
     }
 
 
-async def get_stream_url(url_or_id: str) -> str:
-    info = await _extract_with_rotation(url_or_id)
-    url = info.get("url") or ""
-    if url and not url.startswith("http"):
-        url = ""
-    if not url:
-        rf = info.get("requested_formats") or []
-        for f in rf:
-            if f.get("url") and ("audio only" in (f.get("format") or "") or f.get("vcodec") == "none"):
-                url = f["url"]
-                break
-    if not url:
-        formats = info.get("formats") or []
-        for f in reversed(formats):
-            if f.get("url") and ("audio only" in (f.get("format") or "") or f.get("vcodec") == "none"):
-                url = f["url"]
-                break
-    if not url and formats:
-        url = formats[-1].get("url", "")
-    if not url:
-        raise YtDlpError("No playable URL found")
-    return url
+async def get_stream_url(video_id: str) -> str:
+    url = f"https://www.youtube.com/watch?v={video_id}"
+    info = await _extract(url)
+    return info.get("url") or ""
 
 
-async def get_desktop_stream_url(url_or_id: str) -> str:
-    info = await _extract_with_rotation(url_or_id, use_desktop=True)
-    url = info.get("url") or ""
-    if url and not url.startswith("http"):
-        url = ""
-    if not url:
-        rf = info.get("requested_formats") or []
-        for f in rf:
-            if f.get("url") and ("audio only" in (f.get("format") or "") or f.get("vcodec") == "none"):
-                url = f["url"]
-                break
-    if not url:
-        formats = info.get("formats") or []
-        for f in reversed(formats):
-            if f.get("url") and ("audio only" in (f.get("format") or "") or f.get("vcodec") == "none"):
-                url = f["url"]
-                break
-    if not url and formats:
-        url = formats[-1].get("url", "")
-    if not url:
-        raise YtDlpError("No playable URL found")
-    return url
+async def get_desktop_stream_url(video_id: str) -> str:
+    url = f"https://www.youtube.com/watch?v={video_id}"
+    info = await _extract(url)
+    return info.get("url") or ""
 
 
 @cache_result(ttl=1800, namespace="ytdlp")
 async def get_playlist(url: str) -> dict:
     info = await _extract(
         url,
-        {**_base_params(), "extract_flat": "in_playlist", "playlistend": 100},
+        {"extract_flat": "in_playlist", "playlistend": 100},
     )
     entries = info.get("entries") or []
     playlist_title = info.get("title") or info.get("playlist_title") or info.get("chapter")
@@ -203,7 +134,7 @@ async def get_playlist(url: str) -> dict:
 async def get_artist_uploads(url: str, limit: int = 20) -> dict:
     info = await _extract(
         url,
-        {**_base_params(), "extract_flat": "in_playlist", "playlistend": limit},
+        {"extract_flat": "in_playlist", "playlistend": limit},
     )
     entries = info.get("entries") or []
     name = info.get("uploader") or info.get("channel") or info.get("playlist_title") or "Unknown"
@@ -217,7 +148,7 @@ async def get_artist_uploads(url: str, limit: int = 20) -> dict:
         if video_url:
             info = await _extract(
                 video_url,
-                {**_base_params(), "extract_flat": "in_playlist", "playlistend": limit},
+                {"extract_flat": "in_playlist", "playlistend": limit},
             )
             entries = info.get("entries") or []
 
@@ -233,8 +164,7 @@ async def download_audio(url_or_id: str) -> str:
     cache = Path(settings.cache_dir)
     cache.mkdir(parents=True, exist_ok=True)
 
-    info_params = {**_base_params()}
-    info = await _extract(url_or_id, info_params)
+    info = await _extract(url_or_id)
     video_id = info.get("id", url_or_id)
     ext = "mp3"
     dest = cache / f"{video_id}.{ext}"
@@ -245,23 +175,21 @@ async def download_audio(url_or_id: str) -> str:
 
     logger.info("Downloading audio for %s", video_id)
 
-    async with _pool_semaphore:
-        loop = asyncio.get_running_loop()
+    loop = asyncio.get_running_loop()
 
-        def _dl():
-            dl_params = {
-                "quiet": True,
-                "no_warnings": True,
-                "format": "bestaudio/best",
-                "outtmpl": str(cache / "%(id)s.%(ext)s"),
-                "postprocessors": [{
-                    "key": "FFmpegExtractAudio",
-                    "preferredcodec": ext,
-                }],
-            }
-            with YoutubeDL(dl_params) as ydl:
-                ydl.download([url_or_id])
+    def _dl():
+        dl_params = {
+            "quiet": True,
+            "no_warnings": True,
+            "format": "bestaudio/best",
+            "outtmpl": str(cache / "%(id)s.%(ext)s"),
+            "postprocessors": [{
+                "key": "FFmpegExtractAudio",
+                "preferredcodec": ext,
+            }],
+        }
+        with YoutubeDL(dl_params) as ydl:
+            ydl.download([url_or_id])
 
-        await loop.run_in_executor(_executor, _dl)
-
+    await loop.run_in_executor(None, _dl)
     return str(dest)
