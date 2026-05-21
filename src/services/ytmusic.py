@@ -104,6 +104,63 @@ def _normalize_playlist(r: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _normalize_artist_search(r: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "id": r.get("browseId"),
+        "name": r.get("artist", "Unknown"),
+        "subscribers": r.get("subscriberCount"),
+        "thumbnails": r.get("thumbnails", []),
+        "thumbnail": (r.get("thumbnails") or [{}])[0].get("url", ""),
+    }
+
+
+async def unified_search(query: str, limit: int = 10) -> list[dict[str, Any]]:
+    from src.services.scoring import score_result
+
+    internal_limit = limit * 2
+    loop = asyncio.get_running_loop()
+
+    def _search(f: str, lim: int) -> list[dict[str, Any]]:
+        return _get_client().search(query, filter=f, limit=lim)
+
+    songs_raw, albums_raw, artists_raw, playlists_raw = await asyncio.gather(
+        loop.run_in_executor(_executor, lambda: _search("songs", internal_limit)),
+        loop.run_in_executor(_executor, lambda: _search("albums", internal_limit)),
+        loop.run_in_executor(_executor, lambda: _search("artists", internal_limit)),
+        loop.run_in_executor(_executor, lambda: _search("playlists", internal_limit)),
+    )
+
+    results: list[dict[str, Any]] = []
+
+    for s in songs_raw:
+        item = _normalize_song(s)
+        item["type"] = "song"
+        item["score"] = score_result(query, item["title"], item.get("artist", ""), "song")
+        results.append(item)
+
+    for a in albums_raw:
+        item = _normalize_album_search(a)
+        item["type"] = "album"
+        item["score"] = score_result(query, item["title"], (item.get("artists") or [None])[0] or "", "album")
+        results.append(item)
+
+    for a in artists_raw:
+        item = _normalize_artist_search(a)
+        item["type"] = "artist"
+        item["title"] = item["name"]
+        item["score"] = score_result(query, item["name"], "", "artist")
+        results.append(item)
+
+    for p in playlists_raw:
+        item = _normalize_playlist(p)
+        item["type"] = "playlist"
+        item["score"] = score_result(query, item["title"], item.get("author") or "", "playlist")
+        results.append(item)
+
+    results.sort(key=lambda r: r.get("score", 0), reverse=True)
+    return results[:limit]
+
+
 async def get_album(browse_id: str) -> dict[str, Any]:
     loop = asyncio.get_running_loop()
     return await loop.run_in_executor(
