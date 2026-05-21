@@ -62,6 +62,9 @@ jobs:
       - name: Install JS deps
         run: bun install
 
+      - name: Generate icons
+        run: bun run tauri icon src-tauri/ethos-cat.png
+
       - name: Build frontend
         run: bun run build
 
@@ -106,6 +109,9 @@ jobs:
 
       - name: Install JS deps
         run: bun install
+
+      - name: Generate icons
+        run: bun run tauri icon src-tauri/ethos-cat.png
 
       - name: Build frontend
         run: bun run build
@@ -158,6 +164,9 @@ jobs:
 
       - name: Install JS deps
         run: bun install
+
+      - name: Generate icons
+        run: bun run tauri icon src-tauri/ethos-cat.png
 
       - name: Build frontend
         run: bun run build
