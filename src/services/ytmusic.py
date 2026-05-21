@@ -58,6 +58,29 @@ def _normalize_song(r: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+async def search_playlists(query: str, limit: int = 10) -> list[dict[str, Any]]:
+    loop = asyncio.get_running_loop()
+    raw = await loop.run_in_executor(
+        _executor,
+        lambda: _get_client().search(query, filter="playlists", limit=limit),
+    )
+    return [_normalize_playlist(r) for r in raw]
+
+
+def _normalize_playlist(r: dict[str, Any]) -> dict[str, Any]:
+    bid = r.get("browseId", "")
+    playlist_id = bid.removeprefix("VL") if bid else ""
+    return {
+        "id": playlist_id,
+        "title": r.get("title", "Unknown"),
+        "author": r.get("author"),
+        "itemCount": r.get("itemCount"),
+        "thumbnail": (r.get("thumbnails") or [{}])[0].get("url", ""),
+        "url": f"https://music.youtube.com/playlist?list={playlist_id}" if playlist_id else None,
+        "browseId": bid,
+    }
+
+
 async def get_album(browse_id: str) -> dict[str, Any]:
     loop = asyncio.get_running_loop()
     return await loop.run_in_executor(

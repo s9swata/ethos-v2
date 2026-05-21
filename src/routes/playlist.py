@@ -5,8 +5,22 @@ from fastapi.responses import JSONResponse
 
 from src.logger import logger
 from src.services.ytdlp import get_playlist, get_artist_uploads
+from src.services.ytmusic import search_playlists
 
 router = APIRouter(tags=["Playlist"])
+
+
+@router.get(
+    "/api/playlist/search",
+    summary="Search playlists by name (ytmusicapi)",
+    description="Search YouTube Music for playlists matching a query. Returns structured playlist results with IDs that can be used with /api/playlist.",
+)
+async def playlist_search(q: str = Query(..., description="Search query"), limit: int = Query(default=10, ge=1, le=50, description="Number of results")):
+    if not q or not q.strip():
+        return JSONResponse(status_code=400, content={"error": "Query is required"})
+    logger.info("Playlist search: q=%s limit=%d", q, limit)
+    results = await search_playlists(q, limit)
+    return {"results": results, "count": len(results), "query": q}
 
 
 @router.get(
