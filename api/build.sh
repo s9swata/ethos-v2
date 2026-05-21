@@ -29,11 +29,19 @@ echo "  → Target: $TRIPLE"
 # ── Venv ──────────────────────────────────────────────────────────
 if [ ! -d "$VENV_DIR" ]; then
   echo "=== Creating venv ==="
-  "$PYTHON" -m venv "$VENV_DIR"
+  "$PYTHON" -m venv "$VENV_DIR" 2>/dev/null || "$PYTHON" -m venv "$VENV_DIR" --without-pip 2>/dev/null || true
 fi
-source "$VENV_DIR/bin/activate"
+
 if [[ "$PLATFORM" =~ MINGW|CYGWIN|MSYS ]]; then
-  source "$VENV_DIR/Scripts/activate"
+  ACTIVATE="$VENV_DIR/Scripts/activate"
+else
+  ACTIVATE="$VENV_DIR/bin/activate"
+fi
+
+if [ -f "$ACTIVATE" ]; then
+  source "$ACTIVATE"
+else
+  echo "  → WARNING: venv activate not found at $ACTIVATE, continuing without venv"
 fi
 
 echo "=== Installing deps ==="
@@ -45,13 +53,20 @@ echo "=== Building sidecar-$TRIPLE ==="
 pyinstaller main.py \
   --name "sidecar-$TRIPLE" \
   --onefile \
-  --distpath "$BINARIES_DIR" \
+  --distpath "target" \
+  --workpath "build" \
   --clean --noconfirm \
   --collect-all yt_dlp \
   --collect-all ytmusicapi \
   --hidden-import uvicorn.logging \
   --hidden-import uvicorn.loops.auto \
   --hidden-import uvicorn.protocols.http.auto \
+  --hidden-import fastapi \
+  --hidden-import starlette \
+  --hidden-import pydantic \
+  --hidden-import anyio \
+  --hidden-import h11 \
+  --hidden-import sniffio \
   --exclude-module tkinter \
   --exclude-module unittest \
   --exclude-module xmlrpc \
@@ -61,12 +76,8 @@ pyinstaller main.py \
   --exclude-module ensurepip \
   2>&1
 
-BINARY="$BINARIES_DIR/sidecar-$TRIPLE"
-if [ -f "$BINARY" ]; then
-  echo "  → $BINARY ($(du -h "$BINARY" | cut -f1))"
-else
-  echo "  → Build failed: $BINARY not found"
-  exit 1
-fi
+cp "target/sidecar-$TRIPLE" "$BINARIES_DIR/sidecar-$TRIPLE"
+rm -rf target build "sidecar-$TRIPLE.spec"
+echo "  → $BINARIES_DIR/sidecar-$TRIPLE ($(du -h "$BINARIES_DIR/sidecar-$TRIPLE" | cut -f1))"
 
 echo "=== Done ==="
