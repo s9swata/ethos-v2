@@ -36,6 +36,8 @@ export const config = {
 
   maxQueryLength: envInt("MAX_QUERY_LENGTH", 200),
 
-  ytDlpExtractorArgs: env("YT_DLP_EXTRACTOR_ARGS", "youtube:player_client=android"),
   ytDlpCookiesFile: env("YT_DLP_COOKIES_FILE", ""),
+
+  // Ordered list of YouTube clients to rotate through on rate-limit
+  ytDlpClients: env("YT_DLP_CLIENTS", "android,ios,tv,web"),
 };

@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { stat, createReadStream } from "node:fs";
 import { promisify } from "node:util";
-import { getStreamUrl, getInfo, downloadAudio } from "../services/ytdlp.js";
+import { getStreamUrl, getDesktopStreamUrl, getInfo, downloadAudio } from "../services/ytdlp.js";
 import { validateTrackId } from "../services/validate.js";
 import { logger } from "../logger.js";
 
@@ -33,6 +33,23 @@ export async function streamRoutes(app: FastifyInstance) {
       }
 
       const url = await getStreamUrl(id);
+      return reply.redirect(url);
+    },
+  );
+
+  /* Returns an HLS m3u8 manifest — ideal for desktop browsers and web players
+   * that natively support HLS streaming. Uses player_skip=webpage,configs
+   * internally to reduce YouTube fingerprinting. */
+  app.get<{ Params: { id: string } }>(
+    "/api/stream/:id/desktop",
+    async (req, reply) => {
+      const { id } = req.params;
+      const validation = validateTrackId(id);
+      if (!validation.valid) {
+        return reply.status(400).send({ error: validation.reason });
+      }
+      logger.info({ id }, "Desktop stream request");
+      const url = await getDesktopStreamUrl(id);
       return reply.redirect(url);
     },
   );
