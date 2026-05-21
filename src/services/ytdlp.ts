@@ -146,12 +146,12 @@ async function execYtDlpWithRotation(
   throw new YtDlpError("All YouTube clients exhausted", null, "");
 }
 
-function parseSearchLine(raw: string): TrackResult {
+function parseSearchLine(raw: string, fallbackArtist?: string): TrackResult {
   const j = JSON.parse(raw);
   return {
     id: j.id,
     title: j.title ?? "Unknown",
-    artist: j.uploader ?? j.channel ?? "Unknown",
+    artist: j.uploader ?? j.channel ?? j.playlist_uploader ?? fallbackArtist ?? "Unknown",
     duration: j.duration ?? 0,
     url: j.url ?? j.webpage_url,
     thumbnail: j.thumbnail ?? "",
@@ -166,7 +166,7 @@ export async function search(query: string, limit = 10): Promise<TrackResult[]> 
     "--no-playlist",
     "--flat-playlist",
   ]);
-  return out.split("\n").filter(Boolean).map(parseSearchLine);
+  return out.split("\n").filter(Boolean).map((l) => parseSearchLine(l));
 }
 
 export async function getInfo(urlOrId: string): Promise<TrackInfo> {
@@ -211,6 +211,55 @@ export async function getDesktopStreamUrl(urlOrId: string): Promise<string> {
     ["-g", "-f", "bestaudio/best", urlOrId],
     true,
   );
+}
+
+/**
+ * Resolves a playlist URL and returns all tracks.
+ * Uses --flat-playlist for fast metadata-only extraction.
+ */
+export async function getPlaylist(url: string): Promise<{ title?: string; tracks: TrackResult[] }> {
+  const raw = await execYtDlp([
+    url,
+    "--dump-json",
+    "--flat-playlist",
+    "--playlist-end", "100",
+    "--no-download",
+  ]);
+
+  const lines = raw.split("\n").filter(Boolean);
+  const first = lines.length > 0 ? JSON.parse(lines[0]) : {};
+  const playlistTitle = first.playlist_title || first.chapter || undefined;
+  const playlistUploader = first.playlist_uploader || first.uploader || undefined;
+
+  const tracks = lines.map((l) => parseSearchLine(l, playlistUploader));
+  return { title: playlistTitle, tracks };
+}
+
+/**
+ * Returns the latest uploads from a channel/artist URL.
+ * Accepts youtube.com/@handle, /channel/UC..., or /c/... URLs.
+ */
+export async function getArtistUploads(
+  url: string,
+  limit = 20,
+): Promise<{ name?: string; tracks: TrackResult[] }> {
+  const raw = await execYtDlp([
+    url,
+    "--dump-json",
+    "--flat-playlist",
+    "--playlist-end", String(limit),
+    "--no-download",
+  ]);
+
+  const lines = raw.split("\n").filter(Boolean);
+  const first = lines.length > 0 ? JSON.parse(lines[0]) : {};
+  const name = first.uploader || first.channel || first.playlist_title || undefined;
+
+  // Strip " - Videos" / " - Uploads" suffix from channel title for a cleaner name
+  const cleanName = name?.replace(/ - (Videos|Uploads|Live)$/, "");
+
+  const tracks = lines.map((l) => parseSearchLine(l, cleanName));
+  return { name: cleanName, tracks };
 }
 
 async function ensureCacheDir(): Promise<void> {

@@ -12,11 +12,15 @@ Music streaming API powered by [yt-dlp](https://github.com/yt-dlp/yt-dlp). Accep
 | `GET` | `/api/stream/{id}` | Redirect to progressive MP4 audio URL |
 | `GET` | `/api/stream/{id}/desktop` | Redirect to HLS m3u8 manifest |
 | `GET` | `/api/stream/{id}?download=true` | Download cached MP3 file |
+| `GET` | `/api/playlist?url={url}&limit=100` | Resolve playlist URL into tracks |
+| `GET` | `/api/artist?url={url}&limit=20` | Channel uploads by handle or channel ID |
 
 ### Stream behaviour
 
 - Standard (`/api/stream/:id`) redirects to a progressive MP4 — works in `<audio>` tags, mobile, VLC
 - Desktop (`/api/stream/:id/desktop`) redirects to an HLS m3u8 — lighter on YouTube's side, ideal for web players that support HLS natively
+- Playlist (`/api/playlist?url=...`) accepts any YouTube playlist, channel, or mix URL
+- Artist (`/api/artist?url=...`) accepts `@handle`, `/channel/UC...`, `/c/...` URLs
 
 ## Quick start
 
