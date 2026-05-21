@@ -11,14 +11,16 @@ ARCH="$(uname -m)"
 echo "=== Platform: $PLATFORM $ARCH ==="
 
 # ── Python discovery ──────────────────────────────────────────────
-if command -v python3 &>/dev/null; then
-  PYTHON=python3
-elif command -v python &>/dev/null; then
-  PYTHON=python
-else
-  echo "Python 3 is required"
-  exit 1
-fi
+for c in \
+  "/Library/Frameworks/Python.framework/Versions/3.12/bin/python3" \
+  "python3.12" "python3.11" "python3" "python"; do
+  if [ -x "$c" ] || (command -v "$c" &>/dev/null); then
+    PYTHON="$c"
+    break
+  fi
+done
+if [ -z "${PYTHON:-}" ]; then echo "Python 3 required"; exit 1; fi
+echo "  → Using: $("$PYTHON" --version 2>&1)"
 
 # ── Virtual environment ───────────────────────────────────────────
 if [ ! -d "$VENV_DIR" ]; then

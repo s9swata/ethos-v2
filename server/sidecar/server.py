@@ -7,13 +7,20 @@ import sys
 import urllib.parse
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
-from ytmusicapi import YTMusic
 
 HOST = os.environ.get("ETHOS_HOST", "127.0.0.1")
 PORT = int(os.environ.get("ETHOS_PORT", "7860"))
 
-_ytmusic = YTMusic()
 _ytdlp_path: str | None = None
+_ytmusic_instance = None
+
+
+def get_ytmusic():
+    global _ytmusic_instance
+    if _ytmusic_instance is None:
+        from ytmusicapi import YTMusic
+        _ytmusic_instance = YTMusic()
+    return _ytmusic_instance
 
 
 def find_ytdlp() -> str | None:
@@ -60,7 +67,7 @@ class Handler(BaseHTTPRequestHandler):
                 limit = int(params.get("limit", 20))
                 if not q:
                     return self._error("Query is required")
-                raw = _ytmusic.search(q, limit=limit * 2)
+                raw = get_ytmusic().search(q, limit=limit * 2)
                 results = _to_unified(raw, q)
                 results.sort(key=lambda r: r.get("score", 0), reverse=True)
                 return self._send({"query": q, "results": results[:limit]})
@@ -70,7 +77,7 @@ class Handler(BaseHTTPRequestHandler):
                 limit = int(params.get("limit", 5))
                 if not q:
                     return self._error("Query is required")
-                raw = _ytmusic.search(q, filter="artists", limit=limit)
+                raw = get_ytmusic().search(q, filter="artists", limit=limit)
                 return self._send({
                     "results": [_normalize_artist(r) for r in raw],
                     "count": len(raw),
@@ -79,12 +86,12 @@ class Handler(BaseHTTPRequestHandler):
 
             m = re.match(r"^/api/artist/(.+)$", path)
             if m:
-                info = _ytmusic.get_artist(m.group(1))
+                info = get_ytmusic().get_artist(m.group(1))
                 return self._send(_serialize_artist(info))
 
             m = re.match(r"^/api/album/(.+)$", path)
             if m:
-                info = _ytmusic.get_album(m.group(1))
+                info = get_ytmusic().get_album(m.group(1))
                 return self._send(_serialize_album(info))
 
             m = re.match(r"^/api/tracks/(.+)$", path)
@@ -276,7 +283,15 @@ def _serialize_album(info: dict) -> dict:
 
 
 def main():
-    server = HTTPServer((HOST, PORT), Handler)
+    import sys
+    try:
+        server = HTTPServer((HOST, PORT), Handler)
+    except Exception as e:
+        with open("/tmp/ethos-server-error.log", "w") as f:
+            f.write(f"Failed to start: {e}\n")
+        return
+    with open("/tmp/ethos-server-error.log", "w") as f:
+        f.write(f"Listening on {HOST}:{PORT}\n")
     server.serve_forever()
 
 

@@ -5,12 +5,25 @@ from pathlib import Path
 
 OUTPUT = Path(".") / "target"
 
+YTAPI = "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/ytmusicapi"
 a = Analysis(
     ["server.py"],
-    pathex=[],
+    pathex=[YTAPI],
     binaries=[],
     datas=[],
-    hiddenimports=["ytmusicapi"],
+    hiddenimports=[
+        "ytmusicapi",
+        "ytmusicapi.auth",
+        "ytmusicapi.parsers",
+        "ytmusicapi.mixins",
+        "ytmusicapi.mixins.search",
+        "ytmusicapi.mixins.artists",
+        "ytmusicapi.mixins.albums",
+        "ytmusicapi.mixins.browsing",
+        "ytmusicapi.mixins.library",
+        "ytmusicapi.mixins.uploads",
+        "ytmusicapi.mixins.watch",
+    ],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
@@ -27,6 +40,9 @@ a = Analysis(
     noarchive=False,
 )
 
+ytapi_datas = Tree(YTAPI + "/locales", prefix="ytmusicapi/locales")
+a.datas += ytapi_datas
+
 pyz = PYZ(a.pure)
 
 exe = EXE(
@@ -42,7 +58,7 @@ exe = EXE(
     upx=True,
     upx_exclude=[],
     runtime_tmpdir=None,
-    console=False,
+    console=True,
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
