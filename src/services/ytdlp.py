@@ -105,6 +105,9 @@ def _base_params() -> dict[str, Any]:
     }
     if settings.yt_dlp_cookies_path:
         params["cookiefile"] = settings.yt_dlp_cookies_path
+    proxy = _pick_proxy()
+    if proxy:
+        params["proxy"] = proxy
     return params
 
 
@@ -271,8 +274,9 @@ async def download_audio(url_or_id: str) -> str:
             "outtmpl": str(cache / "%(id)s.%(ext)s"),
             "impersonate": ImpersonateTarget("chrome"),
         }
-        if settings.yt_dlp_proxy:
-            dl_params["proxy"] = settings.yt_dlp_proxy
+        proxy = _pick_proxy()
+        if proxy:
+            dl_params["proxy"] = proxy
         dl_params["postprocessors"] = [{
             "key": "FFmpegExtractAudio",
             "preferredcodec": ext,
