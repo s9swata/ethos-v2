@@ -16,8 +16,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
-COPY src/ ./src/
-COPY cookies.txt* ./
+COPY server/src/ ./src/
+COPY server/cookies.txt* ./
 
 RUN mkdir -p /data/cache
 

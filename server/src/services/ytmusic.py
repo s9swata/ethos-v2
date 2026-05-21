@@ -10,6 +10,12 @@ from src.services.cache import cache_result
 _ytmusic: YTMusic | None = None
 
 
+def _best_thumb(thumbnails: list[dict[str, Any]] | None) -> str:
+    if not thumbnails:
+        return ""
+    return thumbnails[-1].get("url", "")
+
+
 def _get_client() -> YTMusic:
     global _ytmusic
     if _ytmusic is None:
@@ -56,7 +62,7 @@ def _normalize_song(r: dict[str, Any]) -> dict[str, Any]:
         "artists": artists,
         "album": album.get("name") if album else None,
         "duration": r.get("duration"),
-        "thumbnail": (r.get("thumbnails") or [{}])[0].get("url", ""),
+        "thumbnail": _best_thumb(r.get("thumbnails")),
         "webpageUrl": f"https://music.youtube.com/watch?v={r.get('videoId')}",
         "isExplicit": r.get("isExplicit", False),
     }
@@ -82,7 +88,7 @@ def _normalize_album_search(r: dict[str, Any]) -> dict[str, Any]:
         "artistIds": [a.get("id") for a in r.get("artists", []) if a.get("id")],
         "isExplicit": r.get("isExplicit", False),
         "playlistId": r.get("playlistId"),
-        "thumbnail": (r.get("thumbnails") or [{}])[0].get("url", ""),
+        "thumbnail": _best_thumb(r.get("thumbnails")),
     }
 
 
@@ -104,7 +110,7 @@ def _normalize_playlist(r: dict[str, Any]) -> dict[str, Any]:
         "name": r.get("title", "Unknown"),
         "author": r.get("author"),
         "itemCount": r.get("itemCount"),
-        "thumbnail": (r.get("thumbnails") or [{}])[0].get("url", ""),
+        "thumbnail": _best_thumb(r.get("thumbnails")),
         "url": f"https://music.youtube.com/playlist?list={playlist_id}" if playlist_id else None,
         "browseId": bid,
     }
@@ -116,7 +122,7 @@ def _normalize_artist_search(r: dict[str, Any]) -> dict[str, Any]:
         "name": r.get("artist", "Unknown"),
         "subscribers": r.get("subscriberCount"),
         "thumbnails": r.get("thumbnails", []),
-        "thumbnail": (r.get("thumbnails") or [{}])[0].get("url", ""),
+        "thumbnail": _best_thumb(r.get("thumbnails")),
     }
 
 
@@ -127,7 +133,7 @@ def _to_unified(raw: dict[str, Any], category: str) -> dict[str, Any]:
         return {
             "name": raw.get("title", "Unknown"),
             "type": "track",
-            "imageUrl": (raw.get("thumbnails") or [{}])[0].get("url", ""),
+            "imageUrl": _best_thumb(raw.get("thumbnails")),
             "id": raw.get("videoId"),
             "artists": artists,
             "album": album.get("name") if album else None,
@@ -141,7 +147,7 @@ def _to_unified(raw: dict[str, Any], category: str) -> dict[str, Any]:
         return {
             "name": raw.get("title", "Unknown"),
             "type": "album",
-            "imageUrl": (raw.get("thumbnails") or [{}])[0].get("url", ""),
+            "imageUrl": _best_thumb(raw.get("thumbnails")),
             "id": raw.get("browseId"),
             "artists": artists,
             "album": None,
@@ -154,7 +160,7 @@ def _to_unified(raw: dict[str, Any], category: str) -> dict[str, Any]:
         return {
             "name": raw.get("artist", "Unknown"),
             "type": "artist",
-            "imageUrl": (raw.get("thumbnails") or [{}])[0].get("url", ""),
+            "imageUrl": _best_thumb(raw.get("thumbnails")),
             "id": raw.get("browseId"),
             "artists": [],
             "album": None,
@@ -168,7 +174,7 @@ def _to_unified(raw: dict[str, Any], category: str) -> dict[str, Any]:
     return {
         "name": raw.get("title", "Unknown"),
         "type": "playlist",
-        "imageUrl": (raw.get("thumbnails") or [{}])[0].get("url", ""),
+        "imageUrl": _best_thumb(raw.get("thumbnails")),
         "id": playlist_id,
         "artists": [],
         "album": None,

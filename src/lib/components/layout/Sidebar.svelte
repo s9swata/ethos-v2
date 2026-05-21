@@ -1,0 +1,122 @@
+<script lang="ts">
+  import { nav } from "$lib/stores/navigation.svelte";
+  import { player } from "$lib/stores/player.svelte";
+  import { upscaleThumbnail } from "$lib/utils";
+  import ApiSettings from "../settings/ApiSettings.svelte";
+  import type { Page } from "$lib/types";
+
+  let showSettings = $state(false);
+
+  type NavItem = { id: Page; label: string; icon: string };
+
+  const navItems: NavItem[] = [
+    {
+      id: "search",
+      label: "Search",
+      icon: `<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>`,
+    },
+    {
+      id: "library",
+      label: "Library",
+      icon: `<path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>`,
+    },
+  ];
+</script>
+
+<nav class="w-60 shrink-0 flex flex-col select-none border-r border-white/[0.05]" style="background: #0a0a0a;">
+  <!-- Logo -->
+  <div class="px-5 pt-6 pb-5">
+    <div class="flex items-center gap-2.5">
+      <div class="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style="background: linear-gradient(135deg, #ff2a3b 0%, #c0152a 100%); box-shadow: 0 2px 8px rgba(255,42,59,0.4);">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="white">
+          <path d="M9 18V5l12-2v13" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          <circle cx="6" cy="18" r="3" fill="white"/>
+          <circle cx="18" cy="16" r="3" fill="white"/>
+        </svg>
+      </div>
+      <span class="text-[15px] font-semibold tracking-tight text-text-primary">ethos</span>
+    </div>
+  </div>
+
+  <!-- Nav Items -->
+  <div class="px-2 flex flex-col gap-0.5">
+    {#each navItems as item}
+      {@const isActive = nav.currentPage === item.id}
+      <button
+        onclick={() => nav.navigate(item.id)}
+        class="relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150"
+        class:text-text-primary={isActive}
+        class:text-text-secondary={!isActive}
+        style={isActive ? "background: rgba(255,255,255,0.07);" : ""}
+      >
+        {#if isActive}
+          <span class="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-r-full bg-accent"></span>
+        {/if}
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="17"
+          height="17"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.75"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          class="shrink-0 {isActive ? 'text-accent' : ''}"
+        >
+          {@html item.icon}
+        </svg>
+        {item.label}
+      </button>
+    {/each}
+  </div>
+
+  <!-- Divider -->
+  <div class="mx-4 mt-5 mb-4 h-px bg-white/[0.05]"></div>
+
+  <!-- Now Playing card -->
+  <div class="mx-2 px-3 py-3 rounded-xl min-h-[64px]" style="background: rgba(255,255,255,0.04);">
+    {#if player.currentTrack}
+      <div class="text-[10px] uppercase tracking-widest text-text-tertiary font-semibold mb-2">Now Playing</div>
+      <div class="flex items-center gap-2.5">
+        <img
+          src={upscaleThumbnail(player.currentTrack.thumbnail, 120)}
+          alt={player.currentTrack.title}
+          class="w-9 h-9 rounded-lg object-cover shrink-0"
+          style="box-shadow: 0 2px 8px rgba(0,0,0,0.5);"
+        />
+        <div class="min-w-0">
+          <div class="text-xs font-medium truncate leading-snug text-text-primary">{player.currentTrack.title}</div>
+          <div class="text-[11px] text-text-tertiary truncate mt-0.5">{player.currentTrack.artist}</div>
+        </div>
+      </div>
+    {:else}
+      <div class="text-[10px] uppercase tracking-widest text-text-tertiary font-semibold mb-2">Now Playing</div>
+      <div class="flex items-center gap-2.5">
+        <div class="w-9 h-9 rounded-lg shrink-0 skeleton"></div>
+        <div class="flex-1 space-y-1.5">
+          <div class="h-2.5 skeleton rounded w-4/5"></div>
+          <div class="h-2 skeleton rounded w-3/5"></div>
+        </div>
+      </div>
+    {/if}
+  </div>
+
+  <!-- Settings -->
+  <div class="mt-auto px-2 pb-4">
+    <button
+      onclick={() => (showSettings = true)}
+      class="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm font-medium text-text-tertiary hover:text-text-secondary hover:bg-white/[0.05] transition-all duration-150"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3" />
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1.02 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1.02H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1.02-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1.02 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1.02H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1.02z" />
+      </svg>
+      Settings
+    </button>
+  </div>
+</nav>
+
+{#if showSettings}
+  <ApiSettings onclose={() => (showSettings = false)} />
+{/if}

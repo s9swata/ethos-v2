@@ -1,8 +1,14 @@
 node_modules/
 dist/
-cache/
-.env
-*.log
-__pycache__/
-cookies.txt
+target/
 .DS_Store
+*.local
+src-tauri/icons/
+
+# server
+server/cache/
+server/.env
+server/cookies.txt
+server/ethos.service
+server/__pycache__/
+server/src/__pycache__/

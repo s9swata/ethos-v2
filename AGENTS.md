@@ -1,56 +1,101 @@
-# ethos-api — Agent Guide
+# ethos — Agent Guide
 
-## Architecture
+## Project structure
+
+```
+├── server/
+│   ├── src/              # Python FastAPI (routes/, services/, middleware/)
+│   ├── Dockerfile
+│   ├── pyproject.toml
+│   └── render.yaml
+├── src/                   # Svelte 5 desktop client (Vite + Tailwind)
+├── src-tauri/             # Tauri v2 Rust backend
+├── package.json
+├── vite.config.ts
+└── svelte.config.js
+```
+
+## Server — `/server/`
 
 Python FastAPI server using two services for media resolution:
 
 - **`yt_dlp` library** — in-process Python library (`from yt_dlp import YoutubeDL`) for stream URL extraction, download, and general YouTube playlist/channel extraction. Runs in `ThreadPoolExecutor` behind an `asyncio.Semaphore`.
 - **`ytmusicapi`** — in-process Python library for structured YouTube Music data (song/album/artist/playlist search, artist profiles, album tracks). Runs in a separate `ThreadPoolExecutor`.
 
-## Key decisions
+### Key decisions
 
-- **`src/services/ytdlp.py`** — yt-dlp via `YoutubeDL.extract_info()`. Client rotation on 429 via `extractor_args`. Functions: `get_info`, `get_playlist`, `get_artist_uploads`. No `search` — migrated to ytmusicapi.
-- **`src/services/ytmusic.py`** — wraps `ytmusicapi` in `ThreadPoolExecutor`. Functions: `search_songs`, `search_albums`, `search_artists`, `search_playlists`, `unified_search`, `get_artist`, `get_album`. Single shared `YTMusic` client singleton.
-- **`src/services/scoring.py`** — relevance scoring for unified search. Text matching (exact→starts→contains→difflib) + subtitle bonus + category boost (track=+15, album/artist=+5, playlist=0).
-- **`src/services/validate.py`** — input sanitization (query length, suspicious character blocking).
+- **`server/src/services/ytdlp.py`** — yt-dlp via `YoutubeDL.extract_info()`. Client rotation on 429 via `extractor_args`. Functions: `get_info`, `get_playlist`, `get_artist_uploads`. No `search` — migrated to ytmusicapi.
+- **`server/src/services/ytmusic.py`** — wraps `ytmusicapi` in `ThreadPoolExecutor`. Functions: `search_songs`, `search_albums`, `search_artists`, `search_playlists`, `unified_search`, `get_artist`, `get_album`. Single shared `YTMusic` client singleton.
+- **`server/src/services/scoring.py`** — relevance scoring for unified search. Text matching (exact→starts→contains→difflib) + subtitle bonus + category boost (track=+15, album/artist=+5, playlist=0).
+- **`server/src/services/validate.py`** — input sanitization (query length, suspicious character blocking).
 - **Client rotation** — `YT_DLP_CLIENTS` env var defines fallback order (default: android→ios→tv→web). Each client via `player_client` extractor arg.
-
 - **Concurrency** — `asyncio.Semaphore` (max 3 concurrent yt-dlp calls). ytmusicapi `ThreadPoolExecutor` with 2 workers. `asyncio.gather` for parallel search in unified search.
 
-## Endpoints
+### Endpoints
 
 | Endpoint | Service | Response |
 |---|---|---|
-| `GET /api/search?q=&limit=` | ytmusicapi `songs` filter | Structured song results with artists, album, videoId |
-| `GET /api/search-v2?q=&limit=` | ytmusicapi (all 4 filters) | Unified flat results with relevance score (name, type, imageUrl, id, score) |
-| `GET /api/album/search?q=&limit=` | ytmusicapi `albums` filter | Album search results with browseIds |
-| `GET /api/album/:browseId` | ytmusicapi `get_album` | Album details + full track list with videoIds |
+| `GET /api/search?q=&limit=` | ytmusicapi `songs` filter | Structured song results |
+| `GET /api/search-v2?q=&limit=` | ytmusicapi (all 4 filters) | Unified flat results with relevance score |
+| `GET /api/album/search?q=&limit=` | ytmusicapi `albums` filter | Album search results |
+| `GET /api/album/:browseId` | ytmusicapi `get_album` | Album details + full track list |
 | `GET /api/artist/search?q=&limit=` | ytmusicapi `artists` filter | Structured artist search |
 | `GET /api/artist/:browseId` | ytmusicapi `get_artist` | Artist profile + top songs + albums + singles |
 | `GET /api/playlist/search?q=&limit=` | ytmusicapi `playlists` filter | Playlist search results |
 | `GET /api/playlist?url=&limit=` | yt-dlp `extract_info` | Playlist/album track list |
 | `GET /api/artist?url=&limit=` | yt-dlp `extract_info` | Channel uploads (legacy) |
-| `GET /api/tracks/:id` | yt-dlp `extract_info` | Track metadata + available formats + direct stream URL |
+| `GET /api/tracks/:id` | yt-dlp `extract_info` | Track metadata + formats + stream URL |
 
-## Adding a new ytmusicapi feature
+### Adding a new ytmusicapi feature
 
-1. Add function in `src/services/ytmusic.py`
+1. Add function in `server/src/services/ytmusic.py`
 2. Run in `ThreadPoolExecutor` (ytmusicapi is synchronous)
-3. Add route in `src/routes/`
+3. Add route in `server/src/routes/`
 
-## Adding a new search type
+### Adding a new search type
 
 1. Add filter to `_to_unified()` in `ytmusic.py`
 2. Add category key to `CATEGORY_BOOST` in `scoring.py`
 3. Add `loop.run_in_executor` call in `unified_search()` `asyncio.gather`
 
-## Error handling
+### Error handling
 
 - `YtDlpError` (exception from yt-dlp) → 502
 - `YtDlpTimeoutError` (asyncio.TimeoutError) → 504
 - Validation errors → 400
 - All other exceptions → 500 (message stripped)
 
-## Deployment
+### Deployment
 
-Dockerfile installs `python:3.12-slim` + ffmpeg + pip packages. Render Blueprint via `render.yaml`.
+`server/Dockerfile` installs `python:3.12-slim` + ffmpeg + pip packages. Render Blueprint via `server/render.yaml`.
+
+## Desktop Client — root `src/` + `src-tauri/`
+
+Svelte 5 desktop app built with Tauri v2. Uses the ethos API at a configurable URL.
+
+### Tech stack
+
+- **Frontend**: Svelte 5 + Vite + Tailwind CSS v4
+- **Desktop**: Tauri v2 (Rust)
+- **State**: Svelte 5 runes (`$state` in `.svelte.ts` files)
+- **Audio**: HTML5 `<audio>` element
+
+### Key files
+
+- `src/lib/services/api.ts` — API client (fetch, configurable base URL stored in localStorage)
+- `src/lib/stores/player.svelte.ts` — Player state (current track, queue, play/pause)
+- `src/lib/stores/navigation.svelte.ts` — Page routing (search/artist/album)
+- `src/lib/components/layout/PlayerBar.svelte` — Persistent bottom player with `<audio>`
+- `src/lib/components/search/SearchResults.svelte` — Consumes `/api/search-v2`
+- `src/lib/components/artist/ArtistPage.svelte` — Consumes `/api/artist/{browseId}`
+- `src/lib/components/album/AlbumPage.svelte` — Consumes `/api/album/{browseId}`
+
+### Running
+
+```bash
+# Terminal 1 — API server
+bun --cwd server run dev
+
+# Terminal 2 — desktop client
+bun run tauri dev
+```

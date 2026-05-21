@@ -1,0 +1,95 @@
+export interface SearchResult {
+  name: string;
+  type: "track" | "album" | "artist" | "playlist";
+  imageUrl: string;
+  id: string;
+  artists?: string[];
+  album?: string | null;
+  duration?: string;
+  year?: number;
+  isExplicit?: boolean;
+  score: number;
+}
+
+export interface TrackInfo {
+  id: string;
+  title: string;
+  artist: string;
+  duration: number;
+  url: string;
+  thumbnail: string;
+  webpageUrl: string;
+  directUrl: string;
+  formats: AudioFormat[];
+}
+
+export interface AudioFormat {
+  url: string;
+  ext: string;
+  format: string;
+  bitrate: number;
+}
+
+export interface ArtistInfo {
+  name: string;
+  description?: string;
+  subscribers?: string;
+  monthlyListeners?: number;
+  views?: number;
+  channelId?: string;
+  thumbnails: Thumbnail[];
+  topSongs: SongItem[];
+  albums: AlbumItem[];
+  singles: AlbumItem[];
+  related?: unknown[];
+}
+
+export interface AlbumInfo {
+  title: string;
+  type: string;
+  description?: string;
+  year: number;
+  artists: { name: string; id: string }[];
+  thumbnails: Thumbnail[];
+  isExplicit: boolean;
+  trackCount: number;
+  duration: string;
+  durationSeconds: number;
+  audioPlaylistId: string;
+  tracks: TrackItem[];
+}
+
+export interface Thumbnail {
+  url: string;
+  width: number;
+  height: number;
+}
+
+export interface SongItem {
+  videoId: string;
+  title: string;
+  artists: string[];
+  album?: string | null;
+  thumbnails: Thumbnail[];
+  isExplicit: boolean;
+}
+
+export interface AlbumItem {
+  title: string;
+  browseId: string;
+  audioPlaylistId?: string;
+  thumbnails: Thumbnail[];
+  year?: number;
+  isExplicit: boolean;
+}
+
+export interface TrackItem {
+  index: number;
+  title: string;
+  artists: string[];
+  videoId: string;
+  duration: string;
+  isExplicit: boolean;
+}
+
+export type Page = "search" | "artist" | "album" | "library" | "playlist";

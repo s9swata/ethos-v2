@@ -1,0 +1,30 @@
+{
+  "name": "ethos-client",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "tauri": "tauri",
+    "server": "docker build -t ethos-api -f server/Dockerfile . && docker run -p 7860:7860 ethos-api",
+    "start": "bun run server & bun run tauri dev; kill %1 2>/dev/null"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-sql": "^2.4.0",
+    "lucide-svelte": "^1.0.1",
+    "shadcn": "^4.8.0"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^5",
+    "@tauri-apps/cli": "^2",
+    "@tailwindcss/vite": "^4",
+    "svelte": "^5",
+    "svelte-check": "^4",
+    "tailwindcss": "^4",
+    "typescript": "^5.7",
+    "vite": "^6"
+  }
+}
