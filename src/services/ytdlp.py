@@ -29,11 +29,14 @@ class YtDlpTimeoutError(Exception):
 
 
 def _base_params() -> dict[str, Any]:
-    return {
+    params: dict[str, Any] = {
         "quiet": True,
         "no_warnings": True,
         "simulate": True,
     }
+    if settings.yt_dlp_cookies_file:
+        params["cookiefile"] = settings.yt_dlp_cookies_file
+    return params
 
 
 def _client_params(client: str, use_desktop: bool = False) -> dict[str, Any]:
