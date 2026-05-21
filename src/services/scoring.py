@@ -4,7 +4,7 @@ import difflib
 from typing import Any
 
 CATEGORY_BOOST: dict[str, int] = {
-    "song": 15,
+    "track": 15,
     "album": 5,
     "artist": 5,
     "playlist": 0,

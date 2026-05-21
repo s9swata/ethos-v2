@@ -114,6 +114,64 @@ def _normalize_artist_search(r: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _to_unified(raw: dict[str, Any], category: str) -> dict[str, Any]:
+    if category == "track":
+        artists = [a.get("name", "") for a in raw.get("artists", []) if a.get("name")]
+        album = raw.get("album")
+        return {
+            "name": raw.get("title", "Unknown"),
+            "type": "track",
+            "imageUrl": (raw.get("thumbnails") or [{}])[0].get("url", ""),
+            "id": raw.get("videoId"),
+            "artists": artists,
+            "album": album.get("name") if album else None,
+            "duration": raw.get("duration"),
+            "year": None,
+            "isExplicit": raw.get("isExplicit", False),
+        }
+
+    if category == "album":
+        artists = [a.get("name") for a in raw.get("artists", []) if a.get("name")]
+        return {
+            "name": raw.get("title", "Unknown"),
+            "type": "album",
+            "imageUrl": (raw.get("thumbnails") or [{}])[0].get("url", ""),
+            "id": raw.get("browseId"),
+            "artists": artists,
+            "album": None,
+            "duration": None,
+            "year": raw.get("year"),
+            "isExplicit": raw.get("isExplicit", False),
+        }
+
+    if category == "artist":
+        return {
+            "name": raw.get("artist", "Unknown"),
+            "type": "artist",
+            "imageUrl": (raw.get("thumbnails") or [{}])[0].get("url", ""),
+            "id": raw.get("browseId"),
+            "artists": [],
+            "album": None,
+            "duration": None,
+            "year": None,
+            "isExplicit": False,
+        }
+
+    bid = raw.get("browseId", "")
+    playlist_id = bid.removeprefix("VL") if bid else ""
+    return {
+        "name": raw.get("title", "Unknown"),
+        "type": "playlist",
+        "imageUrl": (raw.get("thumbnails") or [{}])[0].get("url", ""),
+        "id": playlist_id,
+        "artists": [],
+        "album": None,
+        "duration": None,
+        "year": None,
+        "isExplicit": False,
+    }
+
+
 async def unified_search(query: str, limit: int = 10) -> list[dict[str, Any]]:
     from src.services.scoring import score_result
 
@@ -133,28 +191,25 @@ async def unified_search(query: str, limit: int = 10) -> list[dict[str, Any]]:
     results: list[dict[str, Any]] = []
 
     for s in songs_raw:
-        item = _normalize_song(s)
-        item["type"] = "song"
-        item["score"] = score_result(query, item["title"], item.get("artist", ""), "song")
+        item = _to_unified(s, "track")
+        subtitle = (item.get("artists") or [None])[0] or ""
+        item["score"] = score_result(query, item["name"], subtitle, "track")
         results.append(item)
 
     for a in albums_raw:
-        item = _normalize_album_search(a)
-        item["type"] = "album"
-        item["score"] = score_result(query, item["title"], (item.get("artists") or [None])[0] or "", "album")
+        item = _to_unified(a, "album")
+        subtitle = (item.get("artists") or [None])[0] or ""
+        item["score"] = score_result(query, item["name"], subtitle, "album")
         results.append(item)
 
     for a in artists_raw:
-        item = _normalize_artist_search(a)
-        item["type"] = "artist"
-        item["title"] = item["name"]
+        item = _to_unified(a, "artist")
         item["score"] = score_result(query, item["name"], "", "artist")
         results.append(item)
 
     for p in playlists_raw:
-        item = _normalize_playlist(p)
-        item["type"] = "playlist"
-        item["score"] = score_result(query, item["title"], item.get("author") or "", "playlist")
+        item = _to_unified(p, "playlist")
+        item["score"] = score_result(query, item["name"], "", "playlist")
         results.append(item)
 
     results.sort(key=lambda r: r.get("score", 0), reverse=True)
