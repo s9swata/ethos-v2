@@ -1,20 +1,18 @@
 @import "tailwindcss";
 
 @theme {
-  --color-surface: #030303;
+  --color-surface: #000000;
   --color-surface-2: #0d0d0d;
-  --color-surface-3: #181818;
+  --color-surface-3: #1a1a1a;
   --color-surface-hover: #242424;
-  --color-surface-glass: rgba(255, 255, 255, 0.06);
+  --color-surface-glass: rgba(255, 255, 255, 0.08);
   --color-accent: #ff2a3b;
   --color-accent-hover: #ff4755;
-  --color-accent-dim: rgba(255, 42, 59, 0.15);
-  --color-error: #f87171;
-  --color-text-primary: #f5f5f5;
-  --color-text-secondary: #a3a3a3;
-  --color-text-tertiary: #525252;
+  --color-text-primary: #ffffff;
+  --color-text-secondary: #a1a1a1;
+  --color-text-tertiary: #6b6b6b;
   --color-border: #1f1f1f;
-  --font-family-sans: 'Inter', -apple-system, BlinkMacSystemFont, "SF Pro", "Helvetica Neue", sans-serif;
+  --font-family-sans: -apple-system, BlinkMacSystemFont, "SF Pro", "Helvetica Neue", sans-serif;
 }
 
 html,
@@ -28,84 +26,65 @@ body {
   font-family: var(--font-family-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
 }
 
-/* ─── Range inputs ──────────────────────────────────────── */
+#app {
+  height: 100%;
+}
 
 input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
-  height: 3px;
+  height: 4px;
   border-radius: 2px;
   outline: none;
   transition: height 0.15s;
 }
 
-input[type="range"]:hover {
-  height: 4px;
-}
-
 input[type="range"]::-webkit-slider-runnable-track {
-  height: 3px;
+  height: 4px;
   border-radius: 2px;
 }
 
 input[type="range"]::-moz-range-track {
-  height: 3px;
+  height: 4px;
   border-radius: 2px;
   background: transparent;
   border: none;
 }
 
 input[type="range"]::-moz-range-thumb {
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
   background: #ffffff;
   cursor: pointer;
   border: none;
-  opacity: 0;
-  transition: opacity 0.15s, transform 0.1s;
-}
-
-.slider-container:hover input[type="range"]::-moz-range-thumb {
-  opacity: 1;
-}
-
-input[type="range"]:hover::-moz-range-thumb {
-  transform: scale(1.15);
 }
 
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
   background: #ffffff;
   cursor: pointer;
   opacity: 0;
-  margin-top: -4.5px;
-  transition: opacity 0.15s, transform 0.1s;
-}
-
-.slider-container:hover input[type="range"]::-webkit-slider-thumb {
-  opacity: 1;
+  margin-top: -5px;
+  transition: opacity 0.15s;
 }
 
 input[type="range"]:hover::-webkit-slider-thumb {
-  transform: scale(1.15);
+  opacity: 1;
 }
 
 input[type="range"]::-webkit-slider-thumb:active {
-  transform: scale(1.2);
+  transform: scale(1.15);
 }
 
-/* ─── Scrollbar ─────────────────────────────────────────── */
-
 ::-webkit-scrollbar {
-  width: 5px;
+  width: 6px;
 }
 
 ::-webkit-scrollbar-track {
@@ -113,19 +92,17 @@ input[type="range"]::-webkit-slider-thumb:active {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.08);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.13);
+  background: rgba(255, 255, 255, 0.15);
 }
 
 ::selection {
   background: rgba(255, 42, 59, 0.3);
 }
-
-/* ─── Heart button ──────────────────────────────────────── */
 
 .heart-btn svg {
   transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
@@ -142,61 +119,8 @@ input[type="range"]::-webkit-slider-thumb:active {
 }
 
 @keyframes heart-pop {
-  0%   { transform: scale(1); }
-  30%  { transform: scale(1.35); }
-  60%  { transform: scale(0.9); }
+  0% { transform: scale(1); }
+  30% { transform: scale(1.35); }
+  60% { transform: scale(0.9); }
   100% { transform: scale(1); }
-}
-
-/* ─── Skeleton shimmer ──────────────────────────────────── */
-
-@keyframes skeleton-shimmer {
-  0%   { background-position: -600px 0; }
-  100% { background-position: 600px 0; }
-}
-
-.skeleton {
-  background: linear-gradient(
-    90deg,
-    var(--color-surface-3) 25%,
-    rgba(255,255,255,0.05) 50%,
-    var(--color-surface-3) 75%
-  );
-  background-size: 1200px 100%;
-  animation: skeleton-shimmer 1.6s ease-in-out infinite;
-  border-radius: 6px;
-}
-
-/* ─── Page fade transition ──────────────────────────────── */
-
-@keyframes page-in {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.page-enter {
-  animation: page-in 0.2s ease-out both;
-}
-
-/* ─── Result row stagger ────────────────────────────────── */
-
-@keyframes row-in {
-  from {
-    opacity: 0;
-    transform: translateY(5px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.row-animate {
-  animation: row-in 0.18s ease-out both;
 }

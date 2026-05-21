@@ -10,7 +10,8 @@
   import { nav } from "$lib/stores/navigation.svelte";
 </script>
 
-<div class="h-screen flex" style="background: var(--color-surface);">
+<div class="h-full flex relative">
+  <div data-tauri-drag-region class="absolute top-0 left-0 right-0 h-9 z-50"></div>
   <Sidebar />
 
   <main class="flex-1 flex flex-col min-w-0 overflow-hidden">

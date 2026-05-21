@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "server": "docker build -t ethos-api -f server/Dockerfile . && docker run -p 7860:7860 ethos-api",
-    "start": "bun run server & bun run tauri dev; kill %1 2>/dev/null"
+    "start": "bun run server & bun run tauri dev; kill %1 2>/dev/null",
+    "check": "svelte-check --tsconfig ./tsconfig.json"
   },
   "dependencies": {
     "@tauri-apps/api": "^2",

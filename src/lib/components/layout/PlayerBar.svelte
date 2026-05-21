@@ -78,12 +78,37 @@
 
   let prevTrackId = $state("");
 
+  function updateMediaSession(): void {
+    if (!("mediaSession" in navigator)) return;
+    const t = player.currentTrack;
+    if (!t) return;
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: t.title,
+      artist: t.artist,
+      album: "",
+      artwork: [{ src: upscaleThumbnail(t.thumbnail, 320), sizes: "320x320", type: "image/jpeg" }],
+    });
+  }
+
   $effect(() => {
     if (!audioEl || !player.currentTrack) return;
     const trackId = player.currentTrack.id;
     if (trackId === prevTrackId) return;
     prevTrackId = trackId;
     audioEl.src = player.currentTrack.url;
+    updateMediaSession();
+  });
+
+  $effect(() => {
+    if (!("mediaSession" in navigator)) return;
+    navigator.mediaSession.setActionHandler("play", () => {
+      if (player.currentTrack) togglePlay();
+    });
+    navigator.mediaSession.setActionHandler("pause", () => {
+      togglePlay();
+    });
+    navigator.mediaSession.setActionHandler("previoustrack", () => playPrev());
+    navigator.mediaSession.setActionHandler("nexttrack", () => playNext());
   });
 
   $effect(() => {
@@ -106,6 +131,8 @@
     ontimeupdate={onTimeUpdate}
     onloadedmetadata={onLoadedMetadata}
     onended={onEnded}
+    onplay={() => setPlaying(true)}
+    onpause={() => setPlaying(false)}
   ></audio>
 
   <div class="h-full flex items-center px-5 gap-4">
