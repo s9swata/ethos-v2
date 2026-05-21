@@ -6,6 +6,8 @@ from typing import Any
 
 from ytmusicapi import YTMusic
 
+from src.services.cache import cache_result
+
 _executor = ThreadPoolExecutor(max_workers=2)
 _ytmusic: YTMusic | None = None
 
@@ -17,6 +19,7 @@ def _get_client() -> YTMusic:
     return _ytmusic
 
 
+@cache_result(ttl=300, namespace="ytmusic")
 async def search_artists(query: str, limit: int = 5) -> list[dict[str, Any]]:
     loop = asyncio.get_running_loop()
     raw = await loop.run_in_executor(
@@ -26,6 +29,7 @@ async def search_artists(query: str, limit: int = 5) -> list[dict[str, Any]]:
     return [_normalize_artist_search(r) for r in raw]
 
 
+@cache_result(ttl=3600, namespace="ytmusic")
 async def get_artist(browse_id: str) -> dict[str, Any]:
     loop = asyncio.get_running_loop()
     return await loop.run_in_executor(
@@ -34,6 +38,7 @@ async def get_artist(browse_id: str) -> dict[str, Any]:
     )
 
 
+@cache_result(ttl=300, namespace="ytmusic")
 async def search_songs(query: str, limit: int = 10) -> list[dict[str, Any]]:
     loop = asyncio.get_running_loop()
     raw = await loop.run_in_executor(
@@ -59,6 +64,7 @@ def _normalize_song(r: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+@cache_result(ttl=300, namespace="ytmusic")
 async def search_albums(query: str, limit: int = 10) -> list[dict[str, Any]]:
     loop = asyncio.get_running_loop()
     raw = await loop.run_in_executor(
@@ -82,6 +88,7 @@ def _normalize_album_search(r: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+@cache_result(ttl=300, namespace="ytmusic")
 async def search_playlists(query: str, limit: int = 10) -> list[dict[str, Any]]:
     loop = asyncio.get_running_loop()
     raw = await loop.run_in_executor(
@@ -173,6 +180,7 @@ def _to_unified(raw: dict[str, Any], category: str) -> dict[str, Any]:
     }
 
 
+@cache_result(ttl=300, namespace="ytmusic")
 async def unified_search(query: str, limit: int = 10) -> list[dict[str, Any]]:
     from src.services.scoring import score_result
 
@@ -217,6 +225,7 @@ async def unified_search(query: str, limit: int = 10) -> list[dict[str, Any]]:
     return results[:limit]
 
 
+@cache_result(ttl=3600, namespace="ytmusic")
 async def get_album(browse_id: str) -> dict[str, Any]:
     loop = asyncio.get_running_loop()
     return await loop.run_in_executor(

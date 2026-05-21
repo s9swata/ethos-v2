@@ -9,6 +9,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     "uvicorn[standard]" \
     pydantic-settings \
     slowapi \
+    diskcache \
   && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -18,7 +19,11 @@ RUN mkdir -p /data/cache
 
 ENV NODE_ENV=production
 ENV CACHE_DIR=/data/cache
+ENV HF_HOME=/data/hf
 
-EXPOSE 3000
+RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app /data
+USER appuser
 
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "3000"]
+EXPOSE 7860
+
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "7860"]

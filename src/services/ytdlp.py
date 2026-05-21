@@ -10,6 +10,7 @@ from yt_dlp import YoutubeDL
 
 from src.config import settings
 from src.logger import logger
+from src.services.cache import cache_result
 
 _pool_semaphore = asyncio.Semaphore(settings.yt_dlp_max_concurrent)
 _executor = ThreadPoolExecutor(max_workers=5)
@@ -99,6 +100,7 @@ async def search(query: str, limit: int = 10) -> list[dict]:
     return [_parse_track(e) for e in info.get("entries", []) if e]
 
 
+@cache_result(ttl=1800, namespace="ytdlp")
 async def get_info(url_or_id: str) -> dict:
     info = await _extract_with_rotation(url_or_id, extra_params={"format": "bestaudio/best"})
     formats = info.get("formats") or []
@@ -180,6 +182,7 @@ async def get_desktop_stream_url(url_or_id: str) -> str:
     return url
 
 
+@cache_result(ttl=1800, namespace="ytdlp")
 async def get_playlist(url: str) -> dict:
     info = await _extract(
         url,
@@ -196,6 +199,7 @@ async def get_playlist(url: str) -> dict:
     return {"title": playlist_title, "tracks": tracks}
 
 
+@cache_result(ttl=1800, namespace="ytdlp")
 async def get_artist_uploads(url: str, limit: int = 20) -> dict:
     info = await _extract(
         url,

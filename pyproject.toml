@@ -10,4 +10,5 @@ dependencies = [
     "slowapi>=0.1.9",
     "yt-dlp>=2026",
     "ytmusicapi>=1.12",
+    "diskcache>=5.6",
 ]

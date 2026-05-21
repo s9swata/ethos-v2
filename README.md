@@ -1,3 +1,12 @@
+---
+title: Ethos API
+emoji: 🎵
+colorFrom: purple
+colorTo: gray
+sdk: docker
+app_port: 7860
+---
+
 # ethos-api
 
 Music streaming API. Uses **yt-dlp** (Python library) for stream URL extraction and **ytmusicapi** for structured music discovery.
