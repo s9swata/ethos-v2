@@ -109,17 +109,60 @@
         <!-- Info -->
         <div class="min-w-0 flex-1">
           <div class="text-sm font-medium truncate text-text-primary group-hover:text-white transition-colors">
-            {result.name}
+            {#if result.type === "track" || result.type === "album"}
+              {result.name}
+            {:else}
+              {result.name}
+            {/if}
           </div>
-          <div class="text-xs text-text-tertiary truncate mt-0.5">
+          <div class="text-xs text-text-tertiary truncate mt-0.5 flex items-center gap-1 flex-wrap">
             {#if result.type === "artist"}
               Artist
-            {:else if result.type === "album"}
-              Album{#if result.artists?.length} • {result.artists.join(", ")}{/if}
             {:else if result.type === "playlist"}
               Playlist
             {:else if result.type === "track"}
-              Song{#if result.artists?.length} • {result.artists.join(", ")}{/if}
+              Song
+              {#if result.artists?.length}
+                <span class="text-text-tertiary/40">&bull;</span>
+                {#each result.artists as artist, ai}
+                  {#if result.artistId}
+                    <button
+                      onclick={(e: MouseEvent) => { e.stopPropagation(); handleArtistClick(result.artistId!); }}
+                      class="hover:text-text-primary transition-colors underline decoration-dotted underline-offset-2 decoration-text-tertiary/30"
+                    >{artist}</button>
+                  {:else}
+                    <span>{artist}</span>
+                  {/if}
+                  {#if ai < result.artists!.length - 1}<span class="text-text-tertiary/40">,</span>{/if}
+                {/each}
+              {/if}
+              {#if result.album}
+                <span class="text-text-tertiary/40">&bull;</span>
+                {#if result.albumId}
+                  <button
+                    onclick={(e: MouseEvent) => { e.stopPropagation(); handleAlbumClick(result.albumId!); }}
+                    class="hover:text-text-primary transition-colors underline decoration-dotted underline-offset-2 decoration-text-tertiary/30"
+                  >{result.album}</button>
+                {:else}
+                  <span>{result.album}</span>
+                {/if}
+              {/if}
+            {:else if result.type === "album"}
+              Album
+              {#if result.artists?.length}
+                <span class="text-text-tertiary/40">&bull;</span>
+                {#each result.artists as artist, ai}
+                  {#if result.artistId}
+                    <button
+                      onclick={(e: MouseEvent) => { e.stopPropagation(); handleArtistClick(result.artistId!); }}
+                      class="hover:text-text-primary transition-colors underline decoration-dotted underline-offset-2 decoration-text-tertiary/30"
+                    >{artist}</button>
+                  {:else}
+                    <span>{artist}</span>
+                  {/if}
+                  {#if ai < result.artists!.length - 1}<span class="text-text-tertiary/40">,</span>{/if}
+                {/each}
+              {/if}
             {/if}
           </div>
         </div>

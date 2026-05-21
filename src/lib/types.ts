@@ -4,7 +4,9 @@ export interface SearchResult {
   imageUrl: string;
   id: string;
   artists?: string[];
+  artistId?: string;
   album?: string | null;
+  albumId?: string;
   duration?: string;
   year?: number;
   isExplicit?: boolean;

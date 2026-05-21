@@ -106,7 +106,10 @@
           <h1 class="text-3xl font-bold tracking-tight mt-1 leading-tight mb-2">{album.title}</h1>
           <div class="flex items-center flex-wrap gap-1.5 text-sm text-text-secondary/80 mb-6">
             {#each album.artists as artist, i}
-              <span class="font-medium text-text-primary">{artist.name}</span>
+              <button
+                onclick={() => nav.navigate("artist", { browseId: artist.id })}
+                class="font-medium text-text-primary hover:underline underline-offset-2 decoration-text-tertiary/30"
+              >{artist.name}</button>
               {#if i < album.artists.length - 1}<span class="opacity-30">,</span>{/if}
             {/each}
             <span class="opacity-30">·</span>

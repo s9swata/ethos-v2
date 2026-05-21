@@ -44,27 +44,34 @@ def search_v2(q: str, limit: int = 20):
 
     results = []
     for r in songs:
-        artists_list = [a.get("name", "") for a in r.get("artists", []) if a.get("name")]
+        raw_artists = r.get("artists") or []
+        artists_list = [a.get("name", "") for a in raw_artists if a.get("name")]
+        first_artist_id = raw_artists[0].get("id") if raw_artists else None
+        raw_album = r.get("album") or {}
         results.append({
             "name": r.get("title", "Unknown"),
             "type": "track",
             "imageUrl": _best_thumb(r.get("thumbnails")),
             "id": r.get("videoId"),
             "artists": artists_list,
-            "album": (r.get("album") or {}).get("name") if r.get("album") else None,
+            "artistId": first_artist_id,
+            "album": raw_album.get("name") if raw_album else None,
+            "albumId": raw_album.get("id") if raw_album else None,
             "duration": r.get("duration"),
             "year": None,
             "isExplicit": r.get("isExplicit", False),
             "score": _score(q, r.get("title", ""), artists_list[0] if artists_list else "", "track"),
         })
     for r in albums:
-        artists_list = [a.get("name") for a in r.get("artists", []) if a.get("name")]
+        raw_artists = r.get("artists") or []
+        artists_list = [a.get("name") for a in raw_artists if a.get("name")]
         results.append({
             "name": r.get("title", "Unknown"),
             "type": "album",
             "imageUrl": _best_thumb(r.get("thumbnails")),
             "id": r.get("browseId"),
             "artists": artists_list,
+            "artistId": raw_artists[0].get("id") if raw_artists else None,
             "album": None,
             "duration": None,
             "year": r.get("year"),
