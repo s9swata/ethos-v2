@@ -6,11 +6,15 @@ from src.logger import logger
 from src.services.validate import validate_query
 from src.services.ytdlp import search
 
-router = APIRouter()
+router = APIRouter(tags=["Search"])
 
 
-@router.get("/api/search")
-async def search_endpoint(q: str = Query(...), limit: int = Query(default=10, ge=1, le=50)):
+@router.get(
+    "/api/search",
+    summary="Search YouTube videos",
+    description="Search YouTube for videos matching a query. Returns flat search results from yt-dlp.",
+)
+async def search_endpoint(q: str = Query(..., description="Search query"), limit: int = Query(default=10, ge=1, le=50, description="Number of results")):
     err = validate_query(q)
     if err:
         from fastapi.responses import JSONResponse

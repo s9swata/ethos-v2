@@ -8,11 +8,15 @@ from fastapi.responses import JSONResponse
 from src.logger import logger
 from src.services.ytmusic import search_artists, get_artist, get_album
 
-router = APIRouter()
+router = APIRouter(tags=["Artists / Albums"])
 
 
-@router.get("/api/artist/search")
-async def artist_search(q: str = Query(...), limit: int = Query(default=5, ge=1, le=20)):
+@router.get(
+    "/api/artist/search",
+    summary="Search artists (ytmusicapi)",
+    description="Structured artist search via YouTube Music API. Returns artists with browseIds for detailed lookup.",
+)
+async def artist_search(q: str = Query(..., description="Artist name to search"), limit: int = Query(default=5, ge=1, le=20, description="Number of results")):
     if not q or not q.strip():
         return JSONResponse(status_code=400, content={"error": "Query is required"})
     logger.info("Artist search: q=%s limit=%d", q, limit)
@@ -20,14 +24,22 @@ async def artist_search(q: str = Query(...), limit: int = Query(default=5, ge=1,
     return {"results": results, "count": len(results), "query": q}
 
 
-@router.get("/api/artist/{browse_id}")
+@router.get(
+    "/api/artist/{browse_id}",
+    summary="Get artist details (ytmusicapi)",
+    description="Get full artist profile: subscriber count, monthly listeners, top songs, albums, and singles.",
+)
 async def artist_detail(browse_id: str):
     logger.info("Artist detail: browseId=%s", browse_id)
     info = await get_artist(browse_id)
     return _serialize_artist(info)
 
 
-@router.get("/api/album/{browse_id}")
+@router.get(
+    "/api/album/{browse_id}",
+    summary="Get album details (ytmusicapi)",
+    description="Get full album track list with videoIds, durations, and metadata via YouTube Music API.",
+)
 async def album_detail(browse_id: str):
     logger.info("Album detail: browseId=%s", browse_id)
     info = await get_album(browse_id)

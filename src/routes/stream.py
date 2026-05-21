@@ -9,10 +9,18 @@ from src.logger import logger
 from src.services.validate import validate_track_id
 from src.services.ytdlp import get_desktop_stream_url, get_stream_url, download_audio
 
-router = APIRouter()
+router = APIRouter(tags=["Stream"])
 
 
-@router.get("/api/stream/{track_id}")
+@router.get(
+    "/api/stream/{track_id}",
+    summary="Stream audio (307 redirect)",
+    description="Get a 307 redirect to a progressive MP4 audio stream URL. Optionally download as MP3.",
+    responses={
+        307: {"description": "Redirect to googlevideo streaming URL"},
+        400: {"description": "Invalid track ID"},
+    },
+)
 async def stream(track_id: str, proxy: bool = False, download: bool = False):
     err = validate_track_id(track_id)
     if err:
@@ -32,7 +40,15 @@ async def stream(track_id: str, proxy: bool = False, download: bool = False):
     return RedirectResponse(url=url)
 
 
-@router.get("/api/stream/{track_id}/desktop")
+@router.get(
+    "/api/stream/{track_id}/desktop",
+    summary="Stream audio via HLS (desktop)",
+    description="Get a 307 redirect to an HLS m3u8 manifest URL. Uses desktop player client for better compatibility.",
+    responses={
+        307: {"description": "Redirect to HLS m3u8 URL"},
+        400: {"description": "Invalid track ID"},
+    },
+)
 async def stream_desktop(track_id: str):
     err = validate_track_id(track_id)
     if err:

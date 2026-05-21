@@ -25,7 +25,13 @@ limiter = Limiter(
     default_limits=[f"{settings.rate_limit_max}/{settings.rate_limit_window_ms // 1000}second"],
 )
 
-app = FastAPI(title="ethos-api", version="1.0.0")
+app = FastAPI(
+    title="ethos-api",
+    description="Music streaming API. yt-dlp for stream URL extraction, ytmusicapi for structured artist/album discovery.",
+    version="1.0.0",
+    docs_url="/docs",
+    redoc_url="/redoc",
+)
 
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]
@@ -41,7 +47,7 @@ app.include_router(playlist_router)
 app.include_router(artists_router)
 
 
-@app.get("/api/health")
+@app.get("/api/health", tags=["Health"])
 async def health():
     return {"status": "ok", "timestamp": None}
 
