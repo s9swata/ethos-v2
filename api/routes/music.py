@@ -1,8 +1,3 @@
-import json
-import subprocess
-import shutil
-import sys
-from pathlib import Path
 from fastapi import APIRouter, HTTPException
 from ytmusicapi import YTMusic
 
@@ -266,31 +261,14 @@ def get_track_info(track_id: str):
     }
 
 
-def _find_ytdlp() -> str | None:
-    p = shutil.which("yt-dlp")
-    if p:
-        return p
-    bundled = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent)) / "yt-dlp"
-    if bundled.exists():
-        return str(bundled)
-    bundled_exe = Path(str(bundled) + ".exe")
-    if bundled_exe.exists():
-        return str(bundled_exe)
-    return None
-
-
 def _resolve_ytdlp(url: str) -> dict:
-    yt = _find_ytdlp()
-    if not yt:
-        raise HTTPException(status_code=502, detail="yt-dlp not found")
+    import yt_dlp
+    ydl_opts = {"quiet": True, "no_download": True, "noplaylist": True}
     try:
-        r = subprocess.run([yt, "--dump-json", "--no-download", "--no-playlist", url],
-                           capture_output=True, text=True, timeout=60)
-        if r.returncode != 0:
-            raise HTTPException(status_code=502, detail=r.stderr.strip() or f"exit {r.returncode}")
-        return json.loads(r.stdout)
-    except subprocess.TimeoutExpired:
-        raise HTTPException(status_code=504, detail="Upstream timed out")
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            return ydl.extract_info(url, download=False)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=str(e))
 
 
 def _score(query: str, name: str, subtitle: str, typ: str) -> int:
