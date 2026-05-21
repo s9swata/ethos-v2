@@ -19,10 +19,11 @@ def _get_client() -> YTMusic:
 
 async def search_artists(query: str, limit: int = 5) -> list[dict[str, Any]]:
     loop = asyncio.get_running_loop()
-    return await loop.run_in_executor(
+    raw = await loop.run_in_executor(
         _executor,
         lambda: _get_client().search(query, filter="artists", limit=limit),
     )
+    return [_normalize_artist_search(r) for r in raw]
 
 
 async def get_artist(browse_id: str) -> dict[str, Any]:
@@ -47,7 +48,7 @@ def _normalize_song(r: dict[str, Any]) -> dict[str, Any]:
     album = r.get("album")
     return {
         "id": r.get("videoId"),
-        "title": r.get("title", "Unknown"),
+        "name": r.get("title", "Unknown"),
         "artist": artists[0] if artists else "Unknown",
         "artists": artists,
         "album": album.get("name") if album else None,
@@ -70,7 +71,7 @@ async def search_albums(query: str, limit: int = 10) -> list[dict[str, Any]]:
 def _normalize_album_search(r: dict[str, Any]) -> dict[str, Any]:
     return {
         "id": r.get("browseId"),
-        "title": r.get("title", "Unknown"),
+        "name": r.get("title", "Unknown"),
         "type": r.get("type"),
         "year": r.get("year"),
         "artists": [a.get("name") for a in r.get("artists", []) if a.get("name")],
@@ -95,7 +96,7 @@ def _normalize_playlist(r: dict[str, Any]) -> dict[str, Any]:
     playlist_id = bid.removeprefix("VL") if bid else ""
     return {
         "id": playlist_id,
-        "title": r.get("title", "Unknown"),
+        "name": r.get("title", "Unknown"),
         "author": r.get("author"),
         "itemCount": r.get("itemCount"),
         "thumbnail": (r.get("thumbnails") or [{}])[0].get("url", ""),
