@@ -23,18 +23,11 @@
   ];
 </script>
 
-<nav class="w-60 shrink-0 flex flex-col select-none border-r border-white/[0.05]" style="background: #0a0a0a;">
+<nav data-tauri-drag-region class="w-60 shrink-0 flex flex-col select-none border-r border-white/[0.05]" style="background: #0a0a0a;">
   <!-- Logo -->
-  <div class="px-5 pt-6 pb-5">
-    <div class="flex items-center gap-2.5">
-      <div class="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style="background: linear-gradient(135deg, #ff2a3b 0%, #c0152a 100%); box-shadow: 0 2px 8px rgba(255,42,59,0.4);">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="white">
-          <path d="M9 18V5l12-2v13" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-          <circle cx="6" cy="18" r="3" fill="white"/>
-          <circle cx="18" cy="16" r="3" fill="white"/>
-        </svg>
-      </div>
-      <span class="text-[15px] font-semibold tracking-tight text-text-primary">ethos</span>
+  <div data-tauri-drag-region class="px-5 pt-6 pb-5 select-none">
+    <div data-tauri-drag-region class="flex items-center">
+      <span data-tauri-drag-region class="text-lg font-bold tracking-tight text-text-primary">Ethos</span>
     </div>
   </div>
 
@@ -49,9 +42,6 @@
         class:text-text-secondary={!isActive}
         style={isActive ? "background: rgba(255,255,255,0.07);" : ""}
       >
-        {#if isActive}
-          <span class="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-r-full bg-accent"></span>
-        {/if}
         <svg
           xmlns="http://www.w3.org/2000/svg"
           width="17"

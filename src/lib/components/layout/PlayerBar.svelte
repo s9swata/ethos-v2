@@ -169,12 +169,12 @@
           disabled={!player.currentTrack}
           aria-label={player.isPlaying ? "Pause" : "Play"}
           class="w-9 h-9 flex items-center justify-center rounded-full disabled:opacity-30 transition-all active:scale-90"
-          style="background: linear-gradient(135deg, #ff4755 0%, #cc1a2b 100%); box-shadow: 0 4px 16px rgba(255,42,59,0.4), 0 2px 4px rgba(0,0,0,0.4);"
+          style="background: #ffffff;"
         >
           {#if player.isPlaying}
-            <Pause size={14} fill="white" color="white" />
+            <Pause size={14} fill="black" color="black" />
           {:else}
-            <Play size={14} fill="white" color="white" class="ml-0.5" />
+            <Play size={14} fill="black" color="black" class="ml-0.5" />
           {/if}
         </button>
 
@@ -199,7 +199,7 @@
       </div>
 
       <!-- Seek bar -->
-      <div class="flex items-center gap-2 w-full">
+      <div class="flex items-center gap-2 w-full slider-container">
         <span class="text-[10px] text-text-tertiary/50 w-8 text-right tabular-nums leading-none shrink-0">
           {formatTime(player.currentTime)}
         </span>
@@ -219,7 +219,7 @@
     </div>
 
     <!-- Volume -->
-    <div class="w-36 shrink-0 flex items-center justify-end gap-2">
+    <div class="w-36 shrink-0 flex items-center justify-end gap-2 slider-container">
       <button
         onclick={handleMute}
         class="text-text-tertiary hover:text-text-secondary transition-colors shrink-0"
