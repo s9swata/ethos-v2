@@ -63,9 +63,7 @@ jobs:
         run: bun install
 
       - name: Build sidecar server
-        run: |
-          pip install pyinstaller
-          bash server/sidecar/build.sh
+        run: bash api/build.sh
         shell: bash
 
       - name: Generate icons
@@ -117,9 +115,7 @@ jobs:
         run: bun install
 
       - name: Build sidecar server
-        run: |
-          pip install pyinstaller
-          bash server/sidecar/build.sh
+        run: bash api/build.sh
         shell: bash
 
       - name: Generate icons
@@ -178,9 +174,7 @@ jobs:
         run: bun install
 
       - name: Build sidecar server
-        run: |
-          pip install pyinstaller
-          bash server/sidecar/build.sh
+        run: bash api/build.sh
         shell: bash
 
       - name: Generate icons

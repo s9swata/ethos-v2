@@ -1,3 +1,4 @@
+import { isTauri, apiUrl } from "$lib/services/sidecar";
 import type {
   SearchResult,
   TrackInfo,
@@ -9,6 +10,7 @@ import type {
 const STORAGE_KEY = "ethos-api-url";
 
 let _baseUrl: string;
+let _usingSidecar = false;
 
 export function initApi(): void {
   _baseUrl = localStorage.getItem(STORAGE_KEY) ?? "http://127.0.0.1:7860";
@@ -21,13 +23,29 @@ export function getBaseUrl(): string {
 export function setBaseUrl(url: string): void {
   _baseUrl = url.replace(/\/+$/, "");
   localStorage.setItem(STORAGE_KEY, _baseUrl);
+  _usingSidecar = false;
+}
+
+export function usingSidecar(): boolean {
+  return _usingSidecar;
+}
+
+export function setUsingSidecar(v: boolean): void {
+  _usingSidecar = v;
+}
+
+function base(): string {
+  if (_usingSidecar && isTauri()) {
+    return apiUrl("");
+  }
+  return _baseUrl;
 }
 
 async function request<T>(path: string): Promise<T> {
-  const res = await fetch(`${_baseUrl}${path}`);
+  const res = await fetch(`${base()}${path}`);
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error(body.error ?? `Request failed (HTTP ${res.status})`);
+    throw new Error(body.error ?? body.detail ?? `Request failed (HTTP ${res.status})`);
   }
   return res.json();
 }

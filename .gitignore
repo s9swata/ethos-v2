@@ -18,3 +18,7 @@ server/sidecar/build/
 server/sidecar/dist/
 server/sidecar/target/
 server/sidecar/.venv/
+api/.venv/
+api/build/
+api/*.spec
+api/dist/
