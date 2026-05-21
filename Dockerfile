@@ -25,6 +25,8 @@ RUN mkdir -p /data/cache
 ENV NODE_ENV=production
 ENV CACHE_DIR=/data/cache
 ENV HF_HOME=/data/hf
+ENV SSL_CERT_FILE=/usr/local/lib/python3.12/site-packages/certifi/cacert.pem
+ENV REQUESTS_CA_BUNDLE=/usr/local/lib/python3.12/site-packages/certifi/cacert.pem
 
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app /data
 USER appuser
