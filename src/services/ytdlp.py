@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from yt_dlp import YoutubeDL
+from yt_dlp.networking.impersonate import ImpersonateTarget
 
 from src.config import settings
 from src.logger import logger
@@ -41,6 +42,8 @@ async def _extract(url: str, params: dict[str, Any] | None = None) -> dict:
         "quiet": True,
         "no_warnings": True,
         "simulate": True,
+        "impersonate": ImpersonateTarget("chrome"),
+        "format": "bestaudio/best",
     }
     if settings.yt_dlp_proxy:
         base["proxy"] = settings.yt_dlp_proxy
@@ -185,6 +188,7 @@ async def download_audio(url_or_id: str) -> str:
             "no_warnings": True,
             "format": "bestaudio/best",
             "outtmpl": str(cache / "%(id)s.%(ext)s"),
+            "impersonate": ImpersonateTarget("chrome"),
         }
         if settings.yt_dlp_proxy:
             dl_params["proxy"] = settings.yt_dlp_proxy
