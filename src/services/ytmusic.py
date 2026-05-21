@@ -1,13 +1,9 @@
 from __future__ import annotations
 
 import asyncio
-import os
-import ssl
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
-import certifi
-import requests
 from ytmusicapi import YTMusic
 
 from src.services.cache import cache_result
@@ -16,23 +12,10 @@ _executor = ThreadPoolExecutor(max_workers=2)
 _ytmusic: YTMusic | None = None
 
 
-def _make_session() -> requests.Session:
-    session = requests.Session()
-    session.verify = certifi.where()
-    session.trust_env = False
-    ctx = ssl.create_default_context(cafile=certifi.where())
-    ctx.minimum_version = ssl.TLSVersion.TLSv1_2
-    adapter = requests.adapters.HTTPAdapter(pool_connections=10, pool_maxsize=10)
-    adapter.init_poolmanager(ssl_context=ctx)
-    session.mount("https://", adapter)
-    return session
-
-
 def _get_client() -> YTMusic:
     global _ytmusic
     if _ytmusic is None:
-        session = _make_session()
-        _ytmusic = YTMusic(auth=None, session=session)
+        _ytmusic = YTMusic()
     return _ytmusic
 
 

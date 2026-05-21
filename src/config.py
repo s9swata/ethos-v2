@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     max_query_length: int = 200
 
     yt_dlp_clients: str = "android,ios,tv,web"
+    yt_dlp_cookies_file: str = ""
 
     @property
     def yt_dlp_clients_list(self) -> list[str]:

@@ -29,11 +29,14 @@ class YtDlpTimeoutError(Exception):
 
 
 def _base_params() -> dict[str, Any]:
-    return {
+    params: dict[str, Any] = {
         "quiet": True,
         "no_warnings": True,
         "simulate": True,
     }
+    if settings.yt_dlp_cookies_file:
+        params["cookiefile"] = settings.yt_dlp_cookies_file
+    return params
 
 
 def _client_params(client: str, use_desktop: bool = False) -> dict[str, Any]:
@@ -41,6 +44,16 @@ def _client_params(client: str, use_desktop: bool = False) -> dict[str, Any]:
     if use_desktop:
         args["player_skip"] = ["webpage", "configs"]
     return {"extractor_args": {"youtube": args}}
+
+
+def _has_playable_formats(info: dict) -> bool:
+    formats = info.get("formats") or []
+    for f in formats:
+        fid = f.get("format_id", "")
+        url = f.get("url", "")
+        if url and not fid.startswith("sb"):
+            return True
+    return bool(info.get("url", "").startswith("http"))
 
 
 def _sync_extract(url: str, params: dict[str, Any]) -> dict:
@@ -67,17 +80,26 @@ async def _extract(url: str, params: dict[str, Any] | None = None) -> dict:
 
 async def _extract_with_rotation(url: str, use_desktop: bool = False, extra_params: dict[str, Any] | None = None) -> dict:
     clients = settings.yt_dlp_clients_list
+    last_error: YtDlpError | None = None
     for client in clients:
-        params = {**_base_params(), **_client_params(client, use_desktop), **(extra_params or {})}
-        try:
-            async with _pool_semaphore:
-                return await _extract(url, params)
-        except YtDlpError as e:
-            if "Rate limited" in (e.stderr or "") and client != clients[-1]:
-                logger.warning("Rate-limited on %s, rotating to next client", client)
+        for use_cookies in [False, True]:
+            params = {**_base_params(), **_client_params(client, use_desktop), **(extra_params or {})}
+            if not use_cookies:
+                params.pop("cookiefile", None)
+            if use_cookies and "cookiefile" not in params:
                 continue
-            raise
-    raise YtDlpError("All YouTube clients exhausted")
+            try:
+                async with _pool_semaphore:
+                    info = await _extract(url, params)
+                if _has_playable_formats(info):
+                    return info
+            except YtDlpError as e:
+                last_error = e
+                if "Rate limited" in (e.stderr or ""):
+                    logger.warning("Rate-limited on %s, rotating", client)
+                    break
+                logger.warning("yt-dlp error with %s (cookies=%s): %s", client, use_cookies, e)
+    raise last_error or YtDlpError("All YouTube clients exhausted")
 
 
 def _parse_track(d: dict, fallback_artist: str | None = None) -> dict:
