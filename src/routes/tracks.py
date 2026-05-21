@@ -23,10 +23,12 @@ async def track_info(track_id: str):
         "title": info["title"],
         "artist": info["artist"],
         "duration": info["duration"],
+        "url": info.get("url", ""),
         "thumbnail": info["thumbnail"],
         "webpageUrl": info["webpageUrl"],
+        "directUrl": info.get("directUrl", ""),
         "formats": [
-            {"ext": f["ext"], "format": f["format"], "bitrate": f["bitrate"]}
+            {"url": f.get("url"), "ext": f["ext"], "format": f["format"], "bitrate": f.get("bitrate")}
             for f in info["formats"]
         ],
     }
