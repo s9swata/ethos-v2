@@ -263,18 +263,6 @@ async def get_info(url_or_id: str) -> dict:
     }
 
 
-async def get_stream_url(video_id: str) -> str:
-    url = f"https://www.youtube.com/watch?v={video_id}"
-    info = await _extract_with_clients(url)
-    return info.get("url") or ""
-
-
-async def get_desktop_stream_url(video_id: str) -> str:
-    url = f"https://www.youtube.com/watch?v={video_id}"
-    info = await _extract_with_clients(url, {"extractor_args": {"youtube": {"player_skip": ["webpage", "configs"]}}})
-    return info.get("url") or ""
-
-
 @cache_result(ttl=1800, namespace="ytdlp")
 async def get_playlist(url: str) -> dict:
     info = await _extract(
@@ -320,43 +308,3 @@ async def get_artist_uploads(url: str, limit: int = 20) -> dict:
         if e and e.get("title") and ("/watch?v=" in (e.get("url") or e.get("webpage_url") or "") or e.get("duration"))
     ]
     return {"name": name, "tracks": tracks}
-
-
-async def download_audio(url_or_id: str) -> str:
-    cache = Path(settings.cache_dir)
-    cache.mkdir(parents=True, exist_ok=True)
-
-    info = await _extract(url_or_id)
-    video_id = info.get("id", url_or_id)
-    ext = "mp3"
-    dest = cache / f"{video_id}.{ext}"
-
-    if dest.exists():
-        logger.info("Cache hit for %s", video_id)
-        return str(dest)
-
-    logger.info("Downloading audio for %s", video_id)
-
-    loop = asyncio.get_running_loop()
-
-    def _dl():
-        dl_params: dict[str, Any] = {
-            "quiet": True,
-            "no_warnings": True,
-            "format": "bestaudio/best",
-            "outtmpl": str(cache / "%(id)s.%(ext)s"),
-        }
-        if ImpersonateTarget is not None:
-            dl_params["impersonate"] = ImpersonateTarget("chrome")
-        proxy = _pick_proxy()
-        if proxy:
-            dl_params["proxy"] = proxy
-        dl_params["postprocessors"] = [{
-            "key": "FFmpegExtractAudio",
-            "preferredcodec": ext,
-        }]
-        with YoutubeDL(dl_params) as ydl:
-            ydl.download([url_or_id])
-
-    await loop.run_in_executor(None, _dl)
-    return str(dest)

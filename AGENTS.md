@@ -9,12 +9,12 @@ Python FastAPI server using two services for media resolution:
 
 ## Key decisions
 
-- **`src/services/ytdlp.py`** — yt-dlp via `YoutubeDL.extract_info()`. Client rotation on 429 via `extractor_args`. Functions: `get_info`, `get_stream_url`, `get_desktop_stream_url`, `download_audio`, `get_playlist`, `get_artist_uploads`. No `search` — migrated to ytmusicapi.
+- **`src/services/ytdlp.py`** — yt-dlp via `YoutubeDL.extract_info()`. Client rotation on 429 via `extractor_args`. Functions: `get_info`, `get_playlist`, `get_artist_uploads`. No `search` — migrated to ytmusicapi.
 - **`src/services/ytmusic.py`** — wraps `ytmusicapi` in `ThreadPoolExecutor`. Functions: `search_songs`, `search_albums`, `search_artists`, `search_playlists`, `unified_search`, `get_artist`, `get_album`. Single shared `YTMusic` client singleton.
 - **`src/services/scoring.py`** — relevance scoring for unified search. Text matching (exact→starts→contains→difflib) + subtitle bonus + category boost (track=+15, album/artist=+5, playlist=0).
 - **`src/services/validate.py`** — input sanitization (query length, suspicious character blocking).
 - **Client rotation** — `YT_DLP_CLIENTS` env var defines fallback order (default: android→ios→tv→web). Each client via `player_client` extractor arg.
-- **HLS desktop mode** — `player_skip=webpage,configs` returns an m3u8. Used by `/api/stream/:id/desktop`.
+
 - **Concurrency** — `asyncio.Semaphore` (max 3 concurrent yt-dlp calls). ytmusicapi `ThreadPoolExecutor` with 2 workers. `asyncio.gather` for parallel search in unified search.
 
 ## Endpoints
@@ -30,10 +30,7 @@ Python FastAPI server using two services for media resolution:
 | `GET /api/playlist/search?q=&limit=` | ytmusicapi `playlists` filter | Playlist search results |
 | `GET /api/playlist?url=&limit=` | yt-dlp `extract_info` | Playlist/album track list |
 | `GET /api/artist?url=&limit=` | yt-dlp `extract_info` | Channel uploads (legacy) |
-| `GET /api/tracks/:id` | yt-dlp `extract_info` | Track metadata + available formats |
-| `GET /api/stream/:id` | yt-dlp `extract_info` | 307 redirect to bestaudio URL |
-| `GET /api/stream/:id/desktop` | yt-dlp (desktop client) | 307 redirect to HLS m3u8 |
-| `GET /api/stream/:id?download=true` | yt-dlp `download` | Downloaded MP3 file |
+| `GET /api/tracks/:id` | yt-dlp `extract_info` | Track metadata + available formats + direct stream URL |
 
 ## Adding a new ytmusicapi feature
 
