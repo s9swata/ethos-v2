@@ -17,9 +17,10 @@ async def ytdlp_timeout_handler(_request: Request, _exc: YtDlpTimeoutError) -> J
 
 async def ytdlp_error_handler(_request: Request, exc: YtDlpError) -> JSONResponse:
     logger.error("yt-dlp error: %s", str(exc))
+    logger.error("yt-dlp stderr: %s", exc.stderr)
     return JSONResponse(
         status_code=status.HTTP_502_BAD_GATEWAY,
-        content={"error": "Upstream service error"},
+        content={"error": f"Upstream service error: {exc}"},
     )
 
 

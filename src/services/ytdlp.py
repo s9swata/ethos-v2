@@ -36,18 +36,18 @@ def _sync_extract(url: str, params: dict[str, Any]) -> dict:
         raise YtDlpError(f"yt-dlp failed: {e}", stderr=msg)
 
 
+_CLIENTS = ["android", "ios", "web"]
+
+_CHROME_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.5",
+}
+
+
 async def _extract(url: str, params: dict[str, Any] | None = None) -> dict:
     loop = asyncio.get_running_loop()
-    base: dict[str, Any] = {
-        "quiet": True,
-        "no_warnings": True,
-        "simulate": True,
-        "impersonate": ImpersonateTarget("chrome"),
-        "format": "bestaudio/best",
-    }
-    if settings.yt_dlp_proxy:
-        base["proxy"] = settings.yt_dlp_proxy
-    merged = {**base, **(params or {})}
+    merged = {**_base_params(), **(params or {})}
     try:
         return await asyncio.wait_for(
             loop.run_in_executor(None, _sync_extract, url, merged),
@@ -55,6 +55,44 @@ async def _extract(url: str, params: dict[str, Any] | None = None) -> dict:
         )
     except asyncio.TimeoutError:
         raise YtDlpTimeoutError()
+
+
+def _base_params() -> dict[str, Any]:
+    return {
+        "quiet": True,
+        "no_warnings": True,
+        "simulate": True,
+        "format": "bestaudio/best",
+        "impersonate": ImpersonateTarget("chrome"),
+        "http_headers": _CHROME_HEADERS,
+    }
+
+
+def _merge_extractor_args(client: str, extra_params: dict[str, Any] | None = None) -> dict[str, Any]:
+    youtube = {"player_client": [client]}
+    if extra_params and "extractor_args" in extra_params:
+        ext = extra_params["extractor_args"].get("youtube", {})
+        youtube.update(ext)
+    return {"extractor_args": {"youtube": youtube}}
+
+
+async def _extract_with_clients(url: str, extra_params: dict[str, Any] | None = None) -> dict:
+    last_err: YtDlpError | None = None
+    base = _base_params()
+    if settings.yt_dlp_proxy:
+        base["proxy"] = settings.yt_dlp_proxy
+    for client in _CLIENTS:
+        params = {**base, **_merge_extractor_args(client, extra_params)}
+        if extra_params:
+            for k, v in extra_params.items():
+                if k != "extractor_args":
+                    params[k] = v
+        try:
+            return await _extract(url, params)
+        except YtDlpError as e:
+            last_err = e
+            logger.warning("yt-dlp with client=%s failed: %s", client, e)
+    raise last_err or YtDlpError("All clients exhausted")
 
 
 def _parse_track(d: dict, fallback_artist: str | None = None) -> dict:
@@ -80,7 +118,7 @@ async def search(query: str, limit: int = 10) -> list[dict]:
 @cache_result(ttl=1800, namespace="ytdlp")
 async def get_info(url_or_id: str) -> dict:
     url = f"https://www.youtube.com/watch?v={url_or_id}" if not url_or_id.startswith("http") else url_or_id
-    info = await _extract(url)
+    info = await _extract_with_clients(url)
     best_url = info.get("url") or ""
     if not best_url:
         formats = info.get("formats") or []
@@ -108,13 +146,13 @@ async def get_info(url_or_id: str) -> dict:
 
 async def get_stream_url(video_id: str) -> str:
     url = f"https://www.youtube.com/watch?v={video_id}"
-    info = await _extract(url)
+    info = await _extract_with_clients(url)
     return info.get("url") or ""
 
 
 async def get_desktop_stream_url(video_id: str) -> str:
     url = f"https://www.youtube.com/watch?v={video_id}"
-    info = await _extract(url)
+    info = await _extract_with_clients(url, {"extractor_args": {"youtube": {"player_skip": ["webpage", "configs"]}}})
     return info.get("url") or ""
 
 
