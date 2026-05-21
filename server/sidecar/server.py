@@ -1,10 +1,9 @@
 import json
 import os
 import re
-import shlex
+import shutil
 import subprocess
 import sys
-import tempfile
 import urllib.parse
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
@@ -18,13 +17,15 @@ _ytdlp_path: str | None = None
 
 
 def find_ytdlp() -> str | None:
-    for name in ["yt-dlp", "yt-dlp.exe", "yt-dlp_macos", "yt-dlp_linux"]:
-        p = shlex.which(name)
-        if p:
-            return p
-    bundled = Path(getattr(sys, "_MEIPASS", Path(__file__).parent)) / "yt-dlp"
+    p = shutil.which("yt-dlp")
+    if p:
+        return p
+    bundled = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent)) / "yt-dlp"
     if bundled.exists():
         return str(bundled)
+    bundled_exe = bundled.with_suffix(".exe")
+    if bundled_exe.exists():
+        return str(bundled_exe)
     return None
 
 

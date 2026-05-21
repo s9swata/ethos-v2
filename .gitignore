@@ -17,3 +17,4 @@ src-tauri/binaries/
 server/sidecar/build/
 server/sidecar/dist/
 server/sidecar/target/
+server/sidecar/.venv/
