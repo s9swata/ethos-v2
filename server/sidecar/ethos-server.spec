@@ -5,10 +5,15 @@ from pathlib import Path
 
 OUTPUT = Path(".") / "target"
 
-YTAPI = "/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/site-packages/ytmusicapi"
+import importlib
+try:
+    _yt = importlib.import_module("ytmusicapi")
+    YTAPI_LOCALES = Path(_yt.__file__).resolve().parent / "locales"
+except Exception:
+    YTAPI_LOCALES = Path(".") / "locales"
 a = Analysis(
     ["server.py"],
-    pathex=[YTAPI],
+    pathex=[],
     binaries=[],
     datas=[],
     hiddenimports=[
@@ -40,7 +45,8 @@ a = Analysis(
     noarchive=False,
 )
 
-ytapi_datas = Tree(YTAPI + "/locales", prefix="ytmusicapi/locales")
+ytapi_datas = Tree(str(YTAPI_LOCALES), prefix="ytmusicapi/locales") if YTAPI_LOCALES.exists() else []
+a.datas += ytapi_datas if isinstance(ytapi_datas, list) else []
 a.datas += ytapi_datas
 
 pyz = PYZ(a.pure)
