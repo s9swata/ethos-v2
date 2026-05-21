@@ -9,6 +9,8 @@ services:
         value: production
       - key: CACHE_DIR
         value: /data/cache
+      - key: YT_DLP_PROXY
+        value: ""
       - key: RATE_LIMIT_MAX
         value: "60"
     disk:

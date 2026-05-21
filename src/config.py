@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     rate_limit_window_ms: int = 60000
 
     yt_dlp_timeout_ms: int = 30000
+    yt_dlp_proxy: str = ""
 
     max_query_length: int = 200
 

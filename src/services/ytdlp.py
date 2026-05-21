@@ -42,6 +42,8 @@ async def _extract(url: str, params: dict[str, Any] | None = None) -> dict:
         "no_warnings": True,
         "simulate": True,
     }
+    if settings.yt_dlp_proxy:
+        base["proxy"] = settings.yt_dlp_proxy
     merged = {**base, **(params or {})}
     try:
         return await asyncio.wait_for(
@@ -178,16 +180,18 @@ async def download_audio(url_or_id: str) -> str:
     loop = asyncio.get_running_loop()
 
     def _dl():
-        dl_params = {
+        dl_params: dict[str, Any] = {
             "quiet": True,
             "no_warnings": True,
             "format": "bestaudio/best",
             "outtmpl": str(cache / "%(id)s.%(ext)s"),
-            "postprocessors": [{
-                "key": "FFmpegExtractAudio",
-                "preferredcodec": ext,
-            }],
         }
+        if settings.yt_dlp_proxy:
+            dl_params["proxy"] = settings.yt_dlp_proxy
+        dl_params["postprocessors"] = [{
+            "key": "FFmpegExtractAudio",
+            "preferredcodec": ext,
+        }]
         with YoutubeDL(dl_params) as ydl:
             ydl.download([url_or_id])
 
