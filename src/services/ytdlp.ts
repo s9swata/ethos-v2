@@ -7,6 +7,15 @@ import { Pool } from "./pool.js";
 
 const pool = new Pool(config.ytDlpMaxConcurrent);
 
+const ytDlpBaseArgs: string[] = [
+  ...(config.ytDlpExtractorArgs
+    ? ["--extractor-args", config.ytDlpExtractorArgs]
+    : []),
+  ...(config.ytDlpCookiesFile
+    ? ["--cookies", config.ytDlpCookiesFile]
+    : []),
+];
+
 export interface TrackResult {
   id: string;
   title: string;
@@ -35,7 +44,7 @@ class YtDlpError extends Error {
 
 class YtDlpTimeoutError extends Error {
   constructor(args: string[]) {
-    super(`yt-dlp timed out after ${config.ytDlpTimeout}ms: ${args.join(" ")}`);
+    super(`yt-dlp timed out after ${config.ytDlpTimeout}ms`);
     this.name = "YtDlpTimeoutError";
   }
 }
@@ -48,13 +57,14 @@ class QueueTimeoutError extends Error {
 }
 
 function execYtDlp(args: string[]): Promise<string> {
-  logger.debug({ args }, "yt-dlp exec");
+  const fullArgs = [...ytDlpBaseArgs, ...args];
+  logger.debug({ args: fullArgs }, "yt-dlp exec");
   return pool.run(async () => {
     const ac = new AbortController();
     const timer = setTimeout(() => ac.abort(), config.ytDlpTimeout);
 
     return new Promise<string>((resolve, reject) => {
-      const proc = spawn(config.ytDlpPath, args, {
+      const proc = spawn(config.ytDlpPath, fullArgs, {
         stdio: ["ignore", "pipe", "pipe"],
         signal: ac.signal,
       });

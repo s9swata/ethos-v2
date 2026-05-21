@@ -35,4 +35,7 @@ export const config = {
   queueTimeout: envInt("QUEUE_TIMEOUT_MS", 15000),
 
   maxQueryLength: envInt("MAX_QUERY_LENGTH", 200),
+
+  ytDlpExtractorArgs: env("YT_DLP_EXTRACTOR_ARGS", "youtube:player_client=android"),
+  ytDlpCookiesFile: env("YT_DLP_COOKIES_FILE", ""),
 };
