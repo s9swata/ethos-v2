@@ -92,4 +92,12 @@ export interface TrackItem {
   isExplicit: boolean;
 }
 
+export interface ArtistSearchResult {
+  id: string;
+  name: string;
+  subscribers: string;
+  thumbnails: { url: string; width: number; height: number }[];
+  thumbnail: string;
+}
+
 export type Page = "search" | "artist" | "album" | "library" | "playlist";

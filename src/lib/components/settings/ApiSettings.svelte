@@ -18,7 +18,8 @@
   role="dialog"
   aria-label="Settings"
 >
-  <div class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
+  <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick={onclose} onkeydown={(e: KeyboardEvent) => e.key === "Escape" && onclose()}></div>
+  <!-- svelte-ignore a11y_no_static_element_interactions a11y_click_events_have_key_events -->
   <div
     class="relative bg-surface-2 border border-border rounded-2xl p-7 w-96 shadow-2xl"
     onclick={(e: MouseEvent) => e.stopPropagation()}

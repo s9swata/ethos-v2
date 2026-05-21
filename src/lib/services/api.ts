@@ -3,6 +3,7 @@ import type {
   TrackInfo,
   ArtistInfo,
   AlbumInfo,
+  ArtistSearchResult,
 } from "$lib/types";
 
 const STORAGE_KEY = "ethos-api-url";
@@ -45,4 +46,9 @@ export const api = {
 
   getTrack: (trackId: string) =>
     request<TrackInfo>(`/api/tracks/${encodeURIComponent(trackId)}`),
+
+  searchArtists: (q: string, limit = 5) =>
+    request<{ results: ArtistSearchResult[] }>(
+      `/api/artist/search?q=${encodeURIComponent(q)}&limit=${limit}`,
+    ),
 };
