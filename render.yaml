@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: ethos-api
+    env: docker
+    plan: starter
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "3000"
+      - key: CACHE_DIR
+        value: /data/cache
+      - key: RATE_LIMIT_MAX
+        value: "60"
+    disk:
+      name: cache
+      mountPath: /data/cache
+      sizeGB: 5
