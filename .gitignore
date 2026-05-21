@@ -13,3 +13,4 @@ server/ethos.service
 server/__pycache__/
 server/src/__pycache__/
 __pycache__/
+src-tauri/binaries/
