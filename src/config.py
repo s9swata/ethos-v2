@@ -20,16 +20,11 @@ class Settings(BaseSettings):
 
     max_query_length: int = 200
 
-    yt_dlp_cookies_file: str = ""
     yt_dlp_clients: str = "android,ios,tv,web"
 
     @property
     def yt_dlp_clients_list(self) -> list[str]:
         return [c.strip() for c in self.yt_dlp_clients.split(",") if c.strip()]
-
-    @property
-    def yt_dlp_cookies_args(self) -> list[str]:
-        return ["--cookies", self.yt_dlp_cookies_file] if self.yt_dlp_cookies_file else []
 
     model_config = {"env_prefix": ""}
 

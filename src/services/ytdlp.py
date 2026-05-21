@@ -29,14 +29,11 @@ class YtDlpTimeoutError(Exception):
 
 
 def _base_params() -> dict[str, Any]:
-    params: dict[str, Any] = {
+    return {
         "quiet": True,
         "no_warnings": True,
         "simulate": True,
     }
-    if settings.yt_dlp_cookies_file:
-        params["cookiefile"] = settings.yt_dlp_cookies_file
-    return params
 
 
 def _client_params(client: str, use_desktop: bool = False) -> dict[str, Any]:
@@ -105,7 +102,7 @@ async def search(query: str, limit: int = 10) -> list[dict]:
 
 @cache_result(ttl=1800, namespace="ytdlp")
 async def get_info(url_or_id: str) -> dict:
-    info = await _extract_with_rotation(url_or_id, extra_params={"format": "bestaudio/best"})
+    info = await _extract_with_rotation(url_or_id)
     formats = info.get("formats") or []
     best_url = info.get("url", "")
     if not best_url:
@@ -138,7 +135,7 @@ async def get_info(url_or_id: str) -> dict:
 
 
 async def get_stream_url(url_or_id: str) -> str:
-    info = await _extract_with_rotation(url_or_id, extra_params={"format": "bestaudio/best"})
+    info = await _extract_with_rotation(url_or_id)
     url = info.get("url") or ""
     if url and not url.startswith("http"):
         url = ""
@@ -162,7 +159,7 @@ async def get_stream_url(url_or_id: str) -> str:
 
 
 async def get_desktop_stream_url(url_or_id: str) -> str:
-    info = await _extract_with_rotation(url_or_id, use_desktop=True, extra_params={"format": "bestaudio/best"})
+    info = await _extract_with_rotation(url_or_id, use_desktop=True)
     url = info.get("url") or ""
     if url and not url.startswith("http"):
         url = ""
