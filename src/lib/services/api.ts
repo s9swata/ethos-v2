@@ -11,7 +11,7 @@ const STORAGE_KEY = "ethos-api-url";
 let _baseUrl: string;
 
 export function initApi(): void {
-  _baseUrl = localStorage.getItem(STORAGE_KEY) ?? "http://localhost:7860";
+  _baseUrl = localStorage.getItem(STORAGE_KEY) ?? "http://127.0.0.1:7860";
 }
 
 export function getBaseUrl(): string {

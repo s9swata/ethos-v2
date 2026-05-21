@@ -8,7 +8,7 @@ BINARIES_DIR="../../src-tauri/binaries"
 mkdir -p "$TARGET_DIR" "$BINARIES_DIR"
 
 echo "=== Building ethos-server with PyInstaller ==="
-pyinstaller ethos-server.spec --noconfirm --clean > /dev/null 2>&1
+/Library/Frameworks/Python.framework/Versions/3.12/bin/python3 -m PyInstaller ethos-server.spec --noconfirm --clean 2>&1
 
 BINARY="$TARGET_DIR/ethos-server"
 if [ -f "$BINARY" ]; then
@@ -38,7 +38,12 @@ curl -sL "$YTDLP_URL" -o "$TARGET_DIR/yt-dlp"
 chmod +x "$TARGET_DIR/yt-dlp"
 echo "  → $TARGET_DIR/yt-dlp ($(du -h "$TARGET_DIR/yt-dlp" | cut -f1))"
 
+echo "=== Determining target triple ==="
+TRIPLE=$(rustc -vV | grep host | cut -d' ' -f2)
+echo "  → $TRIPLE"
+
 echo "=== Copying to Tauri binaries ==="
-cp "$TARGET_DIR/ethos-server" "$TARGET_DIR/yt-dlp" "$BINARIES_DIR/"
+cp dist/ethos-server "$BINARIES_DIR/ethos-server-$TRIPLE"
+cp "$TARGET_DIR/yt-dlp" "$BINARIES_DIR/yt-dlp-$TRIPLE"
 echo "  → $BINARIES_DIR/"
 echo "Done"

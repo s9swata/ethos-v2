@@ -3,10 +3,10 @@ import os
 import sys
 from pathlib import Path
 
-OUTPUT = Path(__file__).parent / "target"
+OUTPUT = Path(".") / "target"
 
 a = Analysis(
-    [str(Path(__file__).parent / "server.py")],
+    ["server.py"],
     pathex=[],
     binaries=[],
     datas=[],

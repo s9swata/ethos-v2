@@ -33,7 +33,7 @@
       id="api-url"
       type="text"
       bind:value={url}
-      placeholder="http://localhost:7860"
+      placeholder="http://127.0.0.1:7860"
       class="w-full px-3.5 py-2.5 rounded-xl bg-surface-3 border border-border text-sm text-text-primary placeholder:text-text-tertiary/40 focus:outline-none focus:border-text-tertiary/30 transition-colors mb-1"
     />
     <p class="text-xs text-text-tertiary/60 mb-6">
