@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import asyncio
+import random
 import re
 from pathlib import Path
 from typing import Any
 
 from yt_dlp import YoutubeDL
-from yt_dlp.networking.impersonate import ImpersonateTarget
 
 from src.config import settings
 from src.logger import logger
@@ -36,7 +36,7 @@ def _sync_extract(url: str, params: dict[str, Any]) -> dict:
         raise YtDlpError(f"yt-dlp failed: {e}", stderr=msg)
 
 
-_CLIENTS = ["android", "ios", "web"]
+_CLIENTS = ["tv", "android", "ios", "mweb", "web"]
 
 _CHROME_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
@@ -57,8 +57,44 @@ async def _extract(url: str, params: dict[str, Any] | None = None) -> dict:
         raise YtDlpTimeoutError()
 
 
+def _parse_proxy_list() -> list[str]:
+    """Parse YT_DLP_PROXY_LIST (comma-separated ip:port:user:pass) into HTTP proxy URLs."""
+    raw = settings.yt_dlp_proxy_list.strip()
+    if not raw:
+        return []
+    proxies: list[str] = []
+    for entry in raw.split(","):
+        entry = entry.strip()
+        if not entry:
+            continue
+        parts = entry.split(":")
+        if len(parts) == 4:
+            ip, port, user, password = parts
+            proxies.append(f"http://{user}:{password}@{ip}:{port}")
+        elif len(parts) == 2:
+            # plain ip:port, no auth
+            proxies.append(f"http://{entry}")
+        else:
+            logger.warning("Skipping malformed proxy entry: %s", entry)
+    return proxies
+
+
+# Parsed once at import time; reloaded on first call via lazy init
+_PROXY_LIST: list[str] | None = None
+
+
+def _pick_proxy() -> str | None:
+    """Return a random proxy URL from the list, or fall back to the single proxy setting."""
+    global _PROXY_LIST
+    if _PROXY_LIST is None:
+        _PROXY_LIST = _parse_proxy_list()
+    if _PROXY_LIST:
+        return random.choice(_PROXY_LIST)
+    return settings.yt_dlp_proxy or None
+
+
 def _base_params() -> dict[str, Any]:
-    return {
+    params: dict[str, Any] = {
         "quiet": True,
         "no_warnings": True,
         "simulate": True,
@@ -66,6 +102,9 @@ def _base_params() -> dict[str, Any]:
         "impersonate": ImpersonateTarget("chrome"),
         "http_headers": _CHROME_HEADERS,
     }
+    if settings.yt_dlp_cookies_path:
+        params["cookiefile"] = settings.yt_dlp_cookies_path
+    return params
 
 
 def _merge_extractor_args(client: str, extra_params: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -79,9 +118,12 @@ def _merge_extractor_args(client: str, extra_params: dict[str, Any] | None = Non
 async def _extract_with_clients(url: str, extra_params: dict[str, Any] | None = None) -> dict:
     last_err: YtDlpError | None = None
     base = _base_params()
-    if settings.yt_dlp_proxy:
-        base["proxy"] = settings.yt_dlp_proxy
     for client in _CLIENTS:
+        # Rotate to a fresh proxy on every attempt so a blocked IP isn't retried
+        proxy = _pick_proxy()
+        if proxy:
+            base["proxy"] = proxy
+            logger.debug("yt-dlp using proxy %s with client=%s", proxy.split("@")[-1], client)
         params = {**base, **_merge_extractor_args(client, extra_params)}
         if extra_params:
             for k, v in extra_params.items():
@@ -91,7 +133,7 @@ async def _extract_with_clients(url: str, extra_params: dict[str, Any] | None = 
             return await _extract(url, params)
         except YtDlpError as e:
             last_err = e
-            logger.warning("yt-dlp with client=%s failed: %s", client, e)
+            logger.warning("yt-dlp with client=%s proxy=%s failed: %s", client, proxy.split("@")[-1] if proxy else "none", e)
     raise last_err or YtDlpError("All clients exhausted")
 
 

@@ -6,7 +6,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libcurl4 \
     curl \
   && pip install --no-cache-dir \
-    yt-dlp \
+    "yt-dlp @ https://github.com/yt-dlp/yt-dlp/archive/refs/heads/master.tar.gz" \
     ytmusicapi \
     fastapi \
     "uvicorn[standard]" \
