@@ -25,7 +25,7 @@
 
 <nav data-tauri-drag-region class="w-60 shrink-0 flex flex-col select-none border-r border-white/[0.05]" style="background: #0a0a0a;">
   <!-- Logo -->
-  <div data-tauri-drag-region class="px-5 pt-6 pb-5 select-none">
+  <div data-tauri-drag-region class="px-5 pt-[38px] pb-5 select-none">
     <div data-tauri-drag-region class="flex items-center">
       <span data-tauri-drag-region class="text-lg font-bold tracking-tight text-text-primary">Ethos</span>
     </div>
