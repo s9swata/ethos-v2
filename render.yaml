@@ -7,8 +7,6 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
-      - key: PORT
-        value: "3000"
       - key: CACHE_DIR
         value: /data/cache
       - key: RATE_LIMIT_MAX
