@@ -2,42 +2,55 @@
 
 ## Architecture
 
-Fastify server that shells out to `yt-dlp` as a subprocess to resolve streamable audio URLs. No Python bindings — all communication is via JSON stdout.
+Python FastAPI server using two services for media resolution:
+
+- **`yt-dlp`** — subprocess for stream URL extraction, download, and generic YouTube search
+- **`ytmusicapi`** — in-process Python library for structured YouTube Music data (artist search, albums, singles, top songs, album tracks)
 
 ## Key decisions
 
-- **`src/services/ytdlp.ts`** — all yt-dlp interaction lives here. `execYtDlp` is the low-level spawn wrapper. `execYtDlpWithRotation` adds client rotation on 429. New features that need yt-dlp calls should go through one of these.
-- **Client rotation** — `YT_DLP_CLIENTS` env var defines the fallback order (default: android→ios→tv→web). Each client has a separate YouTube rate-limit bucket.
-- **HLS desktop mode** — `player_skip=webpage,configs` skips heavy extraction and returns an m3u8. Used by `/api/stream/:id/desktop`.
-- **Pool (`src/services/pool.ts`)** — simple semaphore, max 3 concurrent spawns. Not per-route — shared across all endpoints.
-- **Subprocess safety** — args are passed as arrays, not shell strings. No injection risk. `AbortController` handles timeouts.
+- **`src/services/ytdlp.py`** — all yt-dlp interaction via `asyncio.create_subprocess_exec`. `_exec_with_rotation` adds client rotation on 429. Functions: `search`, `get_info`, `get_stream_url`, `get_desktop_stream_url`, `download_audio`, `get_playlist`, `get_artist_uploads`.
+- **`src/services/ytmusic.py`** — wraps `ytmusicapi` (in-process, runs in `ThreadPoolExecutor` to avoid blocking the event loop). Functions: `search_artists`, `get_artist`, `get_album`.
+- **`src/services/validate.py`** — input sanitization (query length, suspicious character blocking).
+- **Client rotation** — `YT_DLP_CLIENTS` env var defines fallback order (default: android→ios→tv→web). Each client has a separate YouTube rate-limit bucket.
+- **HLS desktop mode** — `player_skip=webpage,configs` returns an m3u8. Used by `/api/stream/:id/desktop`.
+- **Concurrency** — `asyncio.Semaphore` (max 3 concurrent yt-dlp spawns). Shared across all endpoints.
 
-## Adding a new source platform
+## Endpoints
 
-yt-dlp supports many sites out of the box. To add e.g. SoundCloud search:
+| Endpoint | Service | Response |
+|---|---|---|
+| `GET /api/search?q=&limit=` | yt-dlp | Flat YouTube search results |
+| `GET /api/tracks/:id` | yt-dlp | Track metadata + available formats |
+| `GET /api/stream/:id` | yt-dlp | 307 redirect to progressive MP4 |
+| `GET /api/stream/:id/desktop` | yt-dlp | 307 redirect to HLS m3u8 |
+| `GET /api/playlist?url=` | yt-dlp | Playlist track list |
+| `GET /api/artist?url=` | yt-dlp | Channel uploads (legacy, yt-dlp) |
+| `GET /api/artist/search?q=` | ytmusicapi | Structured artist search results |
+| `GET /api/artist/:browseId` | ytmusicapi | Artist profile + top songs + albums + singles |
+| `GET /api/album/:browseId` | ytmusicapi | Album details + full track list |
 
-1. Add a route in `src/routes/`
-2. Call `execYtDlp` with appropriate yt-dlp flags
-3. Parse JSON output — format varies per extractor
+## Adding a new ytmusicapi feature
+
+1. Add function in `src/services/ytmusic.py`
+2. Run in `ThreadPoolExecutor` (ytmusicapi is synchronous)
+3. Add route in `src/routes/`
 
 ## Error handling
 
-- `YtDlpError` (exit code ≠ 0) → mapped to 502
-- `YtDlpTimeoutError` (AbortController) → mapped to 504
+- `YtDlpError` (exit code ≠ 0) → 502
+- `YtDlpTimeoutError` (asyncio.TimeoutError) → 504
 - Validation errors → 400
-- Internal errors → 500 (message stripped in production)
+- All other exceptions → 500 (message stripped)
 
 ## Deployment
 
-Dockerfile uses multi-stage build. Final image is `node:20-slim` + python3 + ffmpeg + yt-dlp. Render Blueprint auto-detected via `render.yaml`.
+Dockerfile installs `python:3.12-slim` + ffmpeg + yt-dlp + ytmusicapi + fastapi + uvicorn. Render Blueprint via `render.yaml`.
 
-## Switching away from yt-dlp binary
+## Switching away from yt-dlp
 
-If you want pure JS (no Python):
+If you want pure Python (no subprocess):
 
-1. Replace `ytdlp.ts` with `@distube/ytdl-core` calls
-2. Remove python3/yt-dlp from Dockerfile
-3. Keep ffmpeg for audio conversion if still needed
-4. Remove pool.ts (ytdl-core is async JS, no spawn overhead)
-
-Trade-off: YouTube only, loses SoundCloud/Bandcamp/etc.
+1. Use `ytmusicapi` for discovery (already in-process)
+2. Replace yt-dlp stream URLs with `yt-dlp` Python API or `pytubefix`
+3. Remove subprocess pool (`asyncio.Semaphore`)
