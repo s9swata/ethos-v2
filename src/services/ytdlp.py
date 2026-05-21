@@ -3,11 +3,17 @@ from __future__ import annotations
 import asyncio
 import random
 import re
+import shutil
+import tempfile
 from pathlib import Path
 from typing import Any
 
 from yt_dlp import YoutubeDL
-from yt_dlp import ImpersonateTarget
+
+try:
+    from yt_dlp import ImpersonateTarget
+except ImportError:
+    ImpersonateTarget = None  # type: ignore[assignment]
 
 from src.config import settings
 from src.logger import logger
@@ -37,13 +43,50 @@ def _sync_extract(url: str, params: dict[str, Any]) -> dict:
         raise YtDlpError(f"yt-dlp failed: {e}", stderr=msg)
 
 
-_CLIENTS = ["tv", "android", "ios", "mweb", "web"]
+_COOKIES_COPIED = False
+
+
+def _ensure_writable_cookies() -> str | None:
+    global _COOKIES_COPIED
+    path = settings.yt_dlp_cookies_path
+    if not path:
+        return None
+    if _COOKIES_COPIED:
+        return str(Path(settings.cache_dir) / "cookies.txt")
+    src = Path(path)
+    if not src.exists():
+        return None
+    dest = Path(settings.cache_dir) / "cookies.txt"
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        test = dest.parent / ".write_test"
+        test.touch()
+        test.unlink()
+    except OSError:
+        dest = Path(tempfile.mkdtemp()) / "cookies.txt"
+    shutil.copy2(src, dest)
+    _COOKIES_COPIED = True
+    return str(dest)
+
+
+_CLIENTS = [c.strip() for c in settings.yt_dlp_clients.split(",") if c.strip()]
 
 _CHROME_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     "Accept-Language": "en-US,en;q=0.5",
 }
+
+
+async def _extract_raw(url: str, params: dict[str, Any]) -> dict:
+    loop = asyncio.get_running_loop()
+    try:
+        return await asyncio.wait_for(
+            loop.run_in_executor(None, _sync_extract, url, params),
+            timeout=settings.yt_dlp_timeout_ms / 1000,
+        )
+    except asyncio.TimeoutError:
+        raise YtDlpTimeoutError()
 
 
 async def _extract(url: str, params: dict[str, Any] | None = None) -> dict:
@@ -100,11 +143,13 @@ def _base_params() -> dict[str, Any]:
         "no_warnings": True,
         "simulate": True,
         "format": "bestaudio/best",
-        "impersonate": ImpersonateTarget("chrome"),
         "http_headers": _CHROME_HEADERS,
     }
-    if settings.yt_dlp_cookies_path:
-        params["cookiefile"] = settings.yt_dlp_cookies_path
+    if ImpersonateTarget is not None:
+        params["impersonate"] = ImpersonateTarget("chrome")
+    cookie_path = _ensure_writable_cookies()
+    if cookie_path:
+        params["cookiefile"] = cookie_path
     proxy = _pick_proxy()
     if proxy:
         params["proxy"] = proxy
@@ -122,8 +167,10 @@ def _merge_extractor_args(client: str, extra_params: dict[str, Any] | None = Non
 async def _extract_with_clients(url: str, extra_params: dict[str, Any] | None = None) -> dict:
     last_err: YtDlpError | None = None
     base = _base_params()
+    has_cookies = "cookiefile" in base
+    has_impersonate = "impersonate" in base
+
     for client in _CLIENTS:
-        # Rotate to a fresh proxy on every attempt so a blocked IP isn't retried
         proxy = _pick_proxy()
         if proxy:
             base["proxy"] = proxy
@@ -134,10 +181,36 @@ async def _extract_with_clients(url: str, extra_params: dict[str, Any] | None = 
                 if k != "extractor_args":
                     params[k] = v
         try:
-            return await _extract(url, params)
+            return await _extract_raw(url, params)
         except YtDlpError as e:
             last_err = e
             logger.warning("yt-dlp with client=%s proxy=%s failed: %s", client, proxy.split("@")[-1] if proxy else "none", e)
+
+    # Fallback: retry android without cookies, then without impersonate
+    fallbacks = []
+    if has_cookies:
+        fallbacks.append(("cookies", "cookiefile"))
+    if has_impersonate:
+        fallbacks.append(("impersonate", "impersonate"))
+
+    for label, strip_key in fallbacks:
+        params = {k: v for k, v in base.items() if k != strip_key}
+        params.update(_merge_extractor_args("android", extra_params))
+        if extra_params:
+            for k, v in extra_params.items():
+                if k != "extractor_args":
+                    params[k] = v
+        proxy = _pick_proxy()
+        if proxy:
+            params["proxy"] = proxy
+        try:
+            result = await _extract_raw(url, params)
+            logger.info("yt-dlp succeeded after removing %s", label)
+            return result
+        except YtDlpError as e:
+            last_err = e
+            logger.warning("yt-dlp fallback (no %s) failed: %s", label, e)
+
     raise last_err or YtDlpError("All clients exhausted")
 
 
@@ -272,8 +345,9 @@ async def download_audio(url_or_id: str) -> str:
             "no_warnings": True,
             "format": "bestaudio/best",
             "outtmpl": str(cache / "%(id)s.%(ext)s"),
-            "impersonate": ImpersonateTarget("chrome"),
         }
+        if ImpersonateTarget is not None:
+            dl_params["impersonate"] = ImpersonateTarget("chrome")
         proxy = _pick_proxy()
         if proxy:
             dl_params["proxy"] = proxy

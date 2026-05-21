@@ -2,7 +2,6 @@ FROM python:3.12-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
-    tor \
     libcurl4 \
     curl \
   && pip install --no-cache-dir \
