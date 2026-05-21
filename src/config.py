@@ -1,5 +1,4 @@
-from __future__ import annotations
-
+import os
 from pydantic_settings import BaseSettings
 
 
@@ -19,8 +18,12 @@ class Settings(BaseSettings):
     yt_dlp_proxy: str = ""
     # Comma-separated list of proxies in ip:port:user:pass format
     yt_dlp_proxy_list: str = ""
-    # Path to Netscape cookies file (set via Render Secret File)
-    yt_dlp_cookies_path: str = ""
+    # Path to Netscape cookies file (set via Render Secret File or baked into image)
+    yt_dlp_cookies_path: str = (
+        "/app/cookies.txt" if os.path.exists("/app/cookies.txt")
+        else "./cookies.txt" if os.path.exists("./cookies.txt")
+        else ""
+    )
 
     max_query_length: int = 200
 

@@ -28,8 +28,8 @@ def _wait_for_port(host: str, port: int, timeout: int = 30) -> bool:
 
 
 def _start_tor() -> None:
-    if settings.yt_dlp_proxy:
-        logger.info("Proxy already set to %s, skipping Tor", settings.yt_dlp_proxy)
+    if settings.yt_dlp_proxy or settings.yt_dlp_proxy_list:
+        logger.info("Proxy or proxy list already configured, skipping Tor")
         return
     try:
         proc = subprocess.Popen(

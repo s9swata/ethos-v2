@@ -18,6 +18,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 COPY src/ ./src/
+COPY cookies.txt* ./
 
 RUN mkdir -p /data/cache
 
