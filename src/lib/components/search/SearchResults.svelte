@@ -81,7 +81,7 @@
         style="animation-delay: {i * 25}ms"
         role="button"
         tabindex="0"
-        onclick={() => result.type === "track" ? playTrack(result.id) : result.type === "artist" ? handleArtistClick(result.id) : handleAlbumClick(result.id)}
+        onclick={() => result.type === "track" ? playTrack(result.id, { artistBrowseId: result.artistId }) : result.type === "artist" ? handleArtistClick(result.id) : handleAlbumClick(result.id)}
         onkeydown={(e) => e.key === "Enter" && (result.type === "track" ? playTrack(result.id) : result.type === "artist" ? handleArtistClick(result.id) : handleAlbumClick(result.id))}
       >
         <!-- Thumbnail -->

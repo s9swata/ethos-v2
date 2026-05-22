@@ -1,100 +1,59 @@
----
-title: Ethos API
-emoji: 🎵
-colorFrom: purple
-colorTo: gray
-sdk: docker
-app_port: 7860
----
+# Ethos
 
-# ethos-api
+Music streaming desktop app + API server.
 
-Music streaming API. Uses **yt-dlp** (Python library) for stream URL extraction and **ytmusicapi** for structured music discovery.
+## Structure
+
+```
+├── api/              # FastAPI sidecar (PyInstaller-bundled for desktop)
+├── server/src/       # Full FastAPI server (Docker/cloud deployment)
+├── src/              # Svelte 5 desktop client
+├── src-tauri/        # Tauri v2 Rust backend
+└── package.json
+```
+
+## Desktop App
+
+```bash
+# Install deps
+bun install
+bun run tauri icon src-tauri/ethos-cat.png
+
+# Build the sidecar server (Python → single binary)
+bash api/build.sh
+
+# Run in development mode
+bun run tauri dev
+
+# Build for distribution
+bun run tauri build
+```
+
+Outputs: `src-tauri/target/release/bundle/` — `.app` (macOS), `.msi`/`.exe` (Windows), `.deb`/`.AppImage` (Linux).
+
+No Docker or Python required on the user's machine — the server is bundled inside the app.
+
+## API Server
+
+For standalone web deployment (Docker, Render, HuggingFace Spaces):
+
+```bash
+# From the root directory
+docker build -t ethos-api -f server/Dockerfile .
+docker run -p 7860:7860 ethos-api
+```
+
+See `server/src/` for full FastAPI server with rate limiting, caching, yt-dlp client rotation, and all endpoints.
 
 ## Endpoints
 
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/api/health` | Health check |
-| `GET` | `/api/search?q=&limit=` | Search tracks (ytmusicapi) |
-| `GET` | `/api/search-v2?q=&limit=` | Unified search across tracks, albums, artists, playlists with relevance scoring |
-| `GET` | `/api/album/search?q=&limit=` | Search albums by name |
-| `GET` | `/api/album/{browseId}` | Album details + full track list |
-| `GET` | `/api/artist/search?q=&limit=` | Search artists by name |
-| `GET` | `/api/artist/{browseId}` | Artist profile (subscribers, monthly listeners, albums, singles, top songs) |
-| `GET` | `/api/artist?url=&limit=` | Channel uploads (legacy, yt-dlp) |
-| `GET` | `/api/playlist/search?q=&limit=` | Search playlists by name |
-| `GET` | `/api/playlist?url=&limit=` | Resolve playlist URL into tracks |
-| `GET` | `/api/tracks/{id}` | Track metadata + available formats |
-| `GET` | `/api/stream/{id}` | 307 redirect to audio stream URL |
-| `GET` | `/api/stream/{id}/desktop` | 307 redirect to HLS m3u8 |
-| `GET` | `/api/stream/{id}?download=true` | Download cached MP3 |
+| Method | Path | Source |
+|--------|------|--------|
+| `GET` | `/api/health` | Sidecar + Server |
+| `GET` | `/api/search-v2?q=&limit=` | Sidecar + Server |
+| `GET` | `/api/artist/{browseId}` | Sidecar + Server |
+| `GET` | `/api/album/{browseId}` | Sidecar + Server |
+| `GET` | `/api/tracks/{trackId}` | Sidecar + Server |
+| `GET` | `/api/artist/search?q=&limit=` | Sidecar + Server |
 
-### /api/search-v2 response shape
-
-All results normalized to:
-
-```json
-{
-  "name": "Reminder",
-  "type": "track",        // "track" | "album" | "artist" | "playlist"
-  "imageUrl": "https://...",
-  "id": "a40tAP5MC6M",    // videoId / browseId / playlistId
-  "score": 95,
-  "artists": ["The Weeknd"],
-  "album": "Starboy",
-  "duration": "3:39",
-  "year": null,
-  "isExplicit": true
-}
-```
-
-Client constructs URLs from `type` + `id`:
-- `type=track` → `/api/stream/{id}`
-- `type=album` → `/api/album/{id}`
-- `type=artist` → `/api/artist/{id}`
-- `type=playlist` → `/api/playlist?url=https://music.youtube.com/playlist?list={id}`
-
-## Quick start
-
-```bash
-PYTHONPATH=. python3.12 -m uvicorn src.main:app --host 0.0.0.0 --port 3000 --reload
-```
-
-Open http://localhost:3000/docs for Swagger UI.
-
-### Dependencies
-
-```bash
-pip install yt-dlp ytmusicapi fastapi uvicorn pydantic-settings slowapi
-brew install ffmpeg        # macOS (for audio download)
-```
-
-## Environment
-
-Copy `.env.example` to `.env`. Key vars:
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `PORT` | `3000` | Server port |
-| `YT_DLP_MAX_CONCURRENT` | `3` | Max parallel yt-dlp extractions |
-| `YT_DLP_TIMEOUT_MS` | `30000` | Per-extraction timeout |
-| `YT_DLP_CLIENTS` | `android,ios,tv,web` | YouTube client rotation order |
-| `RATE_LIMIT_MAX` | `60` | Max requests per window |
-| `RATE_LIMIT_WINDOW_MS` | `60000` | Rate-limit window in ms |
-
-## Rate limiting
-
-Built-in via slowapi: 60 requests/minute per IP. Configurable.
-
-## Concurrency
-
-- yt-dlp: `asyncio.Semaphore` (max 3 concurrent extractions)
-- ytmusicapi: `ThreadPoolExecutor` (max 2 workers) — calls auto-queued
-- On 429, yt-dlp rotates through configured YouTube clients
-
-## Deploy to Render
-
-Push to GitHub → create Web Service → Render auto-detects `render.yaml` and `Dockerfile`.
-
-The Docker image bundles `python3.12`, `ffmpeg`, `yt-dlp`, `ytmusicapi`, `fastapi`, `uvicorn`.
+The sidecar (`api/`) exposes a subset of endpoints needed by the desktop client. The full server (`server/src/`) includes additional endpoints for playlist resolution, song search, streaming, and download.
