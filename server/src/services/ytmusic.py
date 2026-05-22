@@ -128,28 +128,35 @@ def _normalize_artist_search(r: dict[str, Any]) -> dict[str, Any]:
 
 def _to_unified(raw: dict[str, Any], category: str) -> dict[str, Any]:
     if category == "track":
-        artists = [a.get("name", "") for a in raw.get("artists", []) if a.get("name")]
-        album = raw.get("album")
+        raw_artists = raw.get("artists") or []
+        artists = [a.get("name", "") for a in raw_artists if a.get("name")]
+        first_artist_id = raw_artists[0].get("id") if raw_artists else None
+        raw_album = raw.get("album") or {}
         return {
             "name": raw.get("title", "Unknown"),
             "type": "track",
             "imageUrl": _best_thumb(raw.get("thumbnails")),
             "id": raw.get("videoId"),
             "artists": artists,
-            "album": album.get("name") if album else None,
+            "artistId": first_artist_id,
+            "album": raw_album.get("name") if raw_album else None,
+            "albumId": raw_album.get("id") if raw_album else None,
             "duration": raw.get("duration"),
             "year": None,
             "isExplicit": raw.get("isExplicit", False),
         }
 
     if category == "album":
-        artists = [a.get("name") for a in raw.get("artists", []) if a.get("name")]
+        raw_artists = raw.get("artists") or []
+        artists = [a.get("name") for a in raw_artists if a.get("name")]
+        first_artist_id = raw_artists[0].get("id") if raw_artists else None
         return {
             "name": raw.get("title", "Unknown"),
             "type": "album",
             "imageUrl": _best_thumb(raw.get("thumbnails")),
             "id": raw.get("browseId"),
             "artists": artists,
+            "artistId": first_artist_id,
             "album": None,
             "duration": None,
             "year": raw.get("year"),

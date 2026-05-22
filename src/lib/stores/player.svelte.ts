@@ -3,6 +3,7 @@ import type { TrackInfo } from "$lib/types";
 
 export interface PlayContext {
   artistBrowseId?: string;
+  albumBrowseId?: string;
 }
 
 interface AutoQueueItem {
@@ -23,6 +24,8 @@ let queueIndex = $state(-1);
 
 let autoQueue: AutoQueueItem[] = $state([]);
 let autoQueueIndex = $state(-1);
+let currentArtistId = $state<string | undefined>();
+let currentAlbumId = $state<string | undefined>();
 
 export const player = {
   get currentTrack() { return currentTrack; },
@@ -34,6 +37,8 @@ export const player = {
   get queueIndex() { return queueIndex; },
   get autoQueue() { return autoQueue as unknown as TrackInfo[]; },
   get autoQueueIndex() { return autoQueueIndex; },
+  get currentArtistId() { return currentArtistId; },
+  get currentAlbumId() { return currentAlbumId; },
 };
 
 async function fillAutoQueue(browseId: string, excludeTrackId: string): Promise<void> {
@@ -74,6 +79,8 @@ export async function playTrack(trackId: string, context?: PlayContext): Promise
     return;
   }
   currentTrack = await api.getTrack(trackId);
+  currentArtistId = context?.artistBrowseId;
+  currentAlbumId = context?.albumBrowseId;
   currentTime = 0;
   duration = 0;
   isPlaying = true;
@@ -94,6 +101,8 @@ export async function playNext(): Promise<boolean> {
   if (queueIndex < queue.length - 1) {
     queueIndex++;
     currentTrack = queue[queueIndex];
+    currentArtistId = undefined;
+    currentAlbumId = undefined;
     currentTime = 0;
     duration = 0;
     isPlaying = true;
@@ -108,6 +117,8 @@ export async function playNext(): Promise<boolean> {
       setPlaying(false);
       return false;
     }
+    currentArtistId = undefined;
+    currentAlbumId = undefined;
     currentTime = 0;
     duration = 0;
     isPlaying = true;
@@ -121,6 +132,8 @@ export async function playPrev(): Promise<void> {
   if (queueIndex > 0) {
     queueIndex--;
     currentTrack = queue[queueIndex];
+    currentArtistId = undefined;
+    currentAlbumId = undefined;
     currentTime = 0;
     duration = 0;
     isPlaying = true;
@@ -134,6 +147,8 @@ export async function playPrev(): Promise<void> {
     } catch {
       return;
     }
+    currentArtistId = undefined;
+    currentAlbumId = undefined;
     currentTime = 0;
     duration = 0;
     isPlaying = true;

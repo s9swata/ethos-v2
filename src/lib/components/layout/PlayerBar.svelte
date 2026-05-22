@@ -68,9 +68,12 @@
   }
 
   function handleArtistClick(): void {
-    if (!player.currentTrack?.artist) return;
-    setSearchQuery(player.currentTrack.artist);
-    nav.navigate("search", { q: player.currentTrack.artist });
+    if (player.currentArtistId) {
+      nav.navigate("artist", { browseId: player.currentArtistId });
+    } else if (player.currentTrack?.artist) {
+      setSearchQuery(player.currentTrack.artist);
+      nav.navigate("search", { q: player.currentTrack.artist });
+    }
   }
 
   let seekFill = $derived(player.duration > 0 ? (player.currentTime / player.duration) * 100 : 0);
