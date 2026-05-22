@@ -15,20 +15,11 @@ class Settings(BaseSettings):
     rate_limit_window_ms: int = 60000
 
     yt_dlp_timeout_ms: int = 30000
-    # Client fallback order (comma-separated, tried in sequence on failure)
     yt_dlp_clients: str = "android,ios,tv,web"
-    # Single proxy (legacy) — overridden by yt_dlp_proxy_list when set
+
     yt_dlp_proxy: str = ""
-    # Comma-separated list of proxies in ip:port:user:pass format
     yt_dlp_proxy_list: str = ""
-    # Path to Netscape cookies file (set via Render Secret File or baked into image)
-    yt_dlp_cookies_path: str = (
-        "/app/cookies.txt"
-        if os.path.exists("/app/cookies.txt")
-        else "./cookies.txt"
-        if os.path.exists("./cookies.txt")
-        else ""
-    )
+    yt_dlp_cookies_path: str = ""
 
     max_query_length: int = 200
 
