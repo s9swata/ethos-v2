@@ -8,6 +8,7 @@
   import AlbumPage from "../album/AlbumPage.svelte";
   import LibraryPage from "../library/LibraryPage.svelte";
   import PlaylistPage from "../playlist/PlaylistPage.svelte";
+  import NowPlaying from "../player/NowPlaying.svelte";
   import { nav } from "$lib/stores/navigation.svelte";
 </script>
 
@@ -44,3 +45,7 @@
     <PlayerBar />
   </main>
 </div>
+
+{#if nav.currentPage === "player"}
+  <NowPlaying />
+{/if}

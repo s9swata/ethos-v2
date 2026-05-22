@@ -44,6 +44,16 @@
     nav.navigate("album", { browseId: id });
   }
 
+  function handleTrackClick(result: SearchResult): void {
+    playTrack(result.id, {
+      artistBrowseId: result.artistId,
+      artistName: result.artists?.[0],
+      thumbnail: result.imageUrl,
+      title: result.name,
+      albumBrowseId: result.albumId,
+    });
+  }
+
   // Loop over search results directly without grouping
 </script>
 
@@ -81,8 +91,8 @@
         style="animation-delay: {i * 25}ms"
         role="button"
         tabindex="0"
-        onclick={() => result.type === "track" ? playTrack(result.id, { artistBrowseId: result.artistId, albumBrowseId: result.albumId }) : result.type === "artist" ? handleArtistClick(result.id) : handleAlbumClick(result.id)}
-        onkeydown={(e) => e.key === "Enter" && (result.type === "track" ? playTrack(result.id, { artistBrowseId: result.artistId, albumBrowseId: result.albumId }) : result.type === "artist" ? handleArtistClick(result.id) : handleAlbumClick(result.id))}
+        onclick={() => result.type === "track" ? handleTrackClick(result) : result.type === "artist" ? handleArtistClick(result.id) : handleAlbumClick(result.id)}
+        onkeydown={(e) => e.key === "Enter" && (result.type === "track" ? handleTrackClick(result) : result.type === "artist" ? handleArtistClick(result.id) : handleAlbumClick(result.id))}
       >
         <!-- Thumbnail -->
         <div

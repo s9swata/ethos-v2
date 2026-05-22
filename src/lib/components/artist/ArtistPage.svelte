@@ -34,7 +34,12 @@
   });
 
   function handlePlaySong(song: SongItem): void {
-    playTrack(song.videoId, { artistBrowseId: nav.params.browseId });
+    playTrack(song.videoId, {
+      artistBrowseId: nav.params.browseId,
+      artistName: artist?.name,
+      title: song.title,
+      thumbnail: song.thumbnails?.at(-1)?.url || song.thumbnails?.[0]?.url || undefined,
+    });
   }
 
   function handleAlbumClick(item: AlbumItem): void {

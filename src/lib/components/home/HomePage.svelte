@@ -50,14 +50,14 @@
     const tid = navId(item);
     if (!tid) return;
     if (item.type === "track") {
-      playTrack(tid);
+      playTrack(tid, { title: item.title, artistName: item.subtitle, thumbnail: item.imageUrl });
     } else if (item.type === "artist") {
       nav.navigate("artist", { browseId: tid });
     } else if (item.type === "album") {
       nav.navigate("album", { browseId: tid });
     } else if (item.type === "playlist") {
       const isTrack = /^[a-zA-Z0-9_-]{11}$/.test(tid);
-      if (isTrack) { playTrack(tid); return; }
+      if (isTrack) { playTrack(tid, { title: item.title, artistName: item.subtitle, thumbnail: item.imageUrl }); return; }
       nav.navigate("playlist", { id: tid, source: "api" });
     }
   }

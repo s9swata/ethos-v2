@@ -3,11 +3,13 @@
 
   let query = $state(nav.searchQuery);
   let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+  let lastSearched = $state("");
   let isFocused = $state(false);
 
   function doSearch(q: string) {
     const trimmed = q.trim();
-    if (!trimmed) return;
+    if (!trimmed || trimmed === lastSearched) return;
+    lastSearched = trimmed;
     setSearchQuery(trimmed);
     nav.navigate("search", { q: trimmed });
   }
@@ -22,7 +24,7 @@
     if (debounceTimer) clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => {
       doSearch(query);
-    }, 350);
+    }, 400);
   }
 </script>
 

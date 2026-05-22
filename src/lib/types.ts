@@ -116,4 +116,4 @@ export interface HomeItem {
   browseId: string | null;
 }
 
-export type Page = "home" | "search" | "artist" | "album" | "library" | "playlist";
+export type Page = "home" | "search" | "artist" | "album" | "library" | "playlist" | "player";
