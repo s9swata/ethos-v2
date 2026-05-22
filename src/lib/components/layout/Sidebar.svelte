@@ -76,6 +76,7 @@
           alt={player.currentTrack.title}
           class="w-9 h-9 rounded-lg object-cover shrink-0"
           style="box-shadow: 0 2px 8px rgba(0,0,0,0.5);"
+          onerror={(e: Event) => { const el = e.target as HTMLImageElement; if (el.src.includes('maxresdefault')) el.src = el.src.replace('maxresdefault', 'hqdefault'); }}
         />
         <div class="min-w-0">
           <div class="text-xs font-medium truncate leading-snug text-text-primary">{player.currentTrack.title}</div>

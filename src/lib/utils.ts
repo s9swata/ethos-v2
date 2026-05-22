@@ -12,12 +12,12 @@ export function upscaleThumbnail(url: string, size = 320): string {
   if (result !== url) return result;
 
   // Pattern 3: i.ytimg.com/vi/ID/IMAGE
-  //   maxresdefault often 404s → downgrade to hqdefault
+  //   Try maxresdefault first; use hqdefault as onerror fallback
   const vidMatch = url.match(/\/vi\/([^/?#]+)/);
   if (vidMatch) {
     const id = vidMatch[1];
-    if (url.includes('maxresdefault') || (url.includes('default.jpg') && !url.includes('hq') && !url.includes('mq'))) {
-      return `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
+    if (url.includes('hqdefault') || url.includes('mqdefault') || url.includes('default.jpg')) {
+      return `https://i.ytimg.com/vi/${id}/maxresdefault.jpg`;
     }
     return url;
   }

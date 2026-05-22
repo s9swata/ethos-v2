@@ -3,9 +3,6 @@ import type { TrackInfo } from "$lib/types";
 
 export interface PlayContext {
   artistBrowseId?: string;
-  artistName?: string;
-  thumbnail?: string;
-  title?: string;
   albumBrowseId?: string;
 }
 
@@ -82,9 +79,6 @@ export async function playTrack(trackId: string, context?: PlayContext): Promise
     return;
   }
   currentTrack = await api.getTrack(trackId);
-  if (context?.title) currentTrack = { ...currentTrack, title: context.title };
-  if (context?.artistName) currentTrack = { ...currentTrack, artist: context.artistName };
-  if (context?.thumbnail) currentTrack = { ...currentTrack, thumbnail: context.thumbnail };
   currentArtistId = context?.artistBrowseId;
   currentAlbumId = context?.albumBrowseId;
   currentTime = 0;

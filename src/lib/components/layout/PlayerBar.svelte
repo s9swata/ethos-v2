@@ -148,6 +148,7 @@
             alt={player.currentTrack.title}
             class="w-11 h-11 rounded-xl object-cover"
             style="box-shadow: 0 4px 16px rgba(0,0,0,0.6);"
+            onerror={(e: Event) => { const el = e.target as HTMLImageElement; if (el.src.includes('maxresdefault')) el.src = el.src.replace('maxresdefault', 'hqdefault'); }}
           />
           {#if player.isPlaying}
             <span class="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-accent border-2 border-surface"></span>
