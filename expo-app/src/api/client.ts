@@ -1,0 +1,84 @@
+import type {
+  SearchResponse,
+  ArtistInfo,
+  AlbumInfo,
+  TrackInfo,
+  HomeResponse,
+} from "@/types";
+
+class ApiError extends Error {
+  constructor(
+    message: string,
+    public status: number,
+    public code?: string
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
+const getBaseUrl = () => {
+  if (typeof localStorage !== "undefined") {
+    return (
+      localStorage.getItem("api-url") ??
+      process.env.EXPO_PUBLIC_API_URL ??
+      "http://localhost:3000"
+    );
+  }
+  return process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3000";
+};
+
+export const setBaseUrl = (url: string) => {
+  if (typeof localStorage !== "undefined") {
+    localStorage.setItem("api-url", url);
+  }
+};
+
+async function request<T>(path: string): Promise<T> {
+  const url = `${getBaseUrl()}${path}`;
+  const response = await fetch(url);
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new ApiError(
+      error.error || `Request failed with status ${response.status}`,
+      response.status
+    );
+  }
+  return response.json();
+}
+
+function upscaleThumbnail(url: string, size = 320): string {
+  if (!url) return "";
+  if (url.includes("=w") && url.includes("-h")) {
+    return url.replace(/=w\d+-h\d+/, `=w${size}-h${size}`);
+  }
+  if (url.includes("=s")) {
+    return url.replace(/=s\d+/, `=s${size}`);
+  }
+  return url;
+}
+
+export const api = {
+  search: (q: string, limit = 20) =>
+    request<SearchResponse>(`/api/search-v2?q=${encodeURIComponent(q)}&limit=${limit}`),
+
+  getArtist: (browseId: string) =>
+    request<ArtistInfo>(`/api/artist/${encodeURIComponent(browseId)}`),
+
+  getAlbum: (browseId: string) =>
+    request<AlbumInfo>(`/api/album/${encodeURIComponent(browseId)}`),
+
+  getTrack: (trackId: string) =>
+    request<TrackInfo>(`/api/tracks/${encodeURIComponent(trackId)}`),
+
+  searchArtists: (q: string, limit = 5) =>
+    request<{ results: any[] }>(`/api/artist/search?q=${encodeURIComponent(q)}&limit=${limit}`),
+
+  searchAlbums: (q: string, limit = 5) =>
+    request<{ results: any[] }>(`/api/album/search?q=${encodeURIComponent(q)}&limit=${limit}`),
+
+  getHomeFeed: (profile?: string) =>
+    request<HomeResponse>(`/api/home${profile ? `?profile=${encodeURIComponent(profile)}` : ""}`),
+};
+
+export { getBaseUrl, upscaleThumbnail, ApiError };
