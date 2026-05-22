@@ -22,3 +22,5 @@ api/.venv/
 api/build/
 api/*.spec
 api/dist/
+cache/
+server/ethos.service
