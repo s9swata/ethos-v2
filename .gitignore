@@ -3,7 +3,7 @@ dist/
 target/
 .DS_Store
 *.local
-
+.env
 
 # server
 server/cache/

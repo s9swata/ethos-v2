@@ -42,15 +42,23 @@
     nav.navigate("search", { q });
   }
 
+  function navId(item: HomeItem): string {
+    return item.browseId || item.id;
+  }
+
   function handleItemClick(item: HomeItem): void {
-    if (item.type === "track" && item.id) {
-      playTrack(item.id);
-    } else if (item.type === "artist" && item.browseId) {
-      nav.navigate("artist", { browseId: item.browseId });
-    } else if (item.type === "album" && item.browseId) {
-      nav.navigate("album", { browseId: item.browseId });
-    } else if (item.type === "playlist" && item.browseId) {
-      nav.navigate("playlist", { browseId: item.browseId });
+    const tid = navId(item);
+    if (!tid) return;
+    if (item.type === "track") {
+      playTrack(tid);
+    } else if (item.type === "artist") {
+      nav.navigate("artist", { browseId: tid });
+    } else if (item.type === "album") {
+      nav.navigate("album", { browseId: tid });
+    } else if (item.type === "playlist") {
+      const isTrack = /^[a-zA-Z0-9_-]{11}$/.test(tid);
+      if (isTrack) { playTrack(tid); return; }
+      nav.navigate("playlist", { id: tid, source: "api" });
     }
   }
 

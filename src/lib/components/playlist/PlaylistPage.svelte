@@ -1,23 +1,48 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { nav } from "$lib/stores/navigation.svelte";
+  import { api } from "$lib/services/api";
   import { playTrack } from "$lib/stores/player.svelte";
   import { getPlaylistTracks, renamePlaylist, deletePlaylist } from "$lib/stores/library.svelte";
   import { upscaleThumbnail } from "$lib/utils";
   import type { PlaylistTrack } from "$lib/stores/library.svelte";
 
-  let tracks = $state<PlaylistTrack[]>([]);
+  let tracks = $state<(PlaylistTrack | { track_id: string; title: string; artist: string; thumbnail: string; duration: string })[]>([]);
   let name = $state("");
   let loading = $state(true);
 
   onMount(async () => {
     const id = nav.params.id;
-    if (!id) return;
-    const nameParam = nav.params.name || "Playlist";
-    name = nameParam;
-    tracks = await getPlaylistTracks(id);
+    const source = nav.params.source;
+
+    if (source === "api" && id) {
+      try {
+        const res = await api.getPlaylist(id);
+        name = res.title;
+        tracks = res.tracks.map((t) => ({
+          track_id: t.id,
+          title: t.title,
+          artist: t.artist,
+          thumbnail: t.thumbnail,
+          duration: formatDuration(t.duration),
+        }));
+      } catch {
+        name = "Playlist";
+      }
+    } else if (id) {
+      const nameParam = nav.params.name || "Playlist";
+      name = nameParam;
+      tracks = await getPlaylistTracks(id);
+    }
+
     loading = false;
   });
+
+  function formatDuration(seconds: number): string {
+    const m = Math.floor(seconds / 60);
+    const s = Math.floor(seconds % 60);
+    return `${m}:${s.toString().padStart(2, "0")}`;
+  }
 
   function handlePlay(trackId: string): void {
     playTrack(trackId);
@@ -35,9 +60,9 @@
       class="text-sm text-text-secondary hover:text-text-primary transition-colors flex items-center gap-1 mb-4"
     >
       <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
-      Back to Library
+      Back
     </button>
-    <h1 class="text-2xl font-bold tracking-tight mb-6">{name}</h1>
+    <h1 class="text-2xl font-bold tracking-tight mb-6">{name || "Playlist"}</h1>
     <div class="space-y-0.5">
       {#each tracks as track}
         <button

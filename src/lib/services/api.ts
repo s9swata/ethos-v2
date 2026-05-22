@@ -1,4 +1,3 @@
-import { isTauri, apiUrl } from "$lib/services/sidecar";
 import type {
   SearchResult,
   TrackInfo,
@@ -8,42 +7,10 @@ import type {
   HomeSection,
 } from "$lib/types";
 
-const STORAGE_KEY = "ethos-api-url";
-
-let _baseUrl: string;
-let _usingSidecar = false;
-
-export function initApi(): void {
-  _baseUrl = localStorage.getItem(STORAGE_KEY) ?? "http://127.0.0.1:7860";
-}
-
-export function getBaseUrl(): string {
-  return _baseUrl;
-}
-
-export function setBaseUrl(url: string): void {
-  _baseUrl = url.replace(/\/+$/, "");
-  localStorage.setItem(STORAGE_KEY, _baseUrl);
-  _usingSidecar = false;
-}
-
-export function usingSidecar(): boolean {
-  return _usingSidecar;
-}
-
-export function setUsingSidecar(v: boolean): void {
-  _usingSidecar = v;
-}
-
-function base(): string {
-  if (_usingSidecar && isTauri()) {
-    return apiUrl("");
-  }
-  return _baseUrl;
-}
+const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:7860";
 
 async function request<T>(path: string): Promise<T> {
-  const res = await fetch(`${base()}${path}`);
+  const res = await fetch(`${API_URL}${path}`);
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error(body.error ?? body.detail ?? `Request failed (HTTP ${res.status})`);
@@ -73,4 +40,11 @@ export const api = {
 
   getHome: () =>
     request<{ sections: HomeSection[]; count: number }>("/api/home"),
+
+  getPlaylist: (playlistId: string) => {
+    const url = `https://music.youtube.com/playlist?list=${encodeURIComponent(playlistId)}`;
+    return request<{ title: string; tracks: { id: string; title: string; artist: string; duration: number; thumbnail: string }[] }>(
+      `/api/playlist?url=${encodeURIComponent(url)}&limit=100`,
+    );
+  },
 };

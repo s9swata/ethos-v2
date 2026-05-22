@@ -3,22 +3,26 @@ export function upscaleThumbnail(url: string, size = 320): string {
 
   // Pattern 1: yt3/lh3 googleusercontent =wXX-hYY[-suffix]
   //   e.g. ...=w60-h60-l90-rj → ...=w320-h320
-  let result = url.replace(/=w\d+-h\d+(-[a-z0-9]+)*/i, `=w${size}-h${size}`);
+  let result = url.replace(/=w\d+-h\d+(-[a-z0-9.]+)*/i, `=w${size}-h${size}`);
   if (result !== url) return result;
 
-  // Pattern 2: yt3 googleusercontent =s{size} (playlist thumbnails)
+  // Pattern 2: googleusercontent =s{size} (square thumbnails)
   //   e.g. ...=s192 → ...=s320
   result = url.replace(/=s\d+/, `=s${size}`);
   if (result !== url) return result;
 
-  // Pattern 3: i.ytimg.com video thumbnails
-  //   /hqdefault.jpg → /maxresdefault.jpg
+  // Pattern 3: i.ytimg.com/vi/ID/IMAGE
+  //   maxresdefault often 404s → downgrade to hqdefault
   const vidMatch = url.match(/\/vi\/([^/?#]+)/);
   if (vidMatch) {
-    return `https://i.ytimg.com/vi/${vidMatch[1]}/maxresdefault.jpg`;
+    const id = vidMatch[1];
+    if (url.includes('maxresdefault') || (url.includes('default.jpg') && !url.includes('hq') && !url.includes('mq'))) {
+      return `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
+    }
+    return url;
   }
 
-  return placeholder(size);
+  return url;
 }
 
 function placeholder(size: number): string {

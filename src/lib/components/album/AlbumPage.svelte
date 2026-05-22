@@ -34,7 +34,14 @@
   });
 
   function handlePlayTrack(videoId: string): void {
-    playTrack(videoId, { artistBrowseId: album?.artists?.[0]?.id });
+    const artist = album?.artists?.[0];
+    const track = album?.tracks.find((t) => t.videoId === videoId);
+    playTrack(videoId, {
+      artistBrowseId: artist?.id,
+      artistName: artist?.name,
+      thumbnail: albumThumb,
+      title: track?.title,
+    });
   }
 
   let albumThumb = $derived(album ? (album.thumbnails?.at(-1)?.url || album.thumbnails?.[0]?.url || "") : "");
@@ -42,13 +49,27 @@
   function handlePlayAll(): void {
     if (!album) return;
     const first = album.tracks[0];
-    if (first) playTrack(first.videoId);
+    if (!first) return;
+    const artist = album.artists?.[0];
+    playTrack(first.videoId, {
+      artistBrowseId: artist?.id,
+      artistName: artist?.name,
+      thumbnail: albumThumb,
+      title: first.title,
+    });
   }
 
   function handleShuffle(): void {
     if (!album?.tracks.length) return;
-    const randomIndex = Math.floor(Math.random() * album.tracks.length);
-    playTrack(album.tracks[randomIndex].videoId);
+    const idx = Math.floor(Math.random() * album.tracks.length);
+    const track = album.tracks[idx];
+    const artist = album.artists?.[0];
+    playTrack(track.videoId, {
+      artistBrowseId: artist?.id,
+      artistName: artist?.name,
+      thumbnail: albumThumb,
+      title: track.title,
+    });
   }
 </script>
 

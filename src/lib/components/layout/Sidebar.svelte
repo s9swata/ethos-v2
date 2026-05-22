@@ -2,10 +2,7 @@
   import { nav } from "$lib/stores/navigation.svelte";
   import { player } from "$lib/stores/player.svelte";
   import { upscaleThumbnail } from "$lib/utils";
-  import ApiSettings from "../settings/ApiSettings.svelte";
   import type { Page } from "$lib/types";
-
-  let showSettings = $state(false);
 
   type NavItem = { id: Page; label: string; icon: string };
 
@@ -97,21 +94,5 @@
     {/if}
   </div>
 
-  <!-- Settings -->
-  <div class="mt-auto px-2 pb-4">
-    <button
-      onclick={() => (showSettings = true)}
-      class="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm font-medium text-text-tertiary hover:text-text-secondary hover:bg-white/[0.05] transition-all duration-150"
-    >
-      <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="3" />
-        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1.02 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1.02H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1.02-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1.02 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1.02H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1.02z" />
-      </svg>
-      Settings
-    </button>
-  </div>
+  <div class="mt-auto px-2 pb-4"></div>
 </nav>
-
-{#if showSettings}
-  <ApiSettings onclose={() => (showSettings = false)} />
-{/if}
