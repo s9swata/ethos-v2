@@ -40,16 +40,21 @@ fi
 
 if [ -f "$ACTIVATE" ]; then
   source "$ACTIVATE"
+  PYTHON="python3"
+  if [[ "$PLATFORM" =~ MINGW|CYGWIN|MSYS ]]; then
+    PYTHON="python"
+  fi
 else
   echo "  → WARNING: venv activate not found at $ACTIVATE, continuing without venv"
 fi
 
 echo "=== Installing deps ==="
-pip install --quiet --upgrade pip setuptools wheel
-pip install --quiet pyinstaller fastapi uvicorn "yt-dlp" ytmusicapi pydantic
+"$PYTHON" -m pip install --quiet --upgrade pip setuptools wheel
+"$PYTHON" -m pip install --quiet pyinstaller fastapi uvicorn "yt-dlp" ytmusicapi pydantic
 
 # ── Build ─────────────────────────────────────────────────────────
 echo "=== Building sidecar-$TRIPLE ==="
+mkdir -p "$BINARIES_DIR"
 pyinstaller main.py \
   --name "sidecar-$TRIPLE" \
   --onefile \
