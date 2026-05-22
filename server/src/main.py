@@ -32,6 +32,7 @@ from src.middleware.error_handler import (
     ytdlp_timeout_handler,
 )
 from src.routes.artists import router as artists_router
+from src.routes.home import router as home_router
 from src.routes.playlist import router as playlist_router
 from src.routes.search import router as search_router
 
@@ -68,6 +69,7 @@ app.add_exception_handler(YtDlpTimeoutError, ytdlp_timeout_handler)
 app.add_exception_handler(YtDlpError, ytdlp_error_handler)
 app.add_exception_handler(Exception, generic_error_handler)
 
+app.include_router(home_router)
 app.include_router(search_router)
 app.include_router(tracks_router)
 app.include_router(playlist_router)

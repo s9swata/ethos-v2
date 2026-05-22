@@ -18,6 +18,8 @@ server/sidecar/build/
 server/sidecar/dist/
 server/sidecar/target/
 server/sidecar/.venv/
+server/.venv/
+server/src/ethos_api.egg-info/
 api/.venv/
 api/build/
 api/*.spec

@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import json
+import time
 from typing import Any
 
 from ytmusicapi import YTMusic
@@ -8,6 +11,9 @@ from ytmusicapi import YTMusic
 from src.services.cache import cache_result
 
 _ytmusic: YTMusic | None = None
+
+_personalized_cache: dict[str, tuple[float, list[dict[str, Any]]]] = {}
+PERSONALIZED_CACHE_TTL = 60
 
 
 def _best_thumb(thumbnails: list[dict[str, Any]] | None) -> str:
@@ -243,3 +249,201 @@ async def get_album(browse_id: str) -> dict[str, Any]:
         None,
         lambda: _get_client().get_album(browse_id),
     )
+
+
+def _normalize_home_item(item: dict[str, Any]) -> dict[str, Any]:
+    title = item.get("title", "Unknown")
+    subtitle = item.get("subtitle") or ""
+    thumbnails = item.get("thumbnails") or []
+    browse_id = item.get("browseId") or ""
+    playlist_id = item.get("playlistId") or ""
+    video_id = item.get("videoId") or ""
+
+    page_type = item.get("pageType", "")
+    if not page_type and browse_id:
+        if browse_id.startswith("UC"):
+            page_type = "MUSIC_PAGE_TYPE_ARTIST"
+        elif browse_id.startswith("MPRE"):
+            page_type = "MUSIC_PAGE_TYPE_ALBUM"
+        elif browse_id.startswith("VL") or browse_id.startswith("RD"):
+            page_type = "MUSIC_PAGE_TYPE_PLAYLIST"
+
+    if "ARTIST" in page_type:
+        item_type = "artist"
+        item_id = browse_id
+    elif "ALBUM" in page_type or (playlist_id and browse_id and not video_id):
+        item_type = "album"
+        item_id = browse_id
+    elif video_id and not playlist_id:
+        item_type = "track"
+        item_id = video_id
+    else:
+        item_type = "playlist"
+        item_id = browse_id or playlist_id
+
+    return {
+        "id": item_id,
+        "title": title,
+        "subtitle": subtitle,
+        "imageUrl": _best_thumb(thumbnails),
+        "type": item_type,
+        "browseId": browse_id if item_type in ("album", "artist", "playlist") else None,
+    }
+
+
+@cache_result(ttl=3600, namespace="ytmusic")
+async def get_home(limit: int = 20) -> list[dict[str, Any]]:
+    loop = asyncio.get_running_loop()
+    raw = await loop.run_in_executor(
+        None,
+        lambda: _get_client().get_home(limit=limit),
+    )
+    sections: list[dict[str, Any]] = []
+    for section in raw:
+        title = section.get("title", "")
+        contents = section.get("contents", [])
+        if not title or not contents:
+            continue
+        sections.append({
+            "title": title,
+            "items": [_normalize_home_item(c) for c in contents],
+        })
+    return sections
+
+
+async def get_generic_sections() -> list[dict[str, Any]]:
+    loop = asyncio.get_running_loop()
+
+    def _fetch_home():
+        return _get_client().get_home(limit=20)
+
+    def _fetch_explore():
+        return _get_client().get_explore()
+
+    raw_home, raw_explore = await asyncio.gather(
+        loop.run_in_executor(None, _fetch_home),
+        loop.run_in_executor(None, _fetch_explore),
+    )
+
+    sections: list[dict[str, Any]] = []
+
+    for section in raw_home:
+        title = section.get("title", "")
+        contents = section.get("contents", [])
+        if not title or not contents:
+            continue
+        sections.append({
+            "title": title,
+            "items": [_normalize_home_item(c) for c in contents],
+        })
+
+    new_releases = raw_explore.get("new_releases")
+    if new_releases:
+        sections.append({
+            "title": "New Releases",
+            "items": [_normalize_home_item(a) for a in new_releases],
+        })
+
+    moods = raw_explore.get("moods_and_genres")
+    if moods:
+        sections.append({
+            "title": "Moods & Genres",
+            "items": [
+                {"id": m.get("params", ""), "title": m.get("title", ""), "subtitle": "", "imageUrl": "", "type": "mood", "browseId": None}
+                for m in moods
+            ],
+        })
+
+    trending = raw_explore.get("trending", {})
+    trending_items = trending.get("items") if isinstance(trending, dict) else None
+    if trending_items:
+        sections.append({
+            "title": "Trending",
+            "items": [_normalize_home_item(t) for t in trending_items],
+        })
+
+    top_songs = raw_explore.get("top_songs", {})
+    top_items = top_songs.get("items") if isinstance(top_songs, dict) else None
+    if top_items:
+        sections.append({
+            "title": "Top Songs",
+            "items": [_normalize_home_item(s) for s in top_items],
+        })
+
+    return sections
+
+
+def _profile_key(profile: dict[str, Any]) -> str:
+    raw = json.dumps(profile, sort_keys=True, default=str)
+    return hashlib.sha256(raw.encode()).hexdigest()
+
+
+async def get_home_feed(profile: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+    if not profile:
+        return await get_generic_sections()
+
+    key = _profile_key(profile)
+    now = time.monotonic()
+    cached = _personalized_cache.get(key)
+    if cached and (now - cached[0]) < PERSONALIZED_CACHE_TTL:
+        return cached[1]
+
+    sections = await get_generic_sections()
+
+    liked_ids = (profile.get("likedArtists") or [])[:3]
+    if liked_ids:
+        loop = asyncio.get_running_loop()
+        artist_results = await asyncio.gather(
+            *[
+                loop.run_in_executor(
+                    None,
+                    lambda bid=b: _get_client().get_artist(bid),
+                )
+                for b in liked_ids
+            ],
+            return_exceptions=True,
+        )
+        for i, result in enumerate(artist_results):
+            if isinstance(result, Exception):
+                continue
+            name = result.get("name", "Artist")
+            albums = result.get("albums", {}).get("results", [])[:5]
+            if albums:
+                sections.insert(0, {
+                    "title": f"New albums from {name}",
+                    "items": [_normalize_home_item(a) for a in albums],
+                })
+            singles = result.get("singles", {}).get("results", [])[:5]
+            if singles:
+                sections.insert(0, {
+                    "title": f"Latest from {name}",
+                    "items": [_normalize_home_item(s) for s in singles],
+                })
+
+    recent_ids = (profile.get("recentTracks") or [])[:2]
+    if recent_ids:
+        loop = asyncio.get_running_loop()
+        watch_results = await asyncio.gather(
+            *[
+                loop.run_in_executor(
+                    None,
+                    lambda vid=v: _get_client().get_watch_playlist(videoId=vid, limit=15),
+                )
+                for v in recent_ids
+            ],
+            return_exceptions=True,
+        )
+        for result in watch_results:
+            if isinstance(result, Exception):
+                continue
+            tracks = result.get("tracks", [])
+            if not tracks:
+                continue
+            section_title = "Recommended for you"
+            sections.insert(0, {
+                "title": section_title,
+                "items": [_normalize_home_item(t) for t in tracks if isinstance(t, dict)],
+            })
+
+    _personalized_cache[key] = (now, sections)
+    return sections
