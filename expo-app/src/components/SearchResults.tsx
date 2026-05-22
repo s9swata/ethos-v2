@@ -26,6 +26,7 @@ export function SearchResults({ results, query }: Props) {
     (result: SearchResult) => {
       switch (result.type) {
         case "track":
+          if (!result.id) return;
           playTrack(result.id, { artistBrowseId: result.artistId, albumBrowseId: result.albumId ?? undefined });
           break;
         case "artist":

@@ -278,6 +278,66 @@ def _resolve_ytdlp(url: str) -> dict:
         raise HTTPException(status_code=502, detail=str(e))
 
 
+@router.get("/home")
+def home():
+    raw = _yt.get_home(limit=20)
+    sections = []
+    for section in raw:
+        title = section.get("title", "")
+        contents = section.get("contents", [])
+        if not title or not contents:
+            continue
+        sections.append({
+            "title": title,
+            "items": [_normalize_home_item(c) for c in contents],
+        })
+    return {"sections": sections, "count": len(sections)}
+
+
+def _normalize_home_item(item: dict) -> dict:
+    title = item.get("title", "Unknown")
+    subtitle = item.get("subtitle") or ""
+    thumbnails = item.get("thumbnails") or []
+    if not thumbnails and item.get("thumbnail"):
+        thumbnails = [{"url": item["thumbnail"]}]
+    browse_id = item.get("browseId") or ""
+    playlist_id = item.get("playlistId") or ""
+    video_id = item.get("videoId") or ""
+
+    page_type = item.get("pageType", "")
+    if not page_type and browse_id:
+        if browse_id.startswith("UC"):
+            page_type = "MUSIC_PAGE_TYPE_ARTIST"
+        elif browse_id.startswith("MPRE"):
+            page_type = "MUSIC_PAGE_TYPE_ALBUM"
+        elif browse_id.startswith("VL") or browse_id.startswith("RD"):
+            page_type = "MUSIC_PAGE_TYPE_PLAYLIST"
+
+    if "ARTIST" in page_type:
+        item_type = "artist"
+        item_id = browse_id
+    elif "ALBUM" in page_type or (playlist_id and browse_id and not video_id):
+        item_type = "album"
+        item_id = browse_id
+    elif video_id and not playlist_id:
+        item_type = "track"
+        item_id = video_id
+    else:
+        item_type = "playlist"
+        item_id = browse_id or playlist_id
+
+    thumbs = thumbnails[-1].get("url", "") if thumbnails else ""
+
+    return {
+        "id": item_id,
+        "title": title,
+        "subtitle": subtitle,
+        "imageUrl": thumbs,
+        "type": item_type,
+        "browseId": browse_id if item_type in ("album", "artist", "playlist") else None,
+    }
+
+
 def _score(query: str, name: str, subtitle: str, typ: str) -> int:
     q = query.lower()
     s = 0

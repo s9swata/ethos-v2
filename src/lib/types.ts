@@ -102,4 +102,18 @@ export interface ArtistSearchResult {
   thumbnail: string;
 }
 
-export type Page = "search" | "artist" | "album" | "library" | "playlist";
+export interface HomeSection {
+  title: string;
+  items: HomeItem[];
+}
+
+export interface HomeItem {
+  id: string;
+  title: string;
+  subtitle: string;
+  imageUrl: string;
+  type: "track" | "album" | "artist" | "playlist" | "mood";
+  browseId: string | null;
+}
+
+export type Page = "home" | "search" | "artist" | "album" | "library" | "playlist";

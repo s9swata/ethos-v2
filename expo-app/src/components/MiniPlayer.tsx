@@ -7,6 +7,15 @@ import { upscaleThumbnail } from "@/api/client";
 import { theme } from "@/theme";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+const TAB_BAR_HEIGHT = 56;
+
+function hasTabBar(pathname: string) {
+  if (pathname === "/") return true;
+  if (pathname.startsWith("/search")) return true;
+  if (pathname.startsWith("/library")) return true;
+  return false;
+}
+
 export function MiniPlayer() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -22,7 +31,18 @@ export function MiniPlayer() {
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
 
   return (
-    <View style={{ position: "absolute", bottom: 56, left: 0, right: 0, zIndex: 100 }}>
+    <View style={{
+      position: "absolute",
+      bottom: hasTabBar(pathname) ? TAB_BAR_HEIGHT : 0,
+      left: 0,
+      right: 0,
+      zIndex: 100,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 0.5,
+      shadowRadius: 16,
+      elevation: 10,
+    }}>
       <View style={{ paddingHorizontal: 10, paddingBottom: insets.bottom > 0 ? insets.bottom : 8 }}>
         <Pressable
           onPress={() => currentTrack && router.push("/player")}
@@ -33,20 +53,16 @@ export function MiniPlayer() {
             backgroundColor: currentTrack ? "#1c1c1e" : theme.colors.surface2,
             borderWidth: 0.5,
             borderColor: "rgba(255,255,255,0.08)",
-            height: 64,
+            height: 76,
           }}
         >
-          {currentTrack && (
-            <View style={{ height: 2, backgroundColor: "#2a2a2a" }}>
-              <View style={{ height: "100%", width: `${progress}%`, backgroundColor: theme.colors.accent }} />
-            </View>
-          )}
           <View
             style={{
               flexDirection: "row",
               alignItems: "center",
               paddingHorizontal: 12,
-              paddingVertical: 10,
+              paddingTop: 10,
+              paddingBottom: 18,
               gap: 10,
               flex: 1,
             }}
@@ -74,6 +90,26 @@ export function MiniPlayer() {
               </View>
             )}
           </View>
+
+          {currentTrack && (
+            <View style={{
+              position: "absolute",
+              bottom: 10,
+              left: 12,
+              right: 12,
+              height: 4,
+              borderRadius: 2,
+              backgroundColor: "#2a2a2a",
+              overflow: "hidden",
+            }}>
+              <View style={{
+                height: "100%",
+                width: `${progress}%`,
+                borderRadius: 2,
+                backgroundColor: theme.colors.accent,
+              }} />
+            </View>
+          )}
         </Pressable>
       </View>
     </View>

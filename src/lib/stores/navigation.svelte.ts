@@ -1,6 +1,6 @@
 import type { Page } from "$lib/types";
 
-let currentPage = $state<Page>("search");
+let currentPage = $state<Page>("home");
 let params = $state<Record<string, string>>({});
 let searchQuery = $state("");
 

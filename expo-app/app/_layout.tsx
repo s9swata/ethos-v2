@@ -5,7 +5,7 @@ import { Stack } from "expo-router/stack";
 import { StatusBar } from "expo-status-bar";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { setAudioModeAsync } from "expo-audio";
+import { setAudioModeAsync, requestNotificationPermissionsAsync } from "expo-audio";
 import { AudioPlayerProvider } from "@/components/AudioPlayerProvider";
 import { MiniPlayer } from "@/components/MiniPlayer";
 import { useLibraryStore } from "@/stores/library-store";
@@ -28,6 +28,7 @@ export default function RootLayout() {
       shouldPlayInBackground: true,
       interruptionMode: "doNotMix",
     });
+    requestNotificationPermissionsAsync().catch(() => {});
   }, []);
 
   useEffect(() => {

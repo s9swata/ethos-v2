@@ -1,6 +1,7 @@
 <script lang="ts">
   import Sidebar from "./Sidebar.svelte";
   import PlayerBar from "./PlayerBar.svelte";
+  import HomePage from "../home/HomePage.svelte";
   import SearchBar from "../search/SearchBar.svelte";
   import SearchResults from "../search/SearchResults.svelte";
   import ArtistPage from "../artist/ArtistPage.svelte";
@@ -17,7 +18,9 @@
   <main class="flex-1 flex flex-col min-w-0 overflow-hidden">
     <div class="flex-1 overflow-y-auto">
       {#key nav.currentPage}
-        {#if nav.currentPage === "search"}
+        {#if nav.currentPage === "home"}
+          <HomePage />
+        {:else if nav.currentPage === "search"}
           <div class="page-enter">
             <div class="px-6 pt-6 pb-0 max-w-2xl">
               <SearchBar />

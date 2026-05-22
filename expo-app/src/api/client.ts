@@ -3,6 +3,7 @@ import type {
   ArtistInfo,
   AlbumInfo,
   TrackInfo,
+  PlaylistInfo,
   HomeResponse,
 } from "@/types";
 
@@ -76,6 +77,9 @@ export const api = {
 
   searchAlbums: (q: string, limit = 5) =>
     request<{ results: any[] }>(`/api/album/search?q=${encodeURIComponent(q)}&limit=${limit}`),
+
+  getPlaylist: (url: string) =>
+    request<PlaylistInfo>(`/api/playlist?url=${encodeURIComponent(url)}`),
 
   getHomeFeed: (profile?: string) =>
     request<HomeResponse>(`/api/home${profile ? `?profile=${encodeURIComponent(profile)}` : ""}`),

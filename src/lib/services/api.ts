@@ -5,6 +5,7 @@ import type {
   ArtistInfo,
   AlbumInfo,
   ArtistSearchResult,
+  HomeSection,
 } from "$lib/types";
 
 const STORAGE_KEY = "ethos-api-url";
@@ -69,4 +70,7 @@ export const api = {
     request<{ results: ArtistSearchResult[] }>(
       `/api/artist/search?q=${encodeURIComponent(q)}&limit=${limit}`,
     ),
+
+  getHome: () =>
+    request<{ sections: HomeSection[]; count: number }>("/api/home"),
 };

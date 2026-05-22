@@ -255,6 +255,8 @@ def _normalize_home_item(item: dict[str, Any]) -> dict[str, Any]:
     title = item.get("title", "Unknown")
     subtitle = item.get("subtitle") or ""
     thumbnails = item.get("thumbnails") or []
+    if not thumbnails and item.get("thumbnail"):
+        thumbnails = [{"url": item["thumbnail"]}]
     browse_id = item.get("browseId") or ""
     playlist_id = item.get("playlistId") or ""
     video_id = item.get("videoId") or ""

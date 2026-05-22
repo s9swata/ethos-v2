@@ -1,48 +1,69 @@
 import { useEffect, useState } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { View, Text, Pressable, ScrollView, ActivityIndicator, Alert } from "react-native";
+import { View, Text, Pressable, ScrollView, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Icon } from "@/components/icons";
 import { Image } from "expo-image";
-import { Swipeable } from "react-native-gesture-handler";
 import { useLibraryStore } from "@/stores/library-store";
 import { usePlayerStore } from "@/stores/player-store";
-import type { PlaylistTrack } from "@/stores/library-store";
-import { upscaleThumbnail } from "@/api/client";
+import { api, upscaleThumbnail } from "@/api/client";
 import { theme, layout } from "@/theme";
+
+interface TrackDisplay {
+  key: string;
+  track_id: string;
+  title: string;
+  artist: string;
+  thumbnail: string;
+  duration: string;
+}
 
 export default function PlaylistDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const playlistId = Number(id);
-  const getPlaylistTracks = useLibraryStore((s) => s.getPlaylistTracks);
   const insets = useSafeAreaInsets();
-  const playlists = useLibraryStore((s) => s.playlists);
-  const removeTrackFromPlaylist = useLibraryStore((s) => s.removeTrackFromPlaylist);
   const playTrack = usePlayerStore((s) => s.playTrack);
-  const [tracks, setTracks] = useState<PlaylistTrack[]>([]);
+  const [tracks, setTracks] = useState<TrackDisplay[]>([]);
   const [loading, setLoading] = useState(true);
-  const playlist = playlists.find((p) => p.id === playlistId);
+  const [playlistTitle, setPlaylistTitle] = useState("Playlist");
+
+  const isLocalPlaylist = !isNaN(Number(id));
 
   useEffect(() => {
-    if (!playlistId) return;
-    setLoading(true);
-    getPlaylistTracks(playlistId).then(setTracks).finally(() => setLoading(false));
-  }, [playlistId]);
-
-  const handleRemoveTrack = (position: number, title: string) => {
-    Alert.alert("Remove Track", `Remove "${title}" from this playlist?`, [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Remove",
-        style: "destructive",
-        onPress: async () => {
-          await removeTrackFromPlaylist(playlistId, position);
-          setTracks((prev) => prev.filter((t) => t.position !== position));
-        },
-      },
-    ]);
-  };
+    if (isLocalPlaylist && id) {
+      const { getPlaylistTracks, playlists } = useLibraryStore.getState();
+      const playlistId = Number(id);
+      const localPlaylist = playlists.find((p) => p.id === playlistId);
+      if (localPlaylist) setPlaylistTitle(localPlaylist.name);
+      setLoading(true);
+      getPlaylistTracks(playlistId).then((pt) => {
+        setTracks(pt.map((t) => ({
+          key: String(t.id),
+          track_id: t.track_id,
+          title: t.title,
+          artist: t.artist,
+          thumbnail: t.thumbnail ?? "",
+          duration: t.duration ?? "",
+        })));
+      }).finally(() => setLoading(false));
+    } else if (id) {
+      const url = `https://music.youtube.com/playlist?list=${id}`;
+      setLoading(true);
+      api.getPlaylist(url).then((data) => {
+        setPlaylistTitle(data.title);
+        setTracks(data.tracks.map((t, i) => ({
+          key: `${id}-${i}`,
+          track_id: t.id ?? "",
+          title: t.title,
+          artist: t.artist,
+          thumbnail: t.thumbnail,
+          duration: String(t.duration),
+        })));
+      }).catch(() => {
+        setPlaylistTitle("Playlist");
+      }).finally(() => setLoading(false));
+    }
+  }, [id, isLocalPlaylist]);
 
   const handlePlayAll = () => {
     if (tracks.length > 0) {
@@ -68,7 +89,7 @@ export default function PlaylistDetailScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.surface }}>
       <View style={{ paddingTop: insets.top + 8, paddingHorizontal: layout.px, paddingBottom: 8 }}>
-        <Text style={{ color: theme.colors.textPrimary, fontSize: 22, fontWeight: "700" }}>{playlist?.name ?? "Playlist"}</Text>
+        <Text style={{ color: theme.colors.textPrimary, fontSize: 22, fontWeight: "700" }}>{playlistTitle}</Text>
         <Text style={{ color: theme.colors.textSecondary, fontSize: 13 }}>{tracks.length} songs</Text>
         {tracks.length > 0 && (
           <View style={{ flexDirection: "row", gap: 12, marginTop: 16 }}>
@@ -102,43 +123,26 @@ export default function PlaylistDetailScreen() {
           </View>
         ) : (
           tracks.map((track) => (
-            <Swipeable
-              key={track.id}
-              renderRightActions={() => (
-                <View style={{ justifyContent: "center", backgroundColor: theme.colors.accent, borderRadius: 10, marginVertical: 4, marginLeft: 8 }}>
-                  <Pressable
-                    style={{ paddingHorizontal: 20, flex: 1, justifyContent: "center", alignItems: "center" }}
-                    onPress={() => handleRemoveTrack(track.position, track.title)}
-                  >
-                    <Icon name="trash" size={18} color="#fff" />
-                  </Pressable>
+            <Pressable
+              key={track.key}
+              style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 8 }}
+              onPress={() => playTrack(track.track_id)}
+            >
+              {track.thumbnail ? (
+                <Image source={{ uri: upscaleThumbnail(track.thumbnail) }} style={{ width: 44, height: 44, borderRadius: 8 }} />
+              ) : (
+                <View style={{ width: 44, height: 44, borderRadius: 8, backgroundColor: theme.colors.surface3, justifyContent: "center", alignItems: "center" }}>
+                  <Icon name="music-note" size={16} color={theme.colors.textSecondary} />
                 </View>
               )}
-            >
-              <Pressable
-                style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 8 }}
-                onPress={() => playTrack(track.track_id)}
-              >
-                {track.thumbnail ? (
-                  <Image source={{ uri: upscaleThumbnail(track.thumbnail) }} style={{ width: 44, height: 44, borderRadius: 8 }} />
-                ) : (
-                  <View style={{ width: 44, height: 44, borderRadius: 8, backgroundColor: theme.colors.surface3, justifyContent: "center", alignItems: "center" }}>
-                    <Icon name="music-note" size={16} color={theme.colors.textSecondary} />
-                  </View>
-                )}
-                <View style={{ flex: 1 }}>
-                  <Text style={{ color: theme.colors.textPrimary, fontSize: 13, fontWeight: "500" }} numberOfLines={1}>{track.title}</Text>
-                  <Text style={{ color: theme.colors.textSecondary, fontSize: 12 }} numberOfLines={1}>{track.artist}</Text>
-                </View>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-                  {track.duration != null && (
-                    <Text style={{ color: theme.colors.textTertiary, fontSize: 11 }}>
-                      {track.duration}
-                    </Text>
-                  )}
-                </View>
-              </Pressable>
-            </Swipeable>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: theme.colors.textPrimary, fontSize: 13, fontWeight: "500" }} numberOfLines={1}>{track.title}</Text>
+                <Text style={{ color: theme.colors.textSecondary, fontSize: 12 }} numberOfLines={1}>{track.artist}</Text>
+              </View>
+              {track.duration ? (
+                <Text style={{ color: theme.colors.textTertiary, fontSize: 11 }}>{track.duration}</Text>
+              ) : null}
+            </Pressable>
           ))
         )}
       </ScrollView>
