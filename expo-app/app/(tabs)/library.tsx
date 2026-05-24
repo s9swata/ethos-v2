@@ -70,8 +70,18 @@ export default function LibraryScreen() {
           <View>
             <Text style={[typography.h3, { marginBottom: 8 }]}>Recently Played</Text>
             <View style={{ gap: 2 }}>
-              {playHistory.map((trackId) => (
-                <RecentTrackRow key={trackId} trackId={trackId} onPlay={playTrack} />
+              {playHistory.map((item) => (
+                <Pressable
+                  key={item.id}
+                  style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 8 }}
+                  onPress={() => playTrack(item.id)}
+                >
+                  <Image source={{ uri: upscaleThumbnail(item.thumbnail) }} style={{ width: 48, height: 48, borderRadius: 6 }} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: theme.colors.textPrimary, fontSize: 14, fontWeight: "500" }} numberOfLines={1}>{item.title}</Text>
+                    <Text style={{ color: theme.colors.textSecondary, fontSize: 13 }} numberOfLines={1}>{item.artist}</Text>
+                  </View>
+                </Pressable>
               ))}
             </View>
           </View>
@@ -176,39 +186,5 @@ export default function LibraryScreen() {
         </View>
       </ScrollView>
     </View>
-  );
-}
-
-function RecentTrackRow({ trackId, onPlay }: { trackId: string; onPlay: (id: string) => void }) {
-  const [track, setTrack] = useState<TrackInfo | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useFocusEffect(
-    useCallback(() => {
-      let cancelled = false;
-      api.getTrack(trackId).then((t) => {
-        if (!cancelled) {
-          setTrack(t);
-          setLoading(false);
-        }
-      }).catch(() => setLoading(false));
-      return () => { cancelled = true; };
-    }, [trackId])
-  );
-
-  if (loading) return <SkeletonTrackRow />;
-  if (!track) return null;
-
-  return (
-    <Pressable
-      style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 8 }}
-      onPress={() => onPlay(track.id)}
-    >
-      <Image source={{ uri: upscaleThumbnail(track.thumbnail) }} style={{ width: 48, height: 48, borderRadius: 6 }} />
-      <View style={{ flex: 1 }}>
-        <Text style={{ color: theme.colors.textPrimary, fontSize: 14, fontWeight: "500" }} numberOfLines={1}>{track.title}</Text>
-        <Text style={{ color: theme.colors.textSecondary, fontSize: 13 }} numberOfLines={1}>{track.artist}</Text>
-      </View>
-    </Pressable>
   );
 }

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { ArrowLeft } from "lucide-svelte";
   import { nav } from "$lib/stores/navigation.svelte";
   import { player } from "$lib/stores/player.svelte";
   import { upscaleThumbnail } from "$lib/utils";
@@ -25,75 +26,107 @@
   ];
 </script>
 
-<nav data-tauri-drag-region class="w-60 shrink-0 flex flex-col select-none border-r border-white/[0.05]" style="background: #0a0a0a;">
-  <!-- Logo -->
-  <div data-tauri-drag-region class="px-5 pt-[38px] pb-5 select-none">
-    <div data-tauri-drag-region class="flex items-center">
-      <span data-tauri-drag-region class="text-lg font-bold tracking-tight text-text-primary">Ethos</span>
-    </div>
-  </div>
+<nav class="relative w-60 shrink-0 flex flex-col select-none rounded-xl overflow-hidden mt-9 mb-3 ml-3" style="z-index: 1;">
+  <!-- Ambient album art background -->
+  {#if player.currentTrack?.thumbnail}
+    <div
+    class="absolute inset-0 pointer-events-none"
+      style="
+        background-image: url({upscaleThumbnail(player.currentTrack.thumbnail, 400)});
+        background-size: cover;
+        background-position: center;
+        filter: blur(50px) brightness(0.25) saturate(1.2);
+      "
+    ></div>
+  {/if}
 
-  <!-- Nav Items -->
-  <div class="px-2 flex flex-col gap-0.5">
-    {#each navItems as item}
-      {@const isActive = nav.currentPage === item.id}
-      <button
-        onclick={() => nav.navigate(item.id)}
-        class="relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150"
-        class:text-text-primary={isActive}
-        class:text-text-secondary={!isActive}
-        style={isActive ? "background: rgba(255,255,255,0.07);" : ""}
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="17"
-          height="17"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.75"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          class="shrink-0 {isActive ? 'text-accent' : ''}"
+  <!-- Frosted glass surface -->
+  <div
+    class="relative z-10 flex flex-col h-full rounded-xl"
+    style="
+      background: rgba(10,10,10,0.65);
+      backdrop-filter: blur(30px) saturate(1.4);
+      -webkit-backdrop-filter: blur(30px) saturate(1.4);
+      border: 1px solid rgba(255,255,255,0.08);
+      box-shadow:
+        0 0 0 0.5px rgba(255,255,255,0.08) inset,
+        0 8px 32px rgba(0,0,0,0.5);
+    "
+  >
+    <!-- Back button -->
+    {#if nav.canGoBack && nav.currentPage !== "home"}
+      <div class="px-3 pt-3">
+        <button
+          onclick={nav.goBack}
+          class="w-8 h-8 flex items-center justify-center rounded-full transition-all hover:bg-white/10 active:scale-90 text-text-secondary hover:text-text-primary"
+          aria-label="Go back"
         >
-          {@html item.icon}
-        </svg>
-        {item.label}
-      </button>
-    {/each}
-  </div>
-
-  <!-- Divider -->
-  <div class="mx-4 mt-5 mb-4 h-px bg-white/[0.05]"></div>
-
-  <!-- Now Playing card -->
-  <div class="mx-2 px-3 py-3 rounded-xl min-h-[64px]" style="background: rgba(255,255,255,0.04);">
-    {#if player.currentTrack}
-      <div class="text-[10px] uppercase tracking-widest text-text-tertiary font-semibold mb-2">Now Playing</div>
-      <div class="flex items-center gap-2.5">
-        <img
-          src={upscaleThumbnail(player.currentTrack.thumbnail, 120)}
-          alt={player.currentTrack.title}
-          class="w-9 h-9 rounded-lg object-cover shrink-0"
-          style="box-shadow: 0 2px 8px rgba(0,0,0,0.5);"
-          onerror={(e: Event) => { const el = e.target as HTMLImageElement; if (el.src.includes('maxresdefault')) el.src = el.src.replace('maxresdefault', 'hqdefault'); }}
-        />
-        <div class="min-w-0">
-          <div class="text-xs font-medium truncate leading-snug text-text-primary">{player.currentTrack.title}</div>
-          <div class="text-[11px] text-text-tertiary truncate mt-0.5">{player.currentTrack.artist}</div>
-        </div>
-      </div>
-    {:else}
-      <div class="text-[10px] uppercase tracking-widest text-text-tertiary font-semibold mb-2">Now Playing</div>
-      <div class="flex items-center gap-2.5">
-        <div class="w-9 h-9 rounded-lg shrink-0 skeleton"></div>
-        <div class="flex-1 space-y-1.5">
-          <div class="h-2.5 skeleton rounded w-4/5"></div>
-          <div class="h-2 skeleton rounded w-3/5"></div>
-        </div>
+          <ArrowLeft size={16} />
+        </button>
       </div>
     {/if}
-  </div>
 
-  <div class="mt-auto px-2 pb-4"></div>
+    <!-- Nav Items -->
+    <div class="px-2 pt-3 flex flex-col gap-0.5">
+      {#each navItems as item}
+        {@const isActive = nav.currentPage === item.id}
+        <button
+          onclick={() => nav.navigate(item.id, {}, true)}
+          class="relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 hover:text-accent"
+          class:text-accent={isActive}
+          class:text-text-secondary={!isActive}
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="17"
+            height="17"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.75"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            class="shrink-0 {isActive ? 'text-accent' : ''}"
+          >
+            {@html item.icon}
+          </svg>
+          {item.label}
+        </button>
+      {/each}
+    </div>
+
+    <!-- Divider -->
+    <div class="mx-4 mt-5 mb-4 h-px" style="background: rgba(255,255,255,0.06);"></div>
+
+    <!-- Now Playing card -->
+    <div class="mx-2 px-3 py-3 rounded-xl min-h-[64px]" style="background: rgba(255,255,255,0.06);">
+      {#if player.currentTrack}
+        <div class="text-[10px] uppercase tracking-widest text-text-tertiary font-semibold mb-2">Now Playing</div>
+        <div class="flex items-center gap-2.5">
+          <img
+            src={upscaleThumbnail(player.currentTrack.thumbnail, 120)}
+            alt={player.currentTrack.title}
+            class="w-9 h-9 rounded-lg object-cover shrink-0"
+            style="box-shadow: 0 2px 8px rgba(0,0,0,0.5);"
+            onerror={(e: Event) => { const el = e.target as HTMLImageElement; if (el.src.includes('maxresdefault')) el.src = el.src.replace('maxresdefault', 'hqdefault'); }}
+          />
+          <div class="min-w-0">
+            <div class="text-xs font-medium truncate leading-snug text-text-primary">{player.currentTrack.title}</div>
+            <div class="text-[11px] text-text-tertiary truncate mt-0.5">{player.currentTrack.artist}</div>
+          </div>
+        </div>
+      {:else}
+        <div class="text-[10px] uppercase tracking-widest text-text-tertiary font-semibold mb-2">Now Playing</div>
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-lg shrink-0 skeleton"></div>
+          <div class="flex-1 space-y-1.5">
+            <div class="h-2.5 skeleton rounded w-4/5"></div>
+            <div class="h-2 skeleton rounded w-3/5"></div>
+          </div>
+        </div>
+      {/if}
+    </div>
+
+    <div class="mt-auto px-2 pb-4"></div>
+  </div>
 </nav>

@@ -93,7 +93,7 @@
   </div>
 {:else}
   <div class="page-enter">
-    <div class="px-8 pt-8 pb-4">
+    <div class="px-8 pt-12 pb-4">
       <h1 class="text-4xl font-bold tracking-tight mb-6">{greeting()}</h1>
 
       <form onsubmit={handleSearch}>

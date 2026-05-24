@@ -2,54 +2,51 @@
   import { nav, setSearchQuery } from "$lib/stores/navigation.svelte";
 
   let query = $state(nav.searchQuery);
-  let debounceTimer: ReturnType<typeof setTimeout> | null = null;
-  let lastSearched = $state("");
   let isFocused = $state(false);
 
   function doSearch(q: string) {
     const trimmed = q.trim();
-    if (!trimmed || trimmed === lastSearched) return;
-    lastSearched = trimmed;
+    if (!trimmed) return;
+    console.log("[SearchBar] doSearch called with trimmed=", trimmed);
     setSearchQuery(trimmed);
+    console.log("[SearchBar] setSearchQuery done, now navigating");
     nav.navigate("search", { q: trimmed });
   }
 
   function handleSubmit(e: Event): void {
     e.preventDefault();
-    if (debounceTimer) clearTimeout(debounceTimer);
     doSearch(query);
-  }
-
-  function handleInput() {
-    if (debounceTimer) clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(() => {
-      doSearch(query);
-    }, 400);
   }
 </script>
 
 <form onsubmit={handleSubmit} class="w-full">
   <div class="relative group">
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="15"
-      height="15"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="2"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-      class="absolute left-4 top-1/2 -translate-y-1/2 transition-colors duration-200 pointer-events-none {isFocused ? 'text-accent' : 'text-text-tertiary'}"
+    <button
+      type="submit"
+      class="absolute left-4 top-1/2 -translate-y-1/2 transition-colors duration-200 cursor-pointer"
+      class:text-accent={isFocused}
+      class:text-text-tertiary={!isFocused}
+      aria-label="Search"
     >
-      <circle cx="11" cy="11" r="8" />
-      <path d="m21 21-4.3-4.3" />
-    </svg>
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="15"
+        height="15"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <circle cx="11" cy="11" r="8" />
+        <path d="m21 21-4.3-4.3" />
+      </svg>
+    </button>
     <input
       id="search-input"
       type="text"
       bind:value={query}
-      oninput={handleInput}
       onfocus={() => (isFocused = true)}
       onblur={() => (isFocused = false)}
       placeholder="Search artists, albums, songs…"

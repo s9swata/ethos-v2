@@ -115,6 +115,13 @@ export interface PlaylistInfo {
   count: number;
 }
 
+export interface PlayHistoryItem {
+  id: string;
+  title: string;
+  artist: string;
+  thumbnail: string;
+}
+
 export type RepeatMode = "off" | "all" | "one";
 
 export interface QueueContext {

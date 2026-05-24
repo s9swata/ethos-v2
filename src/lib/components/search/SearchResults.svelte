@@ -12,27 +12,50 @@
   let loading = $state(false);
   let error = $state("");
 
+  let currentQuery = "";
+  let cancel: (() => void) | null = null;
+
   $effect(() => {
     const q = nav.searchQuery;
+    console.log("[SearchResults] $effect fired, q=", q, "currentQuery=", currentQuery);
     if (!q) {
+      console.log("[SearchResults] q is empty, clearing results and returning");
       results = [];
       return;
     }
+    if (q === currentQuery) {
+      console.log("[SearchResults] q unchanged, skipping");
+      return;
+    }
+    currentQuery = q;
+
+    cancel?.();
 
     loading = true;
     error = "";
     results = [];
+    let cancelled = false;
+    cancel = () => { cancelled = true; };
+
+    console.log("[SearchResults] fetching results for q=", q);
 
     api
       .search(q)
       .then((res) => {
+        if (cancelled) { console.log("[SearchResults] fetch cancelled, discarding results for q=", q); return; }
         results = res.results;
+        console.log("[SearchResults] updated results state for q=", q, "count=", results.length, "data=", results);
       })
       .catch((e: unknown) => {
+        if (cancelled) return;
+        console.log("[SearchResults] fetch error for q=", q, "error=", e);
         error = e instanceof Error ? e.message : "Search failed";
       })
       .finally(() => {
+        if (cancelled) return;
+        console.log("[SearchResults] fetch finished for q=", q);
         loading = false;
+        cancel = null;
       });
   });
 

@@ -70,26 +70,26 @@
     <div class="text-sm text-error font-medium">{error}</div>
   </div>
 {:else if artist}
-  <div class="page-enter">
-    <!-- Hero -->
-    <div class="relative h-72 overflow-hidden">
-      <!-- Ambient blurred background -->
-      {#if heroThumb}
-        <img
-          src={upscaleThumbnail(heroThumb, 400)}
-          alt=""
-          aria-hidden="true"
-          class="absolute inset-0 w-full h-full object-cover scale-110 blur-2xl opacity-30 pointer-events-none"
-        />
-      {/if}
-      <!-- Hero image -->
-      <img
-        src={upscaleThumbnail(heroThumb, 800)}
-        alt={artist.name}
-        class="w-full h-full object-cover"
-        style="mask-image: linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.4) 60%, transparent 100%); -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.4) 60%, transparent 100%);"
-      />
-      <div class="absolute inset-0" style="background: linear-gradient(to top, var(--color-surface) 0%, rgba(3,3,3,0.5) 50%, transparent 100%);"></div>
+  <!-- Artist background image (full width extending behind sidebar) -->
+  {#if heroThumb}
+    <div
+      class="absolute top-0 pointer-events-none"
+      style="
+        height: 40vh;
+        width: calc(100% + 252px);
+        left: -252px;
+        background-image: url({upscaleThumbnail(heroThumb, 800)});
+        background-size: cover;
+        background-position: top center;
+        z-index: 0;
+      "
+    ></div>
+  {/if}
+
+  <div class="relative z-10 page-enter">
+    <!-- Hero gradient overlay -->
+    <div class="relative h-[40vh] min-h-[280px] overflow-hidden rounded-xl" style="z-index: 1;">
+      <div class="absolute inset-0" style="background: linear-gradient(to top, var(--color-surface) 0%, rgba(10,10,10,0.4) 50%, transparent 100%);"></div>
       <div class="absolute bottom-0 left-0 p-7">
         <span class="text-[10px] uppercase tracking-widest text-text-secondary/60 font-semibold mb-2 block">Artist</span>
         <h1 class="text-4xl font-bold tracking-tight leading-none mb-3">{artist.name}</h1>

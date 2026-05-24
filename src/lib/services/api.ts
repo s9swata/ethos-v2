@@ -10,12 +10,18 @@ import type {
 const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:7860";
 
 async function request<T>(path: string): Promise<T> {
-  const res = await fetch(`${API_URL}${path}`);
+  const url = `${API_URL}${path}`;
+  console.log("[api] fetch start", url);
+  const res = await fetch(url);
+  console.log("[api] fetch response status=", res.status, "for", url);
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
+    console.log("[api] fetch error body=", body);
     throw new Error(body.error ?? body.detail ?? `Request failed (HTTP ${res.status})`);
   }
-  return res.json();
+  const data = await res.json();
+  console.log("[api] fetch parsed, data keys=", Object.keys(data), "results length=", (data as any)?.results?.length);
+  return data;
 }
 
 export const api = {

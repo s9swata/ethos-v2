@@ -1,8 +1,8 @@
 import { create } from "zustand";
-import type { TrackInfo, RepeatMode, QueueContext } from "@/types";
+import type { TrackInfo, RepeatMode, QueueContext, PlayHistoryItem } from "@/types";
 import { api } from "@/api/client";
 
-const MAX_HISTORY = 5;
+const MAX_HISTORY = 10;
 
 interface AutoQueueItem {
   title: string | null;
@@ -26,7 +26,7 @@ interface PlayerState {
   currentAlbumId: string | null;
   isLoading: boolean;
   error: string | null;
-  playHistory: string[];
+  playHistory: PlayHistoryItem[];
 }
 
 interface PlayerActions {
@@ -41,6 +41,9 @@ interface PlayerActions {
   setVolume: (volume: number) => void;
   setRepeat: (mode: RepeatMode) => void;
   toggleShuffle: () => void;
+  addToQueue: (trackId: string) => Promise<void>;
+  removeFromQueue: (index: number) => void;
+  clearQueue: () => void;
   getNextTrack: () => TrackInfo | null;
   getTasteProfile: () => string;
 }
@@ -75,7 +78,8 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const track = await api.getTrack(trackId);
-      const history = [trackId, ...state.playHistory.filter((id) => id !== trackId)].slice(0, MAX_HISTORY);
+      const entry: PlayHistoryItem = { id: trackId, title: track.title, artist: track.artist, thumbnail: track.thumbnail };
+      const history = [entry, ...state.playHistory.filter((h) => h.id !== trackId)].slice(0, MAX_HISTORY);
       set({
         currentTrack: track,
         isPlaying: true,
@@ -189,6 +193,36 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
 
   toggleShuffle: () => set((state) => ({ isShuffled: !state.isShuffled })),
 
+  addToQueue: async (trackId) => {
+    const state = get();
+    try {
+      const track = await api.getTrack(trackId);
+      set((s) => ({ queue: [...s.queue, track] }));
+      if (!state.currentTrack) {
+        set({ currentTrack: track, isPlaying: true, currentTime: 0, queueIndex: state.queue.length });
+      }
+    } catch {}
+  },
+
+  removeFromQueue: (index) => {
+    const state = get();
+    if (index < 0 || index >= state.queue.length) return;
+    set((s) => ({ queue: s.queue.filter((_, i) => i !== index) }));
+    if (state.queueIndex > index) {
+      set((s) => ({ queueIndex: s.queueIndex - 1 }));
+    } else if (state.queueIndex === index) {
+      if (index < state.queue.length - 1) {
+        set({ queueIndex: index });
+      } else {
+        set({ queueIndex: state.queue.length - 2 });
+      }
+    }
+  },
+
+  clearQueue: () => {
+    set({ queue: [], queueIndex: -1 });
+  },
+
   getNextTrack: () => {
     const state = get();
     if (state.queue.length > 0 && state.queueIndex < state.queue.length - 1) {
@@ -200,7 +234,7 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
   getTasteProfile: () => {
     const state = get();
     if (state.playHistory.length === 0) return "";
-    const profile = { recentTracks: state.playHistory };
+    const profile = { recentTracks: state.playHistory.map((h) => h.id) };
     const safe = btoa(JSON.stringify(profile)).replace(/\+/g, "-").replace(/\//g, "_");
     return safe;
   },

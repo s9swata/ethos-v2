@@ -20,13 +20,15 @@ class ApiError extends Error {
 
 const getBaseUrl = () => {
   if (typeof localStorage !== "undefined") {
-    return (
-      localStorage.getItem("api-url") ??
-      process.env.EXPO_PUBLIC_API_URL ??
-      "http://localhost:3000"
-    );
+    const saved = localStorage.getItem("api-url");
+    if (saved) return saved;
   }
-  return process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3000";
+  if (process.env.EXPO_PUBLIC_API_URL) {
+    return process.env.EXPO_PUBLIC_API_URL;
+  }
+  throw new Error(
+    "API URL not configured. Set EXPO_PUBLIC_API_URL in .env.local or save a URL via the settings UI."
+  );
 };
 
 export const setBaseUrl = (url: string) => {

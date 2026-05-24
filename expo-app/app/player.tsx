@@ -1,23 +1,24 @@
 import { useRouter } from "expo-router";
 import { Icon } from "@/components/icons";
-import { Dimensions, Pressable, View, Text, PanResponder } from "react-native";
+import { Dimensions, Pressable, View, Text, PanResponder, Image as RNImage } from "react-native";
 import { Image } from "expo-image";
 import { usePlayerStore } from "@/stores/player-store";
 import { seekTo } from "@/components/AudioPlayerProvider";
 import { upscaleThumbnail } from "@/api/client";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useRef, useCallback, useMemo } from "react";
+import TrackPlayer from "@rntp/player";
+import TextTicker from "react-native-text-ticker";
+import { useEffect, useRef, useMemo, useState } from "react";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const ART_SIZE = SCREEN_WIDTH - 64;
+const TXT = { textShadowColor: "#000", textShadowRadius: 4, textShadowOffset: { width: 0, height: 0 } as const };
 
 export default function PlayerScreen() {
-  const router = useRouter();
-  const insets = useSafeAreaInsets();
   const currentTrack = usePlayerStore((s) => s.currentTrack);
   const isPlaying = usePlayerStore((s) => s.isPlaying);
-  const currentTime = usePlayerStore((s) => s.currentTime);
-  const duration = usePlayerStore((s) => s.duration);
+  const storeCurrentTime = usePlayerStore((s) => s.currentTime);
+  const storeDuration = usePlayerStore((s) => s.duration);
   const volume = usePlayerStore((s) => s.volume);
   const repeat = usePlayerStore((s) => s.repeat);
   const isShuffled = usePlayerStore((s) => s.isShuffled);
@@ -28,6 +29,27 @@ export default function PlayerScreen() {
   const playPrev = usePlayerStore((s) => s.playPrev);
   const togglePlay = usePlayerStore((s) => s.togglePlay);
 
+  // Direct progress polling (sync, no native module issues)
+  const [rntpCurrentTime, setRntpCurrentTime] = useState(0);
+  const [rntpDuration, setRntpDuration] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      try {
+        const { position, duration } = TrackPlayer.getProgress();
+        setRntpCurrentTime(position);
+        setRntpDuration(duration);
+      } catch {}
+    }, 200);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Use store values if RNTP not ready, otherwise use direct polling
+  const displayCurrentTime = rntpCurrentTime === 0 && storeCurrentTime > 0 ? storeCurrentTime : rntpCurrentTime;
+  const displayDuration = rntpDuration === 0 && storeDuration > 0 ? storeDuration : rntpDuration;
+
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
   const seekBarWidth = useRef(0);
   const volumeBarWidth = useRef(0);
 
@@ -57,15 +79,15 @@ export default function PlayerScreen() {
     onMoveShouldSetPanResponder: () => true,
     onPanResponderGrant: (evt) => {
       const x = evt.nativeEvent.locationX;
-      seekTo(Math.max(0, Math.min(x, seekBarWidth.current)) / (seekBarWidth.current || 1) * duration);
+      seekTo(Math.max(0, Math.min(x, seekBarWidth.current)) / (seekBarWidth.current || 1) * displayDuration);
     },
     onPanResponderMove: (evt) => {
       const x = evt.nativeEvent.locationX;
-      seekTo(Math.max(0, Math.min(x, seekBarWidth.current)) / (seekBarWidth.current || 1) * duration);
+      seekTo(Math.max(0, Math.min(x, seekBarWidth.current)) / (seekBarWidth.current || 1) * displayDuration);
     },
-  }), [duration]);
+  }), [displayDuration]);
 
-  const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
+  const progress = displayDuration > 0 ? (displayCurrentTime / displayDuration) * 100 : 0;
 
   if (!currentTrack) {
     return (
@@ -77,14 +99,26 @@ export default function PlayerScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: "#000" }}>
+      <RNImage
+        source={{ uri: upscaleThumbnail(currentTrack.thumbnail || "", 480) }}
+        style={{
+          position: "absolute",
+          top: 0, left: 0, right: 0, bottom: 0,
+        }}
+        blurRadius={80}
+      />
+      <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.35)" }} />
+
       <View style={{ paddingTop: insets.top + 8, paddingHorizontal: 16, flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
         <Pressable onPress={() => router.back()} style={{ padding: 8 }}>
           <Icon name="chevron-down" size={20} color="#fff" />
         </Pressable>
-        <Text style={{ color: "#a1a1a1", fontSize: 11, fontWeight: "600", letterSpacing: 1 }}>
+        <Text style={[{ color: "#a1a1a1", fontSize: 11, fontWeight: "600", letterSpacing: 1 }, TXT]}>
           NOW PLAYING
         </Text>
-        <View style={{ width: 36 }} />
+        <Pressable onPress={() => router.push("/queue")} style={{ padding: 8 }}>
+          <Icon name="queue-list" size={18} color="#a1a1a1" />
+        </Pressable>
       </View>
 
       <View style={{ flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 32 }}>
@@ -96,10 +130,10 @@ export default function PlayerScreen() {
         </View>
 
         <View style={{ width: "100%", marginTop: 32, gap: 4 }}>
-          <Text style={{ color: "#fff", fontSize: 20, fontWeight: "700" }} numberOfLines={1}>
+          <TextTicker duration={8000} loop marqueeDelay={1000} bounce repeatSpacer={50} style={[{ color: "#fff", fontSize: 20, fontWeight: "700" }, TXT]}>
             {currentTrack.title}
-          </Text>
-          <Text style={{ color: "#a1a1a1", fontSize: 14 }} numberOfLines={1}>
+          </TextTicker>
+          <Text style={[{ color: "#fff", fontSize: 14 }, TXT]} numberOfLines={1}>
             {currentTrack.artist}
           </Text>
         </View>
@@ -110,7 +144,7 @@ export default function PlayerScreen() {
             onLayout={(e) => { seekBarWidth.current = e.nativeEvent.layout.width; }}
             {...scrubPanResponder.panHandlers}
           >
-            <View style={{ height: 6, backgroundColor: "#2a2a2a", borderRadius: 3, overflow: "visible", justifyContent: "center" }}>
+            <View style={{ height: 6, backgroundColor: "#2a2a2a", borderRadius: 3, overflow: "hidden" }}>
               <View
                 style={{
                   height: "100%",
@@ -119,26 +153,14 @@ export default function PlayerScreen() {
                   borderRadius: 3,
                 }}
               />
-              <View
-                style={{
-                  position: "absolute",
-                  width: 14,
-                  height: 14,
-                  borderRadius: 7,
-                  backgroundColor: "#fff",
-                  left: `${progress}%`,
-                  marginLeft: -7,
-                  ...(progress > 0 ? {} : { display: "none" }),
-                }}
-              />
             </View>
           </View>
           <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 2 }}>
-            <Text style={{ color: "#6b6b6b", fontSize: 11 }}>
-              {formatTime(currentTime)}
+            <Text style={[{ color: "#fff", fontSize: 11 }, TXT]}>
+              {formatTime(displayCurrentTime)}
             </Text>
-            <Text style={{ color: "#6b6b6b", fontSize: 11 }}>
-              {formatTime(duration)}
+            <Text style={[{ color: "#fff", fontSize: 11 }, TXT]}>
+              {formatTime(displayDuration)}
             </Text>
           </View>
         </View>
