@@ -16,6 +16,7 @@ import { api, upscaleThumbnail, requestLRCLIB } from "@/api/client";
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import type { LyricsResponse } from "@/types";
 import { parseLRC, findActiveLineIndex, type TimedLyricLine } from "@/utils/lrc";
+import { computeWordTimings, findCurrentWordIndex, type WordTiming } from "@/utils/word-sync";
 
 const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get("window");
 const DURATION_THRESHOLD = 5;
@@ -29,11 +30,17 @@ function LyricLine({
   index,
   activeIndex,
   onLayout,
+  wordTimings,
+  adjustedTime,
+  wordMode,
 }: {
   line: TimedLyricLine;
   index: number;
   activeIndex: number;
   onLayout: (index: number, y: number) => void;
+  wordTimings?: WordTiming[];
+  adjustedTime?: number;
+  wordMode?: boolean;
 }) {
   const isActive = index === activeIndex;
   const isPast = index < activeIndex;
@@ -75,6 +82,12 @@ function LyricLine({
     ]).start();
   }, [isActive, isPast, dist]);
 
+  // Word-level mode: render words individually for the active line
+  const showWords = isActive && wordMode && wordTimings && wordTimings.length > 0;
+  const currentWordIndex = showWords && adjustedTime != null
+    ? findCurrentWordIndex(wordTimings!, adjustedTime)
+    : -1;
+
   return (
     <View
       onLayout={(e) => onLayout(index, e.nativeEvent.layout.y)}
@@ -87,7 +100,22 @@ function LyricLine({
           { opacity, transform: [{ scale }] },
         ]}
       >
-        {line.text}
+        {showWords ? (
+          wordTimings!.map((w, j) => (
+            <Text
+              key={j}
+              style={
+                j <= currentWordIndex
+                  ? styles.wordActive
+                  : styles.wordPending
+              }
+            >
+              {w.word}{' '}
+            </Text>
+          ))
+        ) : (
+          line.text
+        )}
       </Animated.Text>
     </View>
   );
@@ -107,6 +135,7 @@ export default function LyricsScreen() {
   const [loading, setLoading] = useState(false);
   const [offset, setOffset] = useState(0);
   const [showOffsetSlider, setShowOffsetSlider] = useState(false);
+  const [wordMode, setWordMode] = useState(true);
 
   // Animations
   const contentOpacity = useRef(new Animated.Value(0)).current;
@@ -213,6 +242,8 @@ export default function LyricsScreen() {
   const adjustedTime = currentTime + effectiveOffset;
   const activeIndex = findActiveLineIndex(timedLyrics, adjustedTime);
 
+  const wordTimings = useMemo(() => computeWordTimings(timedLyrics), [timedLyrics]);
+
   const scrollRef = useRef<ScrollView>(null);
   const lineLayouts = useRef<number[]>([]);
   const lastScrolledIndex = useRef<number>(-1);
@@ -261,6 +292,25 @@ export default function LyricsScreen() {
           </Text>
         </View>
 
+        {displayMode === "synced" && (
+          <Pressable
+            onPress={() => setWordMode((v) => !v)}
+            hitSlop={8}
+            style={{ paddingRight: 8 }}
+          >
+            <Text
+              style={{
+                color: wordMode ? "#fff" : "rgba(255,255,255,0.35)",
+                fontSize: 10,
+                fontWeight: "700",
+                letterSpacing: 1.2,
+              }}
+            >
+              WORD
+            </Text>
+          </Pressable>
+        )}
+
         {/* Small album art */}
         <View style={styles.headerArtWrap}>
           <RNImage source={{ uri: thumbUri }} style={styles.headerArt} />
@@ -291,6 +341,9 @@ export default function LyricsScreen() {
                 index={i}
                 activeIndex={activeIndex}
                 onLayout={onLineLayout}
+                wordTimings={wordTimings[i]}
+                adjustedTime={adjustedTime}
+                wordMode={wordMode}
               />
             ))
           ) : displayMode === "plain" ? (
@@ -469,6 +522,16 @@ const styles = StyleSheet.create({
     fontSize: 26,
     fontWeight: "700",
     lineHeight: 34,
+  },
+
+  // Word-level
+  wordActive: {
+    color: "#fff",
+    fontWeight: "700",
+  },
+  wordPending: {
+    color: "rgba(255,255,255,0.4)",
+    fontWeight: "400",
   },
 
   // Plain lyrics
