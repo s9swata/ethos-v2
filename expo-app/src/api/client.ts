@@ -5,6 +5,8 @@ import type {
   TrackInfo,
   PlaylistInfo,
   HomeResponse,
+  LyricsResponse,
+  ChartsResponse,
 } from "@/types";
 
 class ApiError extends Error {
@@ -85,6 +87,18 @@ export const api = {
 
   getHomeFeed: (profile?: string) =>
     request<HomeResponse>(`/api/home${profile ? `?profile=${encodeURIComponent(profile)}` : ""}`),
+
+  getLyrics: (trackId: string) =>
+    request<LyricsResponse>(`/api/tracks/${encodeURIComponent(trackId)}/lyrics`),
+
+  getTrackRelated: (trackId: string) =>
+    request<{ results: any[]; count: number }>(`/api/tracks/${encodeURIComponent(trackId)}/related`),
+
+  getCharts: (country?: string) =>
+    request<ChartsResponse>(`/api/charts${country ? `?country=${country}` : ""}`),
+
+  getArtistAlbums: (browseId: string, params: string, limit?: number, order?: string) =>
+    request<{ results: any[]; count: number }>(`/api/artist/${encodeURIComponent(browseId)}/albums?params=${encodeURIComponent(params)}${limit ? `&limit=${limit}` : ""}${order ? `&order=${encodeURIComponent(order)}` : ""}`),
 };
 
 export { getBaseUrl, upscaleThumbnail, ApiError };

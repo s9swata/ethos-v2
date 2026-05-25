@@ -33,6 +33,7 @@ const NAME_MAP: Record<string, string> = {
   "speaker-x-mark": "sound-mute",
   "speaker-wave": "sound",
   bars: "menu",
+  chart: "bar-graph",
 };
 
 export type IconName = keyof typeof NAME_MAP;

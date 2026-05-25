@@ -90,7 +90,7 @@ Python FastAPI server using two services for media resolution:
 ### Key decisions
 
 - **`server/src/services/ytdlp.py`** — yt-dlp via `YoutubeDL.extract_info()`. Client rotation on 429 via `extractor_args`. Functions: `get_info`, `get_playlist`, `get_artist_uploads`. No `search` — migrated to ytmusicapi.
-- **`server/src/services/ytmusic.py`** — wraps `ytmusicapi` in `ThreadPoolExecutor`. Functions: `search_songs`, `search_albums`, `search_artists`, `search_playlists`, `unified_search`, `get_artist`, `get_album`. Single shared `YTMusic` client singleton.
+- **`server/src/services/ytmusic.py`** — wraps `ytmusicapi` in `ThreadPoolExecutor`. Functions: `search_songs`, `search_albums`, `search_artists`, `search_playlists`, `unified_search`, `get_artist`, `get_album`, `get_lyrics`, `get_lyrics_browse_id`, `get_charts`, `get_track_related`, `get_artist_albums`. Single shared `YTMusic` client singleton.
 - **`server/src/services/scoring.py`** — relevance scoring for unified search. Text matching (exact→starts→contains→difflib) + subtitle bonus + category boost (track=+15, album/artist=+5, playlist=0).
 - **`server/src/services/validate.py`** — input sanitization (query length, suspicious character blocking).
 - **Client rotation** — `YT_DLP_CLIENTS` env var defines fallback order (default: android→ios→tv→web). Each client via `player_client` extractor arg.
@@ -110,6 +110,10 @@ Python FastAPI server using two services for media resolution:
 | `GET /api/playlist?url=&limit=` | yt-dlp `extract_info` | Playlist/album track list |
 | `GET /api/artist?url=&limit=` | yt-dlp `extract_info` | Channel uploads (legacy) |
 | `GET /api/tracks/:id` | yt-dlp `extract_info` | Track metadata + formats + stream URL |
+| `GET /api/tracks/:id/lyrics` | ytmusicapi `get_lyrics` | Lyrics text with optional timestamps |
+| `GET /api/tracks/:id/related` | ytmusicapi `get_track_related` | Related songs for the given track |
+| `GET /api/charts?country=` | ytmusicapi `get_charts` | Top videos, artists, and genre charts |
+| `GET /api/artist/:browseId/albums?params=&limit=&order=` | ytmusicapi `get_artist_albums` | Full album list for artist |
 
 ### Adding a new ytmusicapi feature
 

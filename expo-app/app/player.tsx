@@ -1,28 +1,32 @@
 import { useRouter } from "expo-router";
 import { Icon } from "@/components/icons";
-import { Dimensions, Pressable, View, Text, PanResponder, Image as RNImage } from "react-native";
+import { Dimensions, Pressable, View, Text, PanResponder, Image as RNImage, ScrollView } from "react-native";
 import { Image } from "expo-image";
 import { usePlayerStore } from "@/stores/player-store";
 import { seekTo } from "@/components/AudioPlayerProvider";
-import { upscaleThumbnail } from "@/api/client";
+import { api, upscaleThumbnail } from "@/api/client";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import TrackPlayer from "@rntp/player";
-import TextTicker from "react-native-text-ticker";
-import { useEffect, useRef, useMemo, useState } from "react";
+import { MarqueeText } from "@/components/MarqueeText";
+import { useEffect, useRef, useState } from "react";
+import type { LyricsResponse } from "@/types";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const ART_SIZE = SCREEN_WIDTH - 64;
-const TXT = { textShadowColor: "#000", textShadowRadius: 4, textShadowOffset: { width: 0, height: 0 } as const };
 
 export default function PlayerScreen() {
+  const router = useRouter();
   const currentTrack = usePlayerStore((s) => s.currentTrack);
+
+  useEffect(() => {
+    if (!currentTrack) router.back();
+  }, [currentTrack, router]);
+
   const isPlaying = usePlayerStore((s) => s.isPlaying);
   const storeCurrentTime = usePlayerStore((s) => s.currentTime);
   const storeDuration = usePlayerStore((s) => s.duration);
-  const volume = usePlayerStore((s) => s.volume);
   const repeat = usePlayerStore((s) => s.repeat);
   const isShuffled = usePlayerStore((s) => s.isShuffled);
-  const setVolume = usePlayerStore((s) => s.setVolume);
   const setRepeat = usePlayerStore((s) => s.setRepeat);
   const toggleShuffle = usePlayerStore((s) => s.toggleShuffle);
   const playNext = usePlayerStore((s) => s.playNext);
@@ -33,12 +37,23 @@ export default function PlayerScreen() {
   const [rntpCurrentTime, setRntpCurrentTime] = useState(0);
   const [rntpDuration, setRntpDuration] = useState(0);
 
+  // Reset local progress on track change to avoid showing garbage values
+  // from TrackPlayer.getProgress() during the load transition.
+  useEffect(() => {
+    setRntpCurrentTime(0);
+    setRntpDuration(0);
+  }, [currentTrack?.id]);
+
   useEffect(() => {
     const interval = setInterval(() => {
       try {
         const { position, duration } = TrackPlayer.getProgress();
-        setRntpCurrentTime(position);
-        setRntpDuration(duration);
+        if (isFinite(position) && position >= 0 && position < 1000000) {
+          setRntpCurrentTime(position);
+        }
+        if (isFinite(duration) && duration >= 0 && duration < 1000000) {
+          setRntpDuration(duration);
+        }
       } catch {}
     }, 200);
     return () => clearInterval(interval);
@@ -48,25 +63,24 @@ export default function PlayerScreen() {
   const displayCurrentTime = rntpCurrentTime === 0 && storeCurrentTime > 0 ? storeCurrentTime : rntpCurrentTime;
   const displayDuration = rntpDuration === 0 && storeDuration > 0 ? storeDuration : rntpDuration;
 
-  const router = useRouter();
+  // Keep a ref so scrubPanResponder (created once) always reads the latest value
+  const displayDurationRef = useRef(displayDuration);
+  displayDurationRef.current = displayDuration;
+
+  const [showLyrics, setShowLyrics] = useState(false);
+  const [lyrics, setLyrics] = useState<LyricsResponse | null>(null);
+  const [lyricsLoading, setLyricsLoading] = useState(false);
+
+  useEffect(() => {
+    if (!currentTrack?.id) return;
+    setLyrics(null);
+    setShowLyrics(false);
+    setLyricsLoading(true);
+    api.getLyrics(currentTrack.id).then(setLyrics).catch(() => setLyrics(null)).finally(() => setLyricsLoading(false));
+  }, [currentTrack?.id]);
+
   const insets = useSafeAreaInsets();
   const seekBarWidth = useRef(0);
-  const volumeBarWidth = useRef(0);
-
-  const volumePanResponder = useMemo(() => PanResponder.create({
-    onStartShouldSetPanResponder: () => true,
-    onMoveShouldSetPanResponder: () => true,
-    onPanResponderGrant: (evt) => {
-      const x = evt.nativeEvent.locationX;
-      const newVol = Math.max(0, Math.min(x / (volumeBarWidth.current || 1), 1));
-      setVolume(newVol);
-    },
-    onPanResponderMove: (evt) => {
-      const x = evt.nativeEvent.locationX;
-      const newVol = Math.max(0, Math.min(x / (volumeBarWidth.current || 1), 1));
-      setVolume(newVol);
-    },
-  }), [setVolume]);
 
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
@@ -74,28 +88,22 @@ export default function PlayerScreen() {
     return `${m}:${s.toString().padStart(2, "0")}`;
   };
 
-  const scrubPanResponder = useMemo(() => PanResponder.create({
+  const scrubPanResponder = useRef(PanResponder.create({
     onStartShouldSetPanResponder: () => true,
     onMoveShouldSetPanResponder: () => true,
     onPanResponderGrant: (evt) => {
       const x = evt.nativeEvent.locationX;
-      seekTo(Math.max(0, Math.min(x, seekBarWidth.current)) / (seekBarWidth.current || 1) * displayDuration);
+      seekTo(Math.max(0, Math.min(x, seekBarWidth.current)) / (seekBarWidth.current || 1) * displayDurationRef.current);
     },
     onPanResponderMove: (evt) => {
       const x = evt.nativeEvent.locationX;
-      seekTo(Math.max(0, Math.min(x, seekBarWidth.current)) / (seekBarWidth.current || 1) * displayDuration);
+      seekTo(Math.max(0, Math.min(x, seekBarWidth.current)) / (seekBarWidth.current || 1) * displayDurationRef.current);
     },
-  }), [displayDuration]);
+  })).current;
 
   const progress = displayDuration > 0 ? (displayCurrentTime / displayDuration) * 100 : 0;
 
-  if (!currentTrack) {
-    return (
-      <View style={{ flex: 1, backgroundColor: "#000", justifyContent: "center", alignItems: "center" }}>
-        <Text style={{ color: "#a1a1a1" }}>No track selected</Text>
-      </View>
-    );
-  }
+  if (!currentTrack) return null;
 
   return (
     <View style={{ flex: 1, backgroundColor: "#000" }}>
@@ -113,7 +121,7 @@ export default function PlayerScreen() {
         <Pressable onPress={() => router.back()} style={{ padding: 8 }}>
           <Icon name="chevron-down" size={20} color="#fff" />
         </Pressable>
-        <Text style={[{ color: "#a1a1a1", fontSize: 11, fontWeight: "600", letterSpacing: 1 }, TXT]}>
+        <Text style={{ color: "#a1a1a1", fontSize: 11, fontWeight: "600", letterSpacing: 1 }}>
           NOW PLAYING
         </Text>
         <Pressable onPress={() => router.push("/queue")} style={{ padding: 8 }}>
@@ -122,44 +130,68 @@ export default function PlayerScreen() {
       </View>
 
       <View style={{ flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 32 }}>
-        <View style={{ width: ART_SIZE, height: ART_SIZE, borderRadius: 16, backgroundColor: "#1a1a1a" }}>
-          <Image
-            source={{ uri: upscaleThumbnail(currentTrack.thumbnail || "", 480) }}
-            style={{ width: ART_SIZE, height: ART_SIZE, borderRadius: 16 }}
-          />
-        </View>
+        {showLyrics ? (
+          <ScrollView style={{ flex: 1, width: "100%" }} contentContainerStyle={{ paddingVertical: 16 }}>
+            {lyricsLoading ? (
+              <Text style={{ color: "#a1a1a1", fontSize: 14, textAlign: "center" }}>Loading lyrics...</Text>
+            ) : lyrics?.lyrics ? (
+              typeof lyrics.lyrics === "string" ? (
+                <Text style={{ color: "#fff", fontSize: 16, lineHeight: 28, textAlign: "center", letterSpacing: 0.3 }}>
+                  {lyrics.lyrics}
+                </Text>
+              ) : (
+                lyrics.lyrics.filter(l => l.text).map((line, i) => (
+                  <Text key={i} style={{ color: "#fff", fontSize: 15, lineHeight: 26, textAlign: "center" }}>
+                    {line.text}
+                  </Text>
+                ))
+              )
+            ) : (
+              <Text style={{ color: "#a1a1a1", fontSize: 14, textAlign: "center" }}>No lyrics available</Text>
+            )}
+          </ScrollView>
+        ) : (
+          <>
+            <View style={{ width: ART_SIZE, height: ART_SIZE, borderRadius: 16, backgroundColor: "#1a1a1a" }}>
+              <Image
+                source={{ uri: upscaleThumbnail(currentTrack.thumbnail || "", 480) }}
+                style={{ width: ART_SIZE, height: ART_SIZE, borderRadius: 16 }}
+              />
+            </View>
 
-        <View style={{ width: "100%", marginTop: 32, gap: 4 }}>
-          <TextTicker duration={8000} loop marqueeDelay={1000} bounce repeatSpacer={50} style={[{ color: "#fff", fontSize: 20, fontWeight: "700" }, TXT]}>
-            {currentTrack.title}
-          </TextTicker>
-          <Text style={[{ color: "#fff", fontSize: 14 }, TXT]} numberOfLines={1}>
-            {currentTrack.artist}
-          </Text>
-        </View>
+            <View style={{ width: "100%", marginTop: 32, gap: 4 }}>
+              <MarqueeText duration={8000} delay={1000} style={{ color: "#fff", fontSize: 20, fontWeight: "700" }}>
+                {currentTrack.title}
+              </MarqueeText>
+              <Text style={{ color: "#fff", fontSize: 14 }} numberOfLines={1}>
+                {currentTrack.artist}
+              </Text>
+            </View>
+          </>
+        )}
 
-        <View style={{ width: "100%", marginTop: 24 }}>
+        <View style={{ width: "100%", marginTop: showLyrics ? 0 : 24 }}>
           <View
             style={{ height: 24, justifyContent: "center" }}
             onLayout={(e) => { seekBarWidth.current = e.nativeEvent.layout.width; }}
             {...scrubPanResponder.panHandlers}
           >
-            <View style={{ height: 6, backgroundColor: "#2a2a2a", borderRadius: 3, overflow: "hidden" }}>
+            <View style={{ height: 4, backgroundColor: "rgba(255,255,255,0.15)", borderRadius: 2, overflow: "hidden" }}>
               <View
                 style={{
                   height: "100%",
                   width: `${progress}%`,
                   backgroundColor: "#fff",
-                  borderRadius: 3,
+                  borderRadius: 2,
                 }}
               />
             </View>
           </View>
           <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 2 }}>
-            <Text style={[{ color: "#fff", fontSize: 11 }, TXT]}>
+            <Text style={{ color: "#fff", fontSize: 11 }}>
               {formatTime(displayCurrentTime)}
             </Text>
-            <Text style={[{ color: "#fff", fontSize: 11 }, TXT]}>
+            <Text style={{ color: "#fff", fontSize: 11 }}>
               {formatTime(displayDuration)}
             </Text>
           </View>
@@ -193,41 +225,12 @@ export default function PlayerScreen() {
           </Pressable>
         </View>
 
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginTop: 24, width: "100%", maxWidth: 240 }}>
-          <Pressable onPress={() => setVolume(volume === 0 ? 0.5 : 0)} style={{ padding: 4 }}>
-            <Icon name={volume === 0 ? "speaker-x-mark" : "speaker-wave"} size={16} color="#a1a1a1" />
-          </Pressable>
-          <View
-            style={{ flex: 1, height: 24, justifyContent: "center" }}
-            onLayout={(e) => { volumeBarWidth.current = e.nativeEvent.layout.width; }}
-            {...volumePanResponder.panHandlers}
-          >
-            <View style={{ height: 4, backgroundColor: "#2a2a2a", borderRadius: 2, overflow: "visible", justifyContent: "center" }}>
-              <View
-                style={{
-                  height: "100%",
-                  width: `${volume * 100}%`,
-                  backgroundColor: "#fff",
-                  borderRadius: 2,
-                }}
-              />
-              <View
-                style={{
-                  position: "absolute",
-                  width: 12,
-                  height: 12,
-                  borderRadius: 6,
-                  backgroundColor: "#fff",
-                  left: `${volume * 100}%`,
-                  marginLeft: -6,
-                }}
-              />
-            </View>
-          </View>
-        </View>
       </View>
 
       <View style={{ paddingBottom: insets.bottom + 16, paddingHorizontal: 32, flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+        <Pressable onPress={() => setShowLyrics(v => !v)} style={{ padding: 8 }}>
+          <Icon name="music-note" size={18} color={showLyrics ? "#ff2a3b" : "#a1a1a1"} />
+        </Pressable>
         <Pressable style={{ padding: 8 }}>
           <Icon name="share" size={18} color="#a1a1a1" />
         </Pressable>

@@ -24,7 +24,7 @@ function SectionRow({ section, onItemPress }: { section: HomeSection; onItemPres
     <View style={{ marginBottom: layout.sectionGap }}>
       <Text style={[typography.h3, { paddingHorizontal: layout.px, marginBottom: 12 }]}>{section.title}</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: layout.px, gap: 12 }}>
-        {section.items.map((item, i) => {
+        {section.items.filter((item) => item.type !== "mood").map((item, i) => {
           const isArtist = item.type === "artist";
           return (
             <Pressable
@@ -32,15 +32,28 @@ function SectionRow({ section, onItemPress }: { section: HomeSection; onItemPres
               style={{ width: isArtist ? 120 : 150 }}
               onPress={() => onItemPress(item)}
             >
-              <Image
-                source={{ uri: upscaleThumbnail(item.imageUrl, isArtist ? 160 : 240) }}
-                style={{
+              {item.imageUrl ? (
+                <Image
+                  source={{ uri: upscaleThumbnail(item.imageUrl, isArtist ? 160 : 240) }}
+                  style={{
+                    width: isArtist ? 120 : 150,
+                    height: isArtist ? 120 : 150,
+                    borderRadius: isArtist ? 60 : 12,
+                    backgroundColor: theme.colors.surface3,
+                  }}
+                />
+              ) : (
+                <View style={{
                   width: isArtist ? 120 : 150,
                   height: isArtist ? 120 : 150,
                   borderRadius: isArtist ? 60 : 12,
                   backgroundColor: theme.colors.surface3,
-                }}
-              />
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}>
+                  <Icon name="music-note" size={24} color={theme.colors.textTertiary} />
+                </View>
+              )}
               <Text style={{ color: theme.colors.textPrimary, fontSize: 13, fontWeight: "500", marginTop: 8 }} numberOfLines={1}>{item.title}</Text>
               {item.subtitle ? (
                 <Text style={{ color: theme.colors.textSecondary, fontSize: 11, marginTop: 2 }} numberOfLines={1}>{item.subtitle}</Text>
@@ -85,15 +98,20 @@ export default function HomeScreen() {
 
   const handleItemPress = useCallback(
     (item: HomeSection["items"][number]) => {
-      if (item.type === "track") {
-        playTrack(item.id);
-      } else if (item.type === "artist" && item.browseId) {
-        router.push(`/artist/${item.browseId}`);
-      } else if (item.type === "album" && item.browseId) {
-        router.push(`/album/${item.browseId}`);
-      } else if (item.type === "playlist" && item.browseId) {
-        router.push(`/playlist/${item.browseId}`);
-      }
+      try {
+        if (item.type === "track") {
+          playTrack(item.id, { title: item.title, artist: item.subtitle });
+        } else if (item.type === "artist") {
+          const id = item.browseId || item.id;
+          if (id) router.push(`/artist/${id}`);
+        } else if (item.type === "album") {
+          const id = item.browseId || item.id;
+          if (id) router.push(`/album/${id}`);
+        } else if (item.type === "playlist") {
+          const id = item.browseId || item.id;
+          if (id) router.push(`/playlist/${id}`);
+        }
+      } catch {}
     },
     [playTrack, router]
   );
@@ -106,12 +124,12 @@ export default function HomeScreen() {
       >
         <View
           style={{
-            paddingTop: insets.top + 8,
-            paddingBottom: 16,
+            paddingTop: insets.top + 40,
+            paddingBottom: 24,
             paddingHorizontal: layout.px,
           }}
         >
-          <Text style={typography.h1}>{greeting()}</Text>
+          <Text style={[typography.h1, { fontSize: 34, letterSpacing: -1 }]}>{greeting()}</Text>
         </View>
 
         {loading && sections.length === 0 ? (

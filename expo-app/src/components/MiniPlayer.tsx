@@ -1,7 +1,7 @@
 import { useRef, useCallback } from "react";
 import { useRouter, usePathname } from "expo-router";
 import { View, Text, Pressable, Animated } from "react-native";
-import TextTicker from "react-native-text-ticker";
+import { MarqueeText } from "@/components/MarqueeText";
 import { Icon } from "@/components/icons";
 import { Image } from "expo-image";
 import { usePlayerStore } from "@/stores/player-store";
@@ -65,7 +65,7 @@ export function MiniPlayer() {
     fn();
   }, []);
 
-  if (pathname === "/player") return null;
+  if (pathname === "/player" || !currentTrack) return null;
 
   return (
     <View style={{
@@ -81,83 +81,58 @@ export function MiniPlayer() {
       elevation: 10,
     }}>
       <View style={{ paddingHorizontal: 10, paddingBottom: insets.bottom > 0 ? insets.bottom : 8 }}>
-        {currentTrack ? (
-          <>
-            <Pressable
-              onPress={() => router.push("/player")}
-              style={{
-                borderRadius: 999,
-                borderCurve: "continuous",
-                overflow: "hidden",
-                backgroundColor: "#1c1c1e",
-                borderWidth: 0.5,
-                borderColor: "rgba(255,255,255,0.08)",
-              }}
-            >
-              {/* Single row: art + title/artist + heart + prev + play/pause + next */}
-              <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 12, paddingVertical: 8, gap: 8 }}>
-                <Pressable onPress={() => router.push("/player")}>
-                  <Image
-                    source={{ uri: upscaleThumbnail(currentTrack.thumbnail || "") }}
-                    style={{ width: 40, height: 40, borderRadius: 8 }}
-                  />
-                </Pressable>
-                <View style={{ flex: 1, justifyContent: "center" }}>
-                  <TextTicker duration={8000} loop marqueeDelay={1000} bounce repeatSpacer={50} style={{ color: theme.colors.textPrimary, fontSize: 13, fontWeight: "600" }}>
-                    {currentTrack.title}
-                  </TextTicker>
-                  <Text style={{ color: theme.colors.textSecondary, fontSize: 11 }} numberOfLines={1}>
-                    {currentTrack.artist}
-                  </Text>
-                </View>
-                <Animated.View style={{ transform: [{ scale: heartScale }] }}>
-                  <Pressable onPress={handleHeartPress} hitSlop={8} style={{ padding: 4 }}>
-                    <Icon
-                      name={isLiked(currentTrack.id) ? "heart-filled" : "heart-outline"}
-                      size={16}
-                      color={isLiked(currentTrack.id) ? theme.colors.accent : theme.colors.textTertiary}
-                    />
-                  </Pressable>
-                </Animated.View>
-                <Pressable onPress={handleControlPress(playPrev)} hitSlop={6} style={{ padding: 4 }}>
-                  <Icon name="backward" size={17} color={theme.colors.textSecondary} />
-                </Pressable>
-                <Pressable onPress={handleControlPress(togglePlay)} hitSlop={8} style={{ padding: 4 }}>
-                  <Icon name={isPlaying ? "pause" : "play"} size={17} color={theme.colors.textPrimary} />
-                </Pressable>
-                <Pressable onPress={handleControlPress(playNext)} hitSlop={6} style={{ padding: 4 }}>
-                  <Icon name="forward" size={17} color={theme.colors.textSecondary} />
-                </Pressable>
-              </View>
-
-              {/* Thin progress bar at bottom of pill */}
-              <View style={{ height: 2, backgroundColor: "#2a2a2a" }}>
-                <View style={{ width: `${progress}%`, height: "100%", backgroundColor: theme.colors.accent }} />
-              </View>
+        <Pressable
+          onPress={() => router.push("/player")}
+          style={{
+            borderRadius: 999,
+            borderCurve: "continuous",
+            overflow: "hidden",
+            backgroundColor: "#1c1c1e",
+            borderWidth: 0.5,
+            borderColor: "rgba(255,255,255,0.08)",
+          }}
+        >
+          {/* Single row: art + title/artist + heart + prev + play/pause + next */}
+          <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 12, paddingVertical: 8, gap: 8 }}>
+            <Pressable onPress={() => router.push("/player")} style={{ justifyContent: "center" }}>
+              <Image
+                source={{ uri: upscaleThumbnail(currentTrack.thumbnail || "") }}
+                style={{ width: 40, height: 40, borderRadius: 8 }}
+              />
             </Pressable>
-
-
-          </>
-        ) : (
-          <Pressable
-            style={{
-              borderRadius: 999,
-              borderCurve: "continuous",
-              overflow: "hidden",
-              backgroundColor: theme.colors.surface2,
-              borderWidth: 0.5,
-              borderColor: "rgba(255,255,255,0.08)",
-              height: 60,
-            }}
-          >
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 10, flex: 1, paddingHorizontal: 12 }}>
-              <View style={{ width: 40, height: 40, borderRadius: 8, backgroundColor: theme.colors.surface3, justifyContent: "center", alignItems: "center" }}>
-                <Icon name="music-note" size={20} color={theme.colors.textTertiary} />
-              </View>
-              <Text style={{ color: theme.colors.textTertiary, fontSize: 14 }}>No track playing</Text>
+            <View style={{ flex: 1, justifyContent: "center" }}>
+              <MarqueeText duration={8000} delay={1000} style={{ color: theme.colors.textPrimary, fontSize: 13, fontWeight: "600" }}>
+                {currentTrack.title}
+              </MarqueeText>
+              <Text style={{ color: theme.colors.textSecondary, fontSize: 11 }} numberOfLines={1}>
+                {currentTrack.artist}
+              </Text>
             </View>
-          </Pressable>
-        )}
+            <Animated.View style={{ justifyContent: "center", transform: [{ scale: heartScale }] }}>
+              <Pressable onPress={handleHeartPress} hitSlop={8} style={{ padding: 4 }}>
+                <Icon
+                  name={isLiked(currentTrack.id) ? "heart-filled" : "heart-outline"}
+                  size={16}
+                  color={isLiked(currentTrack.id) ? theme.colors.accent : theme.colors.textTertiary}
+                />
+              </Pressable>
+            </Animated.View>
+            <Pressable onPress={handleControlPress(playPrev)} hitSlop={6} style={{ padding: 4, justifyContent: "center" }}>
+              <Icon name="backward" size={17} color={theme.colors.textSecondary} />
+            </Pressable>
+            <Pressable onPress={handleControlPress(togglePlay)} hitSlop={8} style={{ padding: 4, justifyContent: "center" }}>
+              <Icon name={isPlaying ? "pause" : "play"} size={17} color={theme.colors.textPrimary} />
+            </Pressable>
+            <Pressable onPress={handleControlPress(playNext)} hitSlop={6} style={{ padding: 4, justifyContent: "center" }}>
+              <Icon name="forward" size={17} color={theme.colors.textSecondary} />
+            </Pressable>
+          </View>
+
+          {/* Thin progress bar at bottom of pill */}
+          <View style={{ height: 2, backgroundColor: "#2a2a2a" }}>
+            <View style={{ width: `${progress}%`, height: "100%", backgroundColor: theme.colors.accent }} />
+          </View>
+        </Pressable>
       </View>
     </View>
   );

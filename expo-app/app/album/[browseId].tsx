@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { View, Text, Pressable, ScrollView, ActivityIndicator } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Icon } from "@/components/icons";
 import { Image } from "expo-image";
 
@@ -14,6 +15,7 @@ import { theme, layout } from "@/theme";
 export default function AlbumScreen() {
   const { browseId } = useLocalSearchParams<{ browseId: string }>();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [album, setAlbum] = useState<AlbumInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -57,12 +59,12 @@ export default function AlbumScreen() {
 
   const handlePlayAll = () => {
     const firstTrack = album.tracks.find((t) => t.videoId);
-    if (firstTrack?.videoId) playTrack(firstTrack.videoId, { albumBrowseId: browseId });
+    if (firstTrack?.videoId) playTrack(firstTrack.videoId, { albumBrowseId: browseId, title: firstTrack.title ?? undefined, artist: firstTrack.artists?.[0] ?? undefined, thumbnail: artUrl });
   };
 
   const header = (
     <View style={{ marginBottom: layout.sectionGap }}>
-      <View style={{ alignItems: "center", paddingTop: 24, paddingBottom: 20, paddingHorizontal: layout.px }}>
+      <View style={{ alignItems: "center", paddingTop: insets.top + 40, paddingBottom: 20, paddingHorizontal: layout.px }}>
         {artUrl && (
           <View style={{ borderRadius: 16, overflow: "hidden", backgroundColor: theme.colors.surface3 }}>
             <Image source={{ uri: upscaleThumbnail(artUrl, 320) }} style={{ width: 208, height: 208 }} />
@@ -102,20 +104,12 @@ export default function AlbumScreen() {
       {header}
 
       <View style={{ paddingHorizontal: layout.px }}>
-        <View style={{ flexDirection: "row", alignItems: "center", paddingVertical: 8, borderBottomWidth: 0.5, borderBottomColor: theme.colors.border }}>
-          <Text style={{ color: theme.colors.textTertiary, fontSize: 11, fontWeight: "600", width: 32, letterSpacing: 0.5 }}>#</Text>
-          <Text style={{ color: theme.colors.textTertiary, fontSize: 11, fontWeight: "600", flex: 1, letterSpacing: 0.5 }}>Title</Text>
-          <View style={{ width: 48, alignItems: "flex-end" }}>
-            <Icon name="clock" size={12} color={theme.colors.textTertiary} />
-          </View>
-        </View>
         {album.tracks.map((track, idx) => (
           <Pressable
             key={track.videoId ?? idx}
             style={{ flexDirection: "row", alignItems: "center", paddingVertical: 12, borderBottomWidth: 0.5, borderBottomColor: theme.colors.border }}
-            onPress={() => track.videoId && playTrack(track.videoId, { albumBrowseId: browseId })}
+            onPress={() => track.videoId && playTrack(track.videoId, { albumBrowseId: browseId, title: track.title ?? undefined, artist: track.artists?.[0] ?? undefined, thumbnail: artUrl })}
           >
-            <Text style={{ color: theme.colors.textTertiary, fontSize: 13, width: 32 }}>{track.index ?? idx + 1}</Text>
             <View style={{ flex: 1 }}>
               <Text style={{ color: theme.colors.textPrimary, fontSize: 14, fontWeight: "500" }} numberOfLines={1}>{track.title}</Text>
               <Text style={{ color: theme.colors.textSecondary, fontSize: 13 }} numberOfLines={1}>{track.artists?.join(", ")}</Text>

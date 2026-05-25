@@ -6,6 +6,7 @@ import { theme } from "@/theme";
 
 const TABS = [
   { name: "index", label: "Home", icon: "home" as const },
+  { name: "charts", label: "Charts", icon: "chart" as const },
   { name: "search", label: "Search", icon: "search" as const },
   { name: "library", label: "Library", icon: "bars" as const },
 ];
@@ -16,6 +17,7 @@ export default function TabLayout() {
   const pathname = usePathname();
 
   const activeTab =
+    pathname.startsWith("/charts") ? "charts" :
     pathname.startsWith("/search") ? "search" :
     pathname.startsWith("/library") ? "library" :
     "index";
@@ -41,6 +43,7 @@ export default function TabLayout() {
               style={{ flex: 1, alignItems: "center", gap: 2, paddingVertical: 4 }}
               onPress={() => {
                 if (tab.name === "index" && !isActive) router.replace("/");
+                else if (tab.name === "charts" && !isActive) router.replace("/charts");
                 else if (tab.name === "search" && !isActive) router.replace("/search");
                 else if (tab.name === "library" && !isActive) router.replace("/library");
               }}

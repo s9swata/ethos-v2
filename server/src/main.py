@@ -32,6 +32,7 @@ from src.middleware.error_handler import (
     ytdlp_timeout_handler,
 )
 from src.routes.artists import router as artists_router
+from src.routes.charts import router as charts_router
 from src.routes.home import router as home_router
 from src.routes.playlist import router as playlist_router
 from src.routes.search import router as search_router
@@ -74,6 +75,7 @@ app.include_router(search_router)
 app.include_router(tracks_router)
 app.include_router(playlist_router)
 app.include_router(artists_router)
+app.include_router(charts_router)
 
 
 @app.get("/api/health", tags=["Health"])

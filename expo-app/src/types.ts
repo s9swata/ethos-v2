@@ -49,7 +49,9 @@ export interface ArtistInfo {
   thumbnails: Thumbnail[];
   topSongs: SongItem[];
   albums: AlbumItem[];
+  albumsParams?: string | null;
   singles: AlbumItem[];
+  singlesParams?: string | null;
   related?: { browseId: string; artist: string }[];
 }
 
@@ -103,6 +105,7 @@ export interface TrackItem {
 
 export interface PlaylistInfo {
   title: string;
+  thumbnail: string;
   tracks: {
     id: string | null;
     title: string;
@@ -127,6 +130,9 @@ export type RepeatMode = "off" | "all" | "one";
 export interface QueueContext {
   artistBrowseId?: string;
   albumBrowseId?: string;
+  title?: string;
+  artist?: string;
+  thumbnail?: string;
 }
 
 export interface HomeItem {
@@ -146,4 +152,20 @@ export interface HomeSection {
 export interface HomeResponse {
   sections: HomeSection[];
   count: number;
+}
+
+export interface LyricsResponse {
+  lyrics: string | { text: string; startTime: number; endTime: number }[];
+  source: string;
+  hasTimestamps: boolean;
+}
+
+export interface ChartsResponse {
+  countries: {
+    selected?: { text: string };
+    options?: string[];
+  };
+  videos: { title: string; playlistId: string; thumbnails: Thumbnail[] }[];
+  artists: { title: string; browseId: string; subscribers: string; thumbnails: Thumbnail[]; rank: string; trend: string }[];
+  genres: { title: string; playlistId: string; thumbnails: Thumbnail[] }[];
 }

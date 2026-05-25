@@ -28,10 +28,12 @@ export default function RootLayout() {
     if (setupDone) return;
     setupDone = true;
 
-    TrackPlayer.setupPlayer({
-      contentType: "music",
-      handleAudioBecomingNoisy: true,
-    });
+    try {
+      TrackPlayer.setupPlayer({
+        contentType: "music",
+      });
+    } catch {}
+
     TrackPlayer.setCommands({
       capabilities: [
         PlayerCommand.PlayPause,

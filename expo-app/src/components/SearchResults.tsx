@@ -27,7 +27,13 @@ export function SearchResults({ results, query }: Props) {
       switch (result.type) {
         case "track":
           if (!result.id) return;
-          playTrack(result.id, { artistBrowseId: result.artistId, albumBrowseId: result.albumId ?? undefined });
+          playTrack(result.id, {
+            artistBrowseId: result.artistId,
+            albumBrowseId: result.albumId ?? undefined,
+            title: result.name,
+            artist: result.artists?.[0] ?? "",
+            thumbnail: result.imageUrl,
+          });
           break;
         case "artist":
           router.push(`/artist/${result.id}`);

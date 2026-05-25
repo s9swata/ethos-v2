@@ -255,8 +255,12 @@ def _normalize_home_item(item: dict[str, Any]) -> dict[str, Any]:
     title = item.get("title", "Unknown")
     subtitle = item.get("subtitle") or ""
     thumbnails = item.get("thumbnails") or []
-    if not thumbnails and item.get("thumbnail"):
-        thumbnails = [{"url": item["thumbnail"]}]
+    if not thumbnails:
+        thumbnail_field = item.get("thumbnail")
+        if isinstance(thumbnail_field, str):
+            thumbnails = [{"url": thumbnail_field}]
+        elif isinstance(thumbnail_field, dict):
+            thumbnails = thumbnail_field.get("thumbnails", [])
     browse_id = item.get("browseId") or ""
     playlist_id = item.get("playlistId") or ""
     video_id = item.get("videoId") or ""
@@ -449,3 +453,94 @@ async def get_home_feed(profile: dict[str, Any] | None = None) -> list[dict[str,
 
     _personalized_cache[key] = (now, sections)
     return sections
+
+
+@cache_result(ttl=3600, namespace="ytmusic")
+async def get_lyrics(browse_id: str) -> dict[str, Any]:
+    loop = asyncio.get_running_loop()
+    result = await loop.run_in_executor(
+        None,
+        lambda: _get_client().get_lyrics(browse_id),
+    )
+    if result is None:
+        return {"lyrics": "", "source": "", "hasTimestamps": False}
+    if result.get("hasTimestamps"):
+        return {
+            "lyrics": [
+                {"text": line.get("text"), "startTime": line.get("start_time"), "endTime": line.get("end_time")}
+                for line in result.get("lyrics", [])
+            ],
+            "source": result.get("source", ""),
+            "hasTimestamps": True,
+        }
+    return {
+        "lyrics": result.get("lyrics", ""),
+        "source": result.get("source", ""),
+        "hasTimestamps": False,
+    }
+
+
+async def get_lyrics_browse_id(track_id: str) -> str | None:
+    loop = asyncio.get_running_loop()
+    try:
+        result = await loop.run_in_executor(
+            None,
+            lambda: _get_client().get_watch_playlist(videoId=track_id, limit=1),
+        )
+        return result.get("lyrics") or None
+    except Exception:
+        return None
+
+
+@cache_result(ttl=3600, namespace="ytmusic")
+async def get_charts(country: str = "ZZ") -> dict[str, Any]:
+    loop = asyncio.get_running_loop()
+    raw = await loop.run_in_executor(
+        None,
+        lambda: _get_client().get_charts(country=country),
+    )
+    return {
+        "countries": raw.get("countries", {}),
+        "videos": [
+            {"title": v.get("title"), "playlistId": v.get("playlistId"), "thumbnails": v.get("thumbnails", [])}
+            for v in raw.get("videos", [])
+        ],
+        "artists": [
+            {"title": a.get("title"), "browseId": a.get("browseId"), "subscribers": a.get("subscribers"), "thumbnails": a.get("thumbnails", []), "rank": a.get("rank"), "trend": a.get("trend")}
+            for a in raw.get("artists", [])
+        ],
+        "genres": [
+            {"title": g.get("title"), "playlistId": g.get("playlistId"), "thumbnails": g.get("thumbnails", [])}
+            for g in raw.get("genres", [])
+        ],
+    }
+
+
+async def get_track_related(track_id: str) -> list[dict[str, Any]]:
+    loop = asyncio.get_running_loop()
+    try:
+        watch = await loop.run_in_executor(
+            None,
+            lambda: _get_client().get_watch_playlist(videoId=track_id, limit=1),
+        )
+    except Exception:
+        return []
+    related_browse_id = watch.get("related")
+    if not related_browse_id:
+        return []
+    try:
+        return await loop.run_in_executor(
+            None,
+            lambda: _get_client().get_song_related(related_browse_id),
+        )
+    except Exception:
+        return []
+
+
+@cache_result(ttl=3600, namespace="ytmusic")
+async def get_artist_albums(channel_id: str, params: str, limit: int = 100, order: str | None = None) -> list[dict[str, Any]]:
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(
+        None,
+        lambda: _get_client().get_artist_albums(channel_id, params, limit=limit, order=order),
+    )

@@ -1,18 +1,19 @@
 import { useEffect, useState } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { View, Text, Pressable, ScrollView, ActivityIndicator } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Icon } from "@/components/icons";
 import { Image } from "expo-image";
 import { api, upscaleThumbnail } from "@/api/client";
 import { usePlayerStore } from "@/stores/player-store";
 import { useLibraryStore } from "@/stores/library-store";
-import { SkeletonArtistHero, SkeletonTrackRow } from "@/components/Skeleton";
 import type { ArtistInfo } from "@/types";
 import { theme, layout } from "@/theme";
 
 export default function ArtistScreen() {
   const { browseId } = useLocalSearchParams<{ browseId: string }>();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [artist, setArtist] = useState<ArtistInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -29,9 +30,20 @@ export default function ArtistScreen() {
   if (loading) {
     return (
       <View style={{ flex: 1, backgroundColor: theme.colors.surface }}>
-        <SkeletonArtistHero />
+        <View style={{ paddingTop: insets.top + 80, paddingHorizontal: layout.px, paddingBottom: 24, alignItems: "center" }}>
+          <View style={{ width: 112, height: 112, borderRadius: 56, backgroundColor: theme.colors.surface3 }} />
+          <View style={{ width: 160, height: 24, backgroundColor: theme.colors.surface3, borderRadius: 4, marginTop: 16 }} />
+        </View>
         <View style={{ paddingHorizontal: layout.px, marginTop: layout.sectionGap }}>
-          {Array.from({ length: 5 }).map((_, i) => <SkeletonTrackRow key={i} />)}
+          {Array.from({ length: 5 }).map((_, i) => (
+            <View key={i} style={{ flexDirection: "row", gap: 12, paddingVertical: 10 }}>
+              <View style={{ width: 44, height: 44, borderRadius: 6, backgroundColor: theme.colors.surface3 }} />
+              <View style={{ flex: 1, gap: 4, justifyContent: "center" }}>
+                <View style={{ width: "70%", height: 14, backgroundColor: theme.colors.surface3, borderRadius: 4 }} />
+                <View style={{ width: "40%", height: 12, backgroundColor: theme.colors.surface3, borderRadius: 4 }} />
+              </View>
+            </View>
+          ))}
         </View>
       </View>
     );
@@ -73,27 +85,11 @@ export default function ArtistScreen() {
             backgroundColor: "rgba(0,0,0,0.3)",
           }}
         />
-        <View
-          style={{
-            position: "absolute",
-            bottom: 0,
-            left: 0,
-            right: 0,
-            height: 160,
-          }}
-        />
-        <View style={{ paddingHorizontal: layout.px, paddingTop: 80, paddingBottom: 24 }}>
-          <View style={{ flexDirection: "row", alignItems: "flex-end", gap: 16 }}>
-            {heroUrl && (
-              <Image source={{ uri: upscaleThumbnail(heroUrl, 320) }} style={{ width: 112, height: 112, borderRadius: 56, borderWidth: 2, borderColor: "rgba(255,255,255,0.15)" }} />
-            )}
-            <View style={{ flex: 1 }}>
-              <Text style={{ color: theme.colors.textPrimary, fontSize: 30, fontWeight: "700", letterSpacing: -0.5 }}>{artist.name}</Text>
-              {artist.subscribers && (
-                <Text style={{ color: theme.colors.textSecondary, fontSize: 13, marginTop: 4 }}>{artist.subscribers} subscribers</Text>
-              )}
-            </View>
-          </View>
+        <View style={{ paddingHorizontal: layout.px, paddingTop: insets.top + 80, paddingBottom: 24, alignItems: "flex-end", paddingRight: 32 }}>
+          <Text style={{ color: theme.colors.textPrimary, fontSize: 30, fontWeight: "700", letterSpacing: -0.5, textAlign: "right" }}>{artist.name}</Text>
+          {artist.subscribers && (
+            <Text style={{ color: theme.colors.textSecondary, fontSize: 13, marginTop: 4 }}>{artist.subscribers} subscribers</Text>
+          )}
         </View>
       </View>
 
@@ -104,7 +100,7 @@ export default function ArtistScreen() {
             <Pressable
               key={song.videoId ?? idx}
               style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 10 }}
-              onPress={() => song.videoId && playTrack(song.videoId, { artistBrowseId: browseId })}
+              onPress={() => song.videoId && playTrack(song.videoId, { artistBrowseId: browseId, title: song.title ?? undefined, artist: song.artists?.[0] ?? undefined, thumbnail: song.thumbnails?.[0]?.url })}
             >
               <Text style={{ color: theme.colors.textTertiary, fontSize: 14, width: 24, textAlign: "right" }}>{idx + 1}</Text>
               {song.thumbnails?.[0]?.url && <Image source={{ uri: upscaleThumbnail(song.thumbnails[0].url) }} style={{ width: 44, height: 44, borderRadius: 6 }} />}
@@ -124,7 +120,14 @@ export default function ArtistScreen() {
 
       {artist.albums.length > 0 && (
         <View style={{ marginTop: layout.sectionGap, paddingHorizontal: layout.px }}>
-          <Text style={{ color: theme.colors.textPrimary, fontSize: 20, fontWeight: "700", letterSpacing: -0.3, marginBottom: 12 }}>Albums</Text>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+            <Text style={{ color: theme.colors.textPrimary, fontSize: 20, fontWeight: "700", letterSpacing: -0.3 }}>Albums</Text>
+            {artist.albumsParams && (
+              <Pressable onPress={() => router.push(`/artist/${browseId}/albums?params=${encodeURIComponent(artist.albumsParams!)}`)}>
+                <Text style={{ color: theme.colors.accent, fontSize: 13, fontWeight: "600" }}>See All</Text>
+              </Pressable>
+            )}
+          </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 14 }}>
             {artist.albums.map((album, idx) => (
               <Pressable key={album.browseId ?? idx} style={{ width: 150 }} onPress={() => album.browseId && router.push(`/album/${album.browseId}`)}>
@@ -141,7 +144,14 @@ export default function ArtistScreen() {
 
       {artist.singles.length > 0 && (
         <View style={{ marginTop: layout.sectionGap, paddingHorizontal: layout.px }}>
-          <Text style={{ color: theme.colors.textPrimary, fontSize: 20, fontWeight: "700", letterSpacing: -0.3, marginBottom: 12 }}>Singles & EPs</Text>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+            <Text style={{ color: theme.colors.textPrimary, fontSize: 20, fontWeight: "700", letterSpacing: -0.3 }}>Singles & EPs</Text>
+            {artist.singlesParams && (
+              <Pressable onPress={() => router.push(`/artist/${browseId}/albums?params=${encodeURIComponent(artist.singlesParams!)}`)}>
+                <Text style={{ color: theme.colors.accent, fontSize: 13, fontWeight: "600" }}>See All</Text>
+              </Pressable>
+            )}
+          </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 14 }}>
             {artist.singles.map((single, idx) => (
               <Pressable key={single.browseId ?? idx} style={{ width: 150 }} onPress={() => single.browseId && router.push(`/album/${single.browseId}`)}>
@@ -153,6 +163,23 @@ export default function ArtistScreen() {
               </Pressable>
             ))}
           </ScrollView>
+        </View>
+      )}
+
+      {artist.related && artist.related.length > 0 && (
+        <View style={{ marginTop: layout.sectionGap, paddingHorizontal: layout.px }}>
+          <Text style={{ color: theme.colors.textPrimary, fontSize: 20, fontWeight: "700", letterSpacing: -0.3, marginBottom: 12 }}>Related Artists</Text>
+          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+            {artist.related.map((r, idx) => (
+              <Pressable
+                key={r.browseId ?? idx}
+                style={{ backgroundColor: theme.colors.glass, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 99 }}
+                onPress={() => r.browseId && router.push(`/artist/${r.browseId}`)}
+              >
+                <Text style={{ color: theme.colors.textPrimary, fontSize: 13, fontWeight: "500" }}>{r.artist}</Text>
+              </Pressable>
+            ))}
+          </View>
         </View>
       )}
     </ScrollView>

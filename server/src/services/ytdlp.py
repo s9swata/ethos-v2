@@ -277,7 +277,7 @@ async def get_playlist(url: str) -> dict:
         for e in entries
         if e and e.get("title") and "/watch?v=" in (e.get("url") or e.get("webpage_url") or "")
     ]
-    return {"title": playlist_title, "tracks": tracks}
+    return {"title": playlist_title, "thumbnail": info.get("thumbnail") or "", "tracks": tracks}
 
 
 @cache_result(ttl=1800, namespace="ytdlp")

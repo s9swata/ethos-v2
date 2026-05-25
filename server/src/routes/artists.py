@@ -6,7 +6,7 @@ from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
 
 from src.logger import logger
-from src.services.ytmusic import search_artists, search_albums, get_artist, get_album
+from src.services.ytmusic import search_artists, search_albums, get_artist, get_album, get_artist_albums
 
 router = APIRouter(tags=["Artists / Albums"])
 
@@ -59,10 +59,30 @@ async def album_detail(browse_id: str):
     return _serialize_album(info)
 
 
+@router.get(
+    "/api/artist/{browse_id}/albums",
+    summary="Get full album/singles list for an artist (ytmusicapi)",
+    description="Get the complete list of albums or singles for an artist. Requires params from get_artist() response (albums.params or singles.params). Use albumsBrowseId/singlesBrowseId for the browse_id parameter.",
+)
+async def artist_albums(
+    browse_id: str,
+    params: str = Query(..., description="Params from get_artist() response (e.g. albums.params or singles.params)"),
+    albums_browse_id: str | None = Query(default=None, description="Albums browse ID from get_artist(). Defaults to browse_id if not provided."),
+    limit: int = Query(default=50, ge=1, le=200, description="Number of albums to return"),
+    order: str | None = Query(default=None, description="Order: Recency, Popularity, or Alphabetical order"),
+):
+    target_browse_id = albums_browse_id or browse_id
+    logger.info("Artist albums: targetBrowseId=%s limit=%d order=%s", target_browse_id, limit, order)
+    results = await get_artist_albums(target_browse_id, params, limit=limit, order=order)
+    return {"results": results, "count": len(results)}
+
+
 def _serialize_artist(info: dict[str, Any]) -> dict[str, Any]:
     songs_raw = info.get("songs", {}).get("results", [])
     albums_raw = info.get("albums", {}).get("results", [])
     singles_raw = info.get("singles", {}).get("results", [])
+    albums_info = info.get("albums", {})
+    singles_info = info.get("singles", {})
 
     return {
         "name": info.get("name"),
@@ -105,6 +125,10 @@ def _serialize_artist(info: dict[str, Any]) -> dict[str, Any]:
             }
             for s in singles_raw
         ],
+        "albumsParams": albums_info.get("params"),
+        "albumsBrowseId": albums_info.get("browseId"),
+        "singlesParams": singles_info.get("params"),
+        "singlesBrowseId": singles_info.get("browseId"),
         "related": info.get("related", {}).get("results", []),
     }
 

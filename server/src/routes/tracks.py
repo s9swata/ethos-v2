@@ -6,6 +6,7 @@ from fastapi.responses import JSONResponse
 from src.logger import logger
 from src.services.validate import validate_track_id
 from src.services.ytdlp import get_info
+from src.services.ytmusic import get_lyrics, get_lyrics_browse_id, get_track_related
 
 router = APIRouter(tags=["Tracks"])
 
@@ -36,3 +37,35 @@ async def track_info(track_id: str):
             for f in info["formats"]
         ],
     }
+
+
+@router.get(
+    "/api/tracks/{track_id}/lyrics",
+    summary="Get lyrics for a track",
+    description="Fetch lyrics for a track via ytmusicapi. Returns timed lyrics if available, plain text otherwise.",
+)
+async def track_lyrics(track_id: str):
+    err = validate_track_id(track_id)
+    if err:
+        return JSONResponse(status_code=400, content={"error": err})
+
+    logger.info("Track lyrics request: id=%s", track_id)
+    browse_id = await get_lyrics_browse_id(track_id)
+    if not browse_id:
+        return {"lyrics": "", "source": "", "hasTimestamps": False}
+    return await get_lyrics(browse_id)
+
+
+@router.get(
+    "/api/tracks/{track_id}/related",
+    summary="Get related content for a track",
+    description="Fetch related songs, playlists, and artists for a track via ytmusicapi.",
+)
+async def track_related(track_id: str):
+    err = validate_track_id(track_id)
+    if err:
+        return JSONResponse(status_code=400, content={"error": err})
+
+    logger.info("Track related request: id=%s", track_id)
+    related = await get_track_related(track_id)
+    return {"results": related, "count": len(related)}
