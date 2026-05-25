@@ -42,7 +42,8 @@ export default function LyricsScreen() {
 
     requestLRCLIB(artist, title, duration).then((lrclibData) => {
       if (lrclibData?.syncedLyrics) {
-        const diff = Math.abs(lrclibData.duration - duration);
+        const lrcDuration = lrclibData.duration;
+        const diff = lrcDuration ? Math.abs(lrcDuration - duration) : Infinity;
         if (diff <= DURATION_THRESHOLD) {
           setLrclibLyrics(parseLRC(lrclibData.syncedLyrics));
           setLoading(false);
