@@ -182,9 +182,12 @@ export function AudioPlayerProvider() {
   // ── Remote controls (lock screen / notification) ─────────────────────────
   useEffect(() => {
     const subs = [
-      TrackPlayer.addEventListener(Event.RemoteNext,     ()      => playNext()),
-      TrackPlayer.addEventListener(Event.RemotePrevious, ()      => playPrev()),
-      TrackPlayer.addEventListener(Event.RemoteSeek,     (event) =>
+      TrackPlayer.addEventListener(Event.RemoteNext,     ()         => playNext()),
+      TrackPlayer.addEventListener(Event.RemotePrevious, ()         => playPrev()),
+      TrackPlayer.addEventListener(Event.RemotePlay,     ()         => TrackPlayer.play()),
+      TrackPlayer.addEventListener(Event.RemotePause,    ()         => TrackPlayer.pause()),
+      TrackPlayer.addEventListener(Event.RemoteStop,     ()         => TrackPlayer.stop()),
+      TrackPlayer.addEventListener(Event.RemoteSeek,     (event)    =>
         TrackPlayer.seekTo(event.position)
       ),
     ];

@@ -2,6 +2,7 @@
   "expo": {
     "name": "ethos",
     "newArchEnabled": false,
+    "jsEngine": "hermes",
     "slug": "ethos-player",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -40,6 +41,15 @@
       "expo-router",
       "expo-sqlite",
       [
+        "expo-build-properties",
+        {
+          "android": {
+            "abiFilters": ["arm64-v8a"],
+            "enableProguardInReleaseBuilds": true
+          }
+        }
+      ],
+      [
         "expo-splash-screen",
         {
           "backgroundColor": "#000000",
@@ -57,10 +67,6 @@
       "eas": {
         "projectId": "f23b5d21-f20a-4f90-8bd3-c765373731cb"
       }
-    },
-    "owner": "s9swata"
-  }
-}
     },
     "owner": "s9swata"
   }

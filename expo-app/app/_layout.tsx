@@ -4,11 +4,12 @@ import { Stack } from "expo-router/stack";
 import { StatusBar } from "expo-status-bar";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import TrackPlayer from "@rntp/player";
-import { PlayerCommand } from "@rntp/player";
+import TrackPlayer, { Event, PlayerCommand } from "@rntp/player";
+import type { BackgroundEvent } from "@rntp/player";
 import { AudioPlayerProvider } from "@/components/AudioPlayerProvider";
 import { MiniPlayer } from "@/components/MiniPlayer";
 import { useLibraryStore } from "@/stores/library-store";
+import { usePlayerStore } from "@/stores/player-store";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -21,6 +22,29 @@ const queryClient = new QueryClient({
 
 let setupDone = false;
 
+TrackPlayer.registerBackgroundEventHandler(() => async (event: BackgroundEvent) => {
+  switch (event.type) {
+    case Event.RemotePlay:
+      TrackPlayer.play();
+      break;
+    case Event.RemotePause:
+      TrackPlayer.pause();
+      break;
+    case Event.RemoteStop:
+      TrackPlayer.stop();
+      break;
+    case Event.RemoteNext:
+      usePlayerStore.getState().playNext();
+      break;
+    case Event.RemotePrevious:
+      usePlayerStore.getState().playPrev();
+      break;
+    case Event.RemoteSeek:
+      TrackPlayer.seekTo(event.position);
+      break;
+  }
+});
+
 export default function RootLayout() {
   const init = useLibraryStore((s) => s.init);
 
@@ -31,6 +55,12 @@ export default function RootLayout() {
     try {
       TrackPlayer.setupPlayer({
         contentType: "music",
+        android: {
+          notification: {
+            channelId: "ethos-music",
+            channelName: "Ethos",
+          },
+        },
       });
     } catch {}
 
