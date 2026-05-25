@@ -28,6 +28,8 @@ async def track_info(track_id: str):
         "title": info["title"],
         "artist": info["artist"],
         "duration": info["duration"],
+        "startTime": info.get("startTime", 0),
+        "endTime": info.get("endTime", 0),
         "url": info.get("url", ""),
         "thumbnail": info["thumbnail"],
         "webpageUrl": info["webpageUrl"],

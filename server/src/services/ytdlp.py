@@ -252,6 +252,8 @@ async def get_info(url_or_id: str) -> dict:
         "title": info.get("title", "Unknown"),
         "artist": info.get("uploader") or info.get("channel") or "Unknown",
         "duration": info.get("duration", 0),
+        "startTime": info.get("start_time") or 0,
+        "endTime": info.get("end_time") or 0,
         "url": best_url,
         "thumbnail": info.get("thumbnail") or "",
         "webpageUrl": info.get("webpage_url") or info.get("url"),

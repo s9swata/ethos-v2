@@ -101,4 +101,25 @@ export const api = {
     request<{ results: any[]; count: number }>(`/api/artist/${encodeURIComponent(browseId)}/albums?params=${encodeURIComponent(params)}${limit ? `&limit=${limit}` : ""}${order ? `&order=${encodeURIComponent(order)}` : ""}`),
 };
 
-export { getBaseUrl, upscaleThumbnail, ApiError };
+export interface LRCLIBResponse {
+  syncedLyrics: string | null;
+  plainLyrics: string | null;
+  duration: number;
+}
+
+async function requestLRCLIB(artist: string, title: string, duration: number): Promise<LRCLIBResponse | null> {
+  const params = new URLSearchParams({
+    artist_name: artist,
+    track_name: title,
+    duration: String(Math.round(duration)),
+  });
+  try {
+    const res = await fetch(`https://lrclib.net/api/get?${params}`);
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
+  }
+}
+
+export { getBaseUrl, upscaleThumbnail, ApiError, requestLRCLIB };

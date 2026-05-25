@@ -59,6 +59,7 @@ export default function RootLayout() {
           notification: {
             channelId: "ethos-music",
             channelName: "Ethos",
+            smallIcon: "ic_launcher",
           },
         },
       });
