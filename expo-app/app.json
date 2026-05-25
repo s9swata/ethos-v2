@@ -6,7 +6,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "scheme": "ethos",
-    "icon": "./expo_logo.png",
+    "icon": "./app-icons/icon.png",
     "userInterfaceStyle": "dark",
     "ios": {
       "supportsTablet": true,
@@ -34,17 +34,33 @@
       "versionCode": 5
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./app-icons/favicon.png"
     },
     "plugins": [
       "expo-router",
-      "expo-sqlite"
+      "expo-sqlite",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#000000",
+          "image": "./app-icons/icon.png",
+          "imageWidth": 200,
+          "dark": {
+            "image": "./app-icons/icon.png",
+            "backgroundColor": "#000000"
+          }
+        }
+      ]
     ],
     "extra": {
       "router": {},
       "eas": {
         "projectId": "f23b5d21-f20a-4f90-8bd3-c765373731cb"
       }
+    },
+    "owner": "s9swata"
+  }
+}
     },
     "owner": "s9swata"
   }

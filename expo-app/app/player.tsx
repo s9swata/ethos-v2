@@ -1,15 +1,14 @@
 import { useRouter } from "expo-router";
 import { Icon } from "@/components/icons";
-import { Dimensions, Pressable, View, Text, PanResponder, Image as RNImage, ScrollView } from "react-native";
+import { Dimensions, Pressable, View, Text, PanResponder, Image as RNImage } from "react-native";
 import { Image } from "expo-image";
 import { usePlayerStore } from "@/stores/player-store";
 import { seekTo } from "@/components/AudioPlayerProvider";
-import { api, upscaleThumbnail } from "@/api/client";
+import { upscaleThumbnail } from "@/api/client";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import TrackPlayer from "@rntp/player";
 import { MarqueeText } from "@/components/MarqueeText";
 import { useEffect, useRef, useState } from "react";
-import type { LyricsResponse } from "@/types";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const ART_SIZE = SCREEN_WIDTH - 64;
@@ -67,18 +66,6 @@ export default function PlayerScreen() {
   const displayDurationRef = useRef(displayDuration);
   displayDurationRef.current = displayDuration;
 
-  const [showLyrics, setShowLyrics] = useState(false);
-  const [lyrics, setLyrics] = useState<LyricsResponse | null>(null);
-  const [lyricsLoading, setLyricsLoading] = useState(false);
-
-  useEffect(() => {
-    if (!currentTrack?.id) return;
-    setLyrics(null);
-    setShowLyrics(false);
-    setLyricsLoading(true);
-    api.getLyrics(currentTrack.id).then(setLyrics).catch(() => setLyrics(null)).finally(() => setLyricsLoading(false));
-  }, [currentTrack?.id]);
-
   const insets = useSafeAreaInsets();
   const seekBarWidth = useRef(0);
 
@@ -130,47 +117,23 @@ export default function PlayerScreen() {
       </View>
 
       <View style={{ flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 32 }}>
-        {showLyrics ? (
-          <ScrollView style={{ flex: 1, width: "100%" }} contentContainerStyle={{ paddingVertical: 16 }}>
-            {lyricsLoading ? (
-              <Text style={{ color: "#a1a1a1", fontSize: 14, textAlign: "center" }}>Loading lyrics...</Text>
-            ) : lyrics?.lyrics ? (
-              typeof lyrics.lyrics === "string" ? (
-                <Text style={{ color: "#fff", fontSize: 16, lineHeight: 28, textAlign: "center", letterSpacing: 0.3 }}>
-                  {lyrics.lyrics}
-                </Text>
-              ) : (
-                lyrics.lyrics.filter(l => l.text).map((line, i) => (
-                  <Text key={i} style={{ color: "#fff", fontSize: 15, lineHeight: 26, textAlign: "center" }}>
-                    {line.text}
-                  </Text>
-                ))
-              )
-            ) : (
-              <Text style={{ color: "#a1a1a1", fontSize: 14, textAlign: "center" }}>No lyrics available</Text>
-            )}
-          </ScrollView>
-        ) : (
-          <>
-            <View style={{ width: ART_SIZE, height: ART_SIZE, borderRadius: 16, backgroundColor: "#1a1a1a" }}>
-              <Image
-                source={{ uri: upscaleThumbnail(currentTrack.thumbnail || "", 480) }}
-                style={{ width: ART_SIZE, height: ART_SIZE, borderRadius: 16 }}
-              />
-            </View>
+        <View style={{ width: ART_SIZE, height: ART_SIZE, borderRadius: 16, backgroundColor: "#1a1a1a" }}>
+          <Image
+            source={{ uri: upscaleThumbnail(currentTrack.thumbnail || "", 480) }}
+            style={{ width: ART_SIZE, height: ART_SIZE, borderRadius: 16 }}
+          />
+        </View>
 
-            <View style={{ width: "100%", marginTop: 32, gap: 4 }}>
-              <MarqueeText duration={8000} delay={1000} style={{ color: "#fff", fontSize: 20, fontWeight: "700" }}>
-                {currentTrack.title}
-              </MarqueeText>
-              <Text style={{ color: "#fff", fontSize: 14 }} numberOfLines={1}>
-                {currentTrack.artist}
-              </Text>
-            </View>
-          </>
-        )}
+        <View style={{ width: "100%", marginTop: 32, gap: 4 }}>
+          <MarqueeText duration={8000} delay={1000} style={{ color: "#fff", fontSize: 20, fontWeight: "700" }}>
+            {currentTrack.title}
+          </MarqueeText>
+          <Text style={{ color: "#fff", fontSize: 14 }} numberOfLines={1}>
+            {currentTrack.artist}
+          </Text>
+        </View>
 
-        <View style={{ width: "100%", marginTop: showLyrics ? 0 : 24 }}>
+        <View style={{ width: "100%", marginTop: 24 }}>
           <View
             style={{ height: 24, justifyContent: "center" }}
             onLayout={(e) => { seekBarWidth.current = e.nativeEvent.layout.width; }}
@@ -228,8 +191,8 @@ export default function PlayerScreen() {
       </View>
 
       <View style={{ paddingBottom: insets.bottom + 16, paddingHorizontal: 32, flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-        <Pressable onPress={() => setShowLyrics(v => !v)} style={{ padding: 8 }}>
-          <Icon name="music-note" size={18} color={showLyrics ? "#ff2a3b" : "#a1a1a1"} />
+        <Pressable onPress={() => router.push("/lyrics")} style={{ padding: 8 }}>
+          <Icon name="music-note" size={18} color="#a1a1a1" />
         </Pressable>
         <Pressable style={{ padding: 8 }}>
           <Icon name="share" size={18} color="#a1a1a1" />

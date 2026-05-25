@@ -261,6 +261,8 @@ def _normalize_home_item(item: dict[str, Any]) -> dict[str, Any]:
             thumbnails = [{"url": thumbnail_field}]
         elif isinstance(thumbnail_field, dict):
             thumbnails = thumbnail_field.get("thumbnails", [])
+        elif isinstance(thumbnail_field, list):
+            thumbnails = thumbnail_field
     browse_id = item.get("browseId") or ""
     playlist_id = item.get("playlistId") or ""
     video_id = item.get("videoId") or ""

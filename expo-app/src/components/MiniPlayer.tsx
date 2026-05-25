@@ -65,7 +65,7 @@ export function MiniPlayer() {
     fn();
   }, []);
 
-  if (pathname === "/player" || !currentTrack) return null;
+  if (pathname === "/player" || pathname === "/lyrics" || !currentTrack) return null;
 
   return (
     <View style={{
