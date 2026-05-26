@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: ethos-api
+    env: docker
+    plan: starter
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: CACHE_DIR
+        value: /data/cache
+      - key: RATE_LIMIT_MAX
+        value: "60"
+      - key: YT_DLP_PROXY_LIST
+        value: "23.95.150.145:6114:mzwdbgew:kzx8khgcf02x,45.38.107.97:6014:mzwdbgew:kzx8khgcf02x,38.154.203.95:5863:mzwdbgew:kzx8khgcf02x,198.105.121.200:6462:mzwdbgew:kzx8khgcf02x,64.137.96.74:6641:mzwdbgew:kzx8khgcf02x,198.23.243.226:6361:mzwdbgew:kzx8khgcf02x,209.127.138.10:5784:mzwdbgew:kzx8khgcf02x,38.154.185.97:6370:mzwdbgew:kzx8khgcf02x,84.247.60.125:6095:mzwdbgew:kzx8khgcf02x,142.111.67.146:5611:mzwdbgew:kzx8khgcf02x"
+      - key: YT_DLP_COOKIES_PATH
+        value: /etc/secrets/cookies.txt
+    disk:
+      name: cache
+      mountPath: /data/cache
+      sizeGB: 5

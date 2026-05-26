@@ -1,0 +1,15 @@
+[Unit]
+Description=ethos-api
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/ethos-v2.1/server
+ExecStart=/home/ubuntu/ethos-v2.1/.venv/bin/uvicorn src.main:app --host 0.0.0.0 --port 7860
+Restart=always
+RestartSec=5
+EnvironmentFile=/home/ubuntu/ethos-v2.1/server/.env
+
+[Install]
+WantedBy=multi-user.target
