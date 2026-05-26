@@ -1,0 +1,10 @@
+{
+  "platforms": ["android", "ios"],
+  "android": {
+    "modules": ["expo.youtube.audio.stream.ExpoYoutubeAudioStreamModule"]
+  },
+  "ios": {
+    "modules": ["ExpoYoutubeAudioStreamModule"],
+    "podspecPath": "ios/ExpoYoutubeAudioStream.podspec"
+  }
+}

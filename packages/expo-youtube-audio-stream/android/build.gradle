@@ -1,0 +1,42 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'expo.youtube.audio.stream'
+version = '0.1.0'
+
+android {
+  namespace = "expo.youtube.audio.stream"
+  compileSdk = 34
+
+  defaultConfig {
+    minSdk = 24
+    targetSdk = 34
+    versionCode = 1
+    versionName = "0.1.0"
+  }
+
+  compileOptions {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+  }
+
+  kotlinOptions {
+    jvmTarget = "17"
+  }
+}
+
+repositories {
+  maven { url 'https://jitpack.io' }
+  mavenCentral()
+  google()
+}
+
+dependencies {
+  implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0'
+
+  implementation 'com.github.teamnewpipe:NewPipeExtractor:v0.26.2'
+  implementation 'org.nanohttpd:nanohttpd:2.3.1'
+  implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+}
