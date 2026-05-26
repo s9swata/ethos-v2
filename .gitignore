@@ -1,6 +1,8 @@
 node_modules/
 dist/
 target/
+*.apk
+*.aab
 .DS_Store
 .agents/
 *.local
