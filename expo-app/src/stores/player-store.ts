@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import type { TrackInfo, RepeatMode, QueueContext, PlayHistoryItem } from "@/types";
 import { api } from "@/api/client";
+import { prefetchLyrics } from "@/utils/lyrics-cache";
 
 const MAX_HISTORY = 10;
 
@@ -287,6 +288,9 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
         }
         } catch {}
       }
+
+      // Prefetch lyrics in background
+      prefetchLyrics(trackWithOverride.id, trackWithOverride.artist, trackWithOverride.title, trackWithOverride.duration);
     } catch (err) {
       set({
         error: err instanceof Error ? err.message : "Failed to load track",

@@ -1,12 +1,14 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { View, Text, TextInput, Pressable } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useFocusEffect } from "expo-router";
 import { Icon } from "@/components/icons";
 import { SearchResults } from "@/components/SearchResults";
 import { SkeletonRow } from "@/components/Skeleton";
 import { api } from "@/api/client";
 import type { SearchResult } from "@/types";
 import { theme } from "@/theme";
+import { consumeFreshSearch } from "./_layout";
 
 function useDebounce<T>(value: T, delay: number): T {
   const [debounced, setDebounced] = useState(value);
@@ -24,6 +26,16 @@ export default function SearchScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const debouncedQuery = useDebounce(query, 350);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (consumeFreshSearch()) {
+        setQuery("");
+        setResults([]);
+        setError(null);
+      }
+    }, [])
+  );
 
   useEffect(() => {
     if (!debouncedQuery.trim()) {

@@ -4,6 +4,14 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Icon } from "@/components/icons";
 import { theme } from "@/theme";
 
+let _freshSearch = false;
+
+export function consumeFreshSearch(): boolean {
+  const v = _freshSearch;
+  _freshSearch = false;
+  return v;
+}
+
 const TABS = [
   { name: "index", label: "Home", icon: "home" as const },
   { name: "charts", label: "Charts", icon: "chart" as const },
@@ -44,7 +52,7 @@ export default function TabLayout() {
               onPress={() => {
                 if (tab.name === "index" && !isActive) router.replace("/");
                 else if (tab.name === "charts" && !isActive) router.replace("/charts");
-                else if (tab.name === "search" && !isActive) router.replace("/search");
+                else if (tab.name === "search" && !isActive) { _freshSearch = true; router.replace("/search"); }
                 else if (tab.name === "library" && !isActive) router.replace("/library");
               }}
             >

@@ -1,9 +1,7 @@
 {
   "expo": {
     "name": "ethos",
-    "newArchEnabled": false,
-    "jsEngine": "hermes",
-    "slug": "ethos-player",
+    "slug": "ethos",
     "version": "1.0.0",
     "orientation": "portrait",
     "scheme": "ethos",
@@ -32,7 +30,7 @@
         "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
       ],
       "package": "com.s9swata.ethos",
-      "versionCode": 5
+      "versionCode": 9
     },
     "web": {
       "favicon": "./app-icons/favicon.png"
@@ -44,8 +42,11 @@
         "expo-build-properties",
         {
           "android": {
-            "abiFilters": ["arm64-v8a"],
-            "enableProguardInReleaseBuilds": true
+            "abiFilters": [
+              "arm64-v8a"
+            ],
+            "enableProguardInReleaseBuilds": true,
+            "enableMinifyInReleaseBuilds": true
           }
         }
       ],
@@ -60,14 +61,16 @@
             "backgroundColor": "#000000"
           }
         }
-      ]
+      ],
+      "expo-image",
+      "expo-font"
     ],
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "f23b5d21-f20a-4f90-8bd3-c765373731cb"
+        "projectId": "bc69982d-e03d-4853-8fa4-0a5878555463"
       }
     },
-    "owner": "s9swata"
+    "owner": "saswat4s-organization"
   }
 }
