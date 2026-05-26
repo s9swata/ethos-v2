@@ -5,6 +5,8 @@ services:
     plan: starter
     dockerfilePath: ./Dockerfile
     envVars:
+      - key: PORT
+        value: "7860"
       - key: NODE_ENV
         value: production
       - key: CACHE_DIR
