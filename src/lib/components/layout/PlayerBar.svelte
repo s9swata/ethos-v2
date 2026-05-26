@@ -115,8 +115,17 @@
         const trackId = player.currentTrack.id;
         if (trackId === prevTrackId) return;
         prevTrackId = trackId;
+        console.log("[PlayerBar] setting audio src:", player.currentTrack.url?.slice(0, 60));
         audioEl.src = player.currentTrack.url;
         updateMediaSession();
+    });
+
+    $effect(() => {
+        if (!audioEl || !player.currentTrack) return;
+        if (player.isPlaying) {
+            console.log("[PlayerBar] calling audioEl.play()");
+            audioEl.play().then(() => console.log("[PlayerBar] audio.play() succeeded")).catch((e) => console.error("[PlayerBar] audio.play() failed:", e));
+        } else audioEl.pause();
     });
 
     $effect(() => {

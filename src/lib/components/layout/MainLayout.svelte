@@ -14,8 +14,7 @@
 
 <div class="h-full flex relative">
     <div
-        data-tauri-drag-region
-        class="absolute top-0 left-0 right-0 h-9 z-50"
+        class="electrobun-webkit-app-region-drag absolute top-0 left-0 right-0 h-9 z-50"
     ></div>
     <Sidebar />
 

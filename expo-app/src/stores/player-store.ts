@@ -2,6 +2,7 @@ import { create } from "zustand";
 import type { TrackInfo, RepeatMode, QueueContext, PlayHistoryItem } from "@/types";
 import { api } from "@/api/client";
 import { prefetchLyrics } from "@/utils/lyrics-cache";
+import { prefetchStream } from "expo-youtube-audio-stream";
 
 const MAX_HISTORY = 10;
 
@@ -289,8 +290,9 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
         } catch {}
       }
 
-      // Prefetch lyrics in background
+      // Prefetch lyrics + stream in background
       prefetchLyrics(trackWithOverride.id, trackWithOverride.artist, trackWithOverride.title, trackWithOverride.duration);
+      prefetchStream(trackId).catch(() => {});
     } catch (err) {
       set({
         error: err instanceof Error ? err.message : "Failed to load track",

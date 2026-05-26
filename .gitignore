@@ -14,7 +14,7 @@ server/ethos.service
 server/__pycache__/
 server/src/__pycache__/
 __pycache__/
-src-tauri/binaries/
+icon.iconset/
 server/sidecar/build/
 server/sidecar/dist/
 server/sidecar/target/

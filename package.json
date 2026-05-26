@@ -5,25 +5,26 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:vite": "vite",
+    "dev:electrobun": "electrobun dev",
+    "dev:desktop": "concurrently \"bun run dev:vite\" \"sleep 2 && bun run dev:electrobun\"",
     "build": "vite build",
     "preview": "vite preview",
-    "tauri": "tauri",
     "server": "docker build -t ethos-api -f server/Dockerfile . && docker run -p 7860:7860 ethos-api",
-    "start": "bun run server & bun run tauri dev; kill %1 2>/dev/null",
     "check": "svelte-check --tsconfig ./tsconfig.json"
   },
   "dependencies": {
-    "@tauri-apps/api": "^2",
-    "@tauri-apps/plugin-shell": "^2.3.5",
-    "@tauri-apps/plugin-sql": "^2.4.0",
+    "esbuild": "^0.28.0",
+    "expo-youtube-audio-stream": "file:packages/expo-youtube-audio-stream",
     "lucide-svelte": "^1.0.1",
     "motion": "^12.38.0",
     "shadcn": "^4.8.0"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^5",
-    "@tauri-apps/cli": "^2",
     "@tailwindcss/vite": "^4",
+    "concurrently": "^9",
+    "electrobun": "^0.1.0",
     "svelte": "^5",
     "svelte-check": "^4",
     "tailwindcss": "^4",

@@ -7,6 +7,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import TrackPlayer, { Event, PlayerCommand } from "@rntp/player";
 import type { BackgroundEvent } from "@rntp/player";
 import { AudioPlayerProvider } from "@/components/AudioPlayerProvider";
+import { stop as stopAudioProxy } from "expo-youtube-audio-stream";
 import { MiniPlayer } from "@/components/MiniPlayer";
 import { useLibraryStore } from "@/stores/library-store";
 import { usePlayerStore } from "@/stores/player-store";
@@ -79,6 +80,7 @@ export default function RootLayout() {
         [PlayerCommand.Previous]: "js",
       },
     });
+    return () => { stopAudioProxy().catch(() => {}); };
   }, []);
 
   useEffect(() => {

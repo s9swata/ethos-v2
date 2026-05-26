@@ -81,7 +81,14 @@ export async function playTrack(trackId: string, context?: PlayContext): Promise
     isPlaying = true;
     return;
   }
-  const info = await api.getTrack(trackId);
+  console.log("[player.playTrack] starting for", trackId);
+  try {
+    var info = await api.getTrack(trackId);
+  } catch (e) {
+    console.error("[player.playTrack] api.getTrack failed:", e);
+    return;
+  }
+  console.log("[player.playTrack] got track, url:", info.url ? "yes (" + info.url.slice(0, 40) + "...)" : "no");
   currentTrack = {
     id: trackId,
     title: context?.title ?? info.title,

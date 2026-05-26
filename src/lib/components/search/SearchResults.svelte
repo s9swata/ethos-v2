@@ -68,6 +68,7 @@
   }
 
   function handleTrackClick(result: SearchResult): void {
+    console.log("[SearchResults] handleTrackClick", result.id, result.name, result.artists?.[0]);
     playTrack(result.id, {
       artistBrowseId: result.artistId,
       artistName: result.artists?.[0],

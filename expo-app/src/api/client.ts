@@ -1,4 +1,5 @@
 import Constants from "expo-constants";
+import { getBestAudioStream } from "expo-youtube-audio-stream";
 import type {
   SearchResponse,
   ArtistInfo,
@@ -74,8 +75,24 @@ export const api = {
   getAlbum: (browseId: string) =>
     request<AlbumInfo>(`/api/album/${encodeURIComponent(browseId)}`),
 
-  getTrack: (trackId: string) =>
-    request<TrackInfo>(`/api/tracks/${encodeURIComponent(trackId)}`),
+  getTrack: async (trackId: string): Promise<TrackInfo> => {
+    const track = await request<TrackInfo>(`/api/tracks/${encodeURIComponent(trackId)}`);
+    // Replace the server-provided stream URL with a local proxy URL
+    try {
+      const stream = await getBestAudioStream(trackId, {
+        preferredMimeType: "audio/mp4",
+        minBitrate: 48000,
+      });
+      if (stream?.url) {
+        track.url = stream.url;
+        track.directUrl = stream.url;
+        if (track.formats?.[0]) track.formats[0].url = stream.url;
+      }
+    } catch {
+      // Fall back to server URL — extraction may fail for age-restricted etc.
+    }
+    return track;
+  },
 
   searchArtists: (q: string, limit = 5) =>
     request<{ results: any[] }>(`/api/artist/search?q=${encodeURIComponent(q)}&limit=${limit}`),
@@ -140,10 +157,21 @@ function getDeviceId(): string {
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export async function getFreshStreamUrl(trackId: string): Promise<string> {
+  try {
+    const stream = await getBestAudioStream(trackId, {
+      preferredMimeType: "audio/mp4",
+      minBitrate: 48000,
+    });
+    if (stream?.url) return stream.url;
+  } catch {
+    // fall through to server
+  }
   const track = await api.getTrack(trackId);
   if (!track.url) throw new Error("No stream URL available");
   return track.url;
 }
+
+
 
 async function fetchTTML(url: string): Promise<string> {
   const res = await fetch(url);
