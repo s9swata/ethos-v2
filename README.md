@@ -1,59 +1,85 @@
 # Ethos
 
-Music streaming desktop app + API server.
+Music streaming app — desktop (Tauri v2 + Svelte 5) and mobile (Expo/React Native), powered by yt-dlp and a FastAPI server.
 
 ## Structure
 
 ```
-├── api/              # FastAPI sidecar (PyInstaller-bundled for desktop)
-├── server/src/       # Full FastAPI server (Docker/cloud deployment)
-├── src/              # Svelte 5 desktop client
-├── src-tauri/        # Tauri v2 Rust backend
+├── server/                # Python FastAPI server (Docker/cloud)
+│   ├── src/routes/        # API routes
+│   ├── src/services/      # yt-dlp, ytmusicapi, scoring
+│   └── Dockerfile
+├── src/                   # Svelte 5 desktop client (Vite + Tailwind)
+├── src-tauri/             # Tauri v2 Rust backend
+├── expo-app/              # React Native / Expo mobile app
+│   └── app/               # Expo Router pages
+├── packages/
+│   └── expo-youtube-audio-stream/  # Custom Kotlin native module
 └── package.json
 ```
 
 ## Desktop App
 
+The desktop app runs **yt-dlp locally** via a Tauri shell plugin to extract track stream URLs — no remote server needed for playback. Falls back to the API server for search, artist, album, and playlist data.
+
+### Prerequisites
+
+- [Bun](https://bun.sh)
+- [Rust](https://rustup.rs) (for Tauri)
+- [yt-dlp](https://github.com/yt-dlp/yt-dlp) (`brew install yt-dlp` or `pip install yt-dlp`)
+
+### Running
+
 ```bash
-# Install deps
 bun install
-bun run tauri icon src-tauri/ethos-cat.png
 
-# Build the sidecar server (Python → single binary)
-bash api/build.sh
+# Terminal 1 — API server (for search/browse data)
+bun --cwd server run dev
 
-# Run in development mode
+# Terminal 2 — desktop client
 bun run tauri dev
+```
 
-# Build for distribution
+### Building
+
+```bash
 bun run tauri build
 ```
 
-Outputs: `src-tauri/target/release/bundle/` — `.app` (macOS), `.msi`/`.exe` (Windows), `.deb`/`.AppImage` (Linux).
+Outputs in `src-tauri/target/release/bundle/` — `.app` (macOS), `.msi`/`.exe` (Windows), `.deb`/`.AppImage` (Linux).
 
-No Docker or Python required on the user's machine — the server is bundled inside the app.
+## Mobile App
+
+React Native / Expo app with on-device YouTube audio extraction via a custom Kotlin native module (`expo-youtube-audio-stream`). Uses NewPipeExtractor under the hood.
+
+```bash
+cd expo-app && bun install
+bun expo run:android
+```
 
 ## API Server
 
-For standalone web deployment (Docker, Render, HuggingFace Spaces):
+Standalone FastAPI server for search, artist/album metadata, and playlist resolution. Used as a data source by both the desktop and mobile apps.
 
 ```bash
-# From the root directory
 docker build -t ethos-api -f server/Dockerfile .
-docker run -p 7860:7860 ethos-api
+docker run -p 3000:3000 ethos-api
 ```
 
-See `server/src/` for full FastAPI server with rate limiting, caching, yt-dlp client rotation, and all endpoints.
+Or deploy to Render / HuggingFace Spaces via `server/render.yaml`.
 
 ## Endpoints
 
 | Method | Path | Source |
 |--------|------|--------|
-| `GET` | `/api/health` | Sidecar + Server |
-| `GET` | `/api/search-v2?q=&limit=` | Sidecar + Server |
-| `GET` | `/api/artist/{browseId}` | Sidecar + Server |
-| `GET` | `/api/album/{browseId}` | Sidecar + Server |
-| `GET` | `/api/tracks/{trackId}` | Sidecar + Server |
-| `GET` | `/api/artist/search?q=&limit=` | Sidecar + Server |
-
-The sidecar (`api/`) exposes a subset of endpoints needed by the desktop client. The full server (`server/src/`) includes additional endpoints for playlist resolution, song search, streaming, and download.
+| `GET` | `/api/search-v2?q=&limit=` | Server |
+| `GET` | `/api/artist/{browseId}` | Server |
+| `GET` | `/api/artist/{browseId}/albums` | Server |
+| `GET` | `/api/album/{browseId}` | Server |
+| `GET` | `/api/artist/search?q=&limit=` | Server |
+| `GET` | `/api/playlist/search?q=&limit=` | Server |
+| `GET` | `/api/album/search?q=&limit=` | Server |
+| `GET` | `/api/tracks/{id}/lyrics` | Server |
+| `GET` | `/api/tracks/{id}/related` | Server |
+| `GET` | `/api/charts` | Server |
+| `GET` | `/api/home` | Server |
