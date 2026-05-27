@@ -251,6 +251,43 @@ async def get_album(browse_id: str) -> dict[str, Any]:
     )
 
 
+@cache_result(ttl=3600, namespace="ytmusic")
+async def get_playlist_v2(playlist_id: str, limit: int = 100) -> dict[str, Any]:
+    loop = asyncio.get_running_loop()
+    raw = await loop.run_in_executor(
+        None,
+        lambda: _get_client().get_playlist(playlist_id, limit=limit),
+    )
+
+    def _parse_duration(d: str | None) -> int:
+        if not d or not isinstance(d, str):
+            return 0
+        parts = d.split(":")
+        if len(parts) == 2:
+            return int(parts[0]) * 60 + int(parts[1])
+        if len(parts) == 3:
+            return int(parts[0]) * 3600 + int(parts[1]) * 60 + int(parts[2])
+        return 0
+
+    return {
+        "title": raw.get("title", ""),
+        "thumbnail": _best_thumb(raw.get("thumbnails")),
+        "count": len(raw.get("tracks", [])),
+        "tracks": [
+            {
+                "id": t.get("videoId", ""),
+                "title": t.get("title", ""),
+                "artist": ", ".join(a.get("name", "") for a in (t.get("artists") or [])),
+                "duration": _parse_duration(t.get("duration")),
+                "thumbnail": _best_thumb(t.get("thumbnails")),
+                "url": None,
+                "webpageUrl": "",
+            }
+            for t in (raw.get("tracks") or [])
+        ],
+    }
+
+
 def _normalize_home_item(item: dict[str, Any]) -> dict[str, Any]:
     title = item.get("title", "Unknown")
     subtitle = item.get("subtitle") or ""
