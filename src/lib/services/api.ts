@@ -137,29 +137,8 @@ export const api = {
   },
 
   getTrack: async (trackId: string) => {
-    const base = serverUrl();
-    const res = await fetch(`${base}/api/tracks/${trackId}`);
-    if (!res.ok) throw new Error("Track fetch failed");
-    const data = await res.json();
-    const streamUrl = data.directUrl || data.url;
-    return {
-      id: trackId,
-      title: data.title,
-      artist: data.artist,
-      duration: data.duration,
-      url: streamUrl,
-      thumbnail: thumbUrl(data.thumbnail),
-      webpageUrl: data.webpageUrl,
-      directUrl: streamUrl,
-      formats: [
-        {
-          url: streamUrl,
-          ext: "m4a",
-          format: "audio",
-          bitrate: 0,
-        },
-      ],
-    } as TrackInfo;
+    const { getTrackInfo } = await import("$lib/services/ytdlp");
+    return await getTrackInfo(trackId);
   },
 
   searchArtists: async (q: string, limit = 5) => {

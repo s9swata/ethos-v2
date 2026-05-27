@@ -60,25 +60,38 @@ For multi-step tasks, state a brief plan:
 
 Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
 
----
-
 **These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
+
+## 5. Persist Critical Findings
+
+**Write non-obvious, hard-won knowledge to `AGENTS.md` so future agents don't repeat mistakes.**
+
+When you discover something that:
+- Cost significant debugging time to figure out
+- Is a subtle gotcha (wrong API, wrong property name, wrong default)
+- Would save a future agent hours
+- Is specific to this codebase's architecture
+
+Add it to the relevant section of this file. The rule: if it took you more than 5 minutes to debug, it belongs in here.
+
 # ethos — Agent Guide
 
 ## Project structure
 
 ```
 ├── server/
-│   ├── src/              # Python FastAPI (routes/, services/, middleware/)
+│   ├── src/                # Python FastAPI (routes/, services/, middleware/)
 │   ├── Dockerfile
 │   ├── pyproject.toml
 │   └── render.yaml
-├── src/                   # Svelte 5 desktop client (Vite + Tailwind)
-├── src-tauri/             # Tauri v2 Rust backend
+├── src/                    # Svelte 5 desktop client (Vite + Tailwind)
+├── src-tauri/              # Tauri v2 Rust backend
 ├── package.json
 ├── vite.config.ts
 └── svelte.config.js
 ```
+
+> **Use `bun` for everything.** Never use `npm`. Install deps with `bun install`, run scripts with `bun run`.
 
 ## Server — `/server/`
 

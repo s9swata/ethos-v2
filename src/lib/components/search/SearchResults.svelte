@@ -109,7 +109,7 @@
   </div>
 {:else}
   <div class="space-y-0.5 page-enter">
-    {#each results as result, i (result.id + result.type)}
+    {#each results as result, i (result.id + result.type + i)}
       <div
         class="row-animate flex items-center gap-3 w-full px-3 py-2 rounded-xl hover:bg-white/[0.05] transition-all group cursor-pointer"
         style="animation-delay: {i * 25}ms"
