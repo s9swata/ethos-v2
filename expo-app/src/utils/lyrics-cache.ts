@@ -1,90 +1,103 @@
-import type { AlignedLine } from "./ttml";
-import type { LyricsResponse } from "@/types";
-import { parseLRC, type TimedLyricLine } from "./lrc";
 import { api, requestLRCLIB } from "@/api/client";
-import { getCachedTTML } from "./ttml";
+import { parseLRC, type TimedLyricLine } from "./lrc";
+import { useLyricsStore } from "@/stores/lyrics-store";
+import { usePlayerStore } from "@/stores/player-store";
 
-export interface LyricsCache {
-  lrclibLyrics: TimedLyricLine[] | null;
-  lyricsResult: LyricsResponse | null;
-  alignedLyrics: AlignedLine[] | null;
-  plainText: string | null;
-}
-
-const cache = new Map<string, LyricsCache>();
+const cache = new Map<
+  string,
+  {
+    timedLyrics: TimedLyricLine[] | null;
+    plainText: string | null;
+  }
+>();
 const inflight = new Set<string>();
 
-export function getCachedLyrics(trackId: string): LyricsCache | undefined {
-  const entry = cache.get(trackId);
-  if (entry) {
-    console.log(`[lyrics-cache] HIT for ${trackId}:`, {
-      lrclib: !!entry.lrclibLyrics,
-      server: !!entry.lyricsResult,
-      ttml: !!entry.alignedLyrics,
-    });
-  }
-  return entry;
+export function getCachedLyrics(
+  trackId: string
+): { timedLyrics: TimedLyricLine[] | null; plainText: string | null } | undefined {
+  return cache.get(trackId);
 }
 
 export function isPrefetching(trackId: string): boolean {
   return inflight.has(trackId);
 }
 
-export async function prefetchLyrics(
+export async function fetchLyricsForTrack(
   trackId: string,
   artist: string,
   title: string,
-  duration: number,
+  duration: number
 ): Promise<void> {
   if (inflight.has(trackId)) return;
-  if (cache.has(trackId)) return;
 
-  console.log(`[lyrics-cache] Prefetching for ${trackId} (${artist} — ${title})`);
-
-  // Check TTML cache first
-  const cachedTtml = getCachedTTML(trackId);
-  if (cachedTtml) {
-    console.log(`[lyrics-cache] TTML cache HIT for ${trackId}, storing ${cachedTtml.length} lines`);
-    cache.set(trackId, { lrclibLyrics: null, lyricsResult: null, alignedLyrics: cachedTtml, plainText: null });
+  const existing = cache.get(trackId);
+  if (existing && (existing.timedLyrics || existing.plainText)) {
+    useLyricsStore.getState().setLyrics(trackId, existing.timedLyrics, existing.plainText);
     return;
   }
 
   inflight.add(trackId);
+  useLyricsStore.getState().setLoading(true);
 
   try {
-    const [lrclibData, serverResult] = await Promise.all([
-      requestLRCLIB(artist, title, duration),
-      api.getLyrics(trackId).catch(() => null as LyricsResponse | null),
-    ]);
-
-    let lrclibLyrics: TimedLyricLine[] | null = null;
-    let lyricsResult: LyricsResponse | null = null;
+    let timedLyrics: TimedLyricLine[] | null = null;
     let plainText: string | null = null;
 
+    const lrclibData = await requestLRCLIB(artist, title, duration);
+
     if (lrclibData?.syncedLyrics) {
-      console.log(`[lyrics-cache] LRCLIB synced lyrics found for ${trackId}`);
-      lrclibLyrics = parseLRC(lrclibData.syncedLyrics);
+      timedLyrics = parseLRC(lrclibData.syncedLyrics);
       plainText = lrclibData.plainLyrics ?? null;
+    } else if (lrclibData?.plainLyrics) {
+      plainText = lrclibData.plainLyrics;
+    } else {
+      try {
+        const serverResult = await api.getLyrics(trackId);
+        if (serverResult.hasTimestamps && Array.isArray(serverResult.lyrics)) {
+          timedLyrics = serverResult.lyrics
+            .filter((l: any) => l.text)
+            .map((l: any) => ({ time: l.startTime / 1000, text: l.text }));
+        } else if (typeof serverResult.lyrics === "string") {
+          plainText = serverResult.lyrics;
+        }
+      } catch {}
     }
 
-    if (!lrclibData?.syncedLyrics && serverResult) {
-      console.log(`[lyrics-cache] Server lyrics result for ${trackId}: hasTimestamps=${serverResult.hasTimestamps}`);
-      lyricsResult = serverResult;
-      if (typeof serverResult.lyrics === "string") {
-        plainText = serverResult.lyrics;
-      } else if (Array.isArray(serverResult.lyrics)) {
-        plainText = serverResult.lyrics.map((l) => l.text).join("\n");
-      }
-    }
-
-    if (!lrclibData?.syncedLyrics && !serverResult) {
-      console.log(`[lyrics-cache] No lyrics found for ${trackId}`);
-    }
-
-    cache.set(trackId, { lrclibLyrics, lyricsResult, alignedLyrics: null, plainText });
+    cache.set(trackId, { timedLyrics, plainText });
+    useLyricsStore.getState().setLyrics(trackId, timedLyrics, plainText);
   } catch (e) {
-    console.warn(`[lyrics-cache] Prefetch failed for ${trackId}:`, e);
+    useLyricsStore.getState().setLyrics(trackId, null, null);
   } finally {
     inflight.delete(trackId);
   }
+}
+
+export async function prefetchLyrics(
+  trackId: string,
+  artist: string,
+  title: string,
+  duration: number
+): Promise<void> {
+  if (inflight.has(trackId)) return;
+  const existing = cache.get(trackId);
+  if (existing && (existing.timedLyrics || existing.plainText)) return;
+  fetchLyricsForTrack(trackId, artist, title, duration);
+}
+
+export function initLyricsStoreListener() {
+  const currentTrack = usePlayerStore.getState().currentTrack;
+  if (currentTrack) {
+    fetchLyricsForTrack(currentTrack.id, currentTrack.artist, currentTrack.title, currentTrack.duration);
+  }
+
+  usePlayerStore.subscribe(
+    (state) => state.currentTrack,
+    (track) => {
+      if (!track) {
+        useLyricsStore.getState().clearLyrics();
+        return;
+      }
+      fetchLyricsForTrack(track.id, track.artist, track.title, track.duration);
+    }
+  );
 }

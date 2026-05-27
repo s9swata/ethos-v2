@@ -18,7 +18,9 @@ export function ping(): string {
  * Returns streams with local proxy URLs that support range requests.
  */
 export async function getAudioStreams(videoId: string): Promise<AudioStream[]> {
-  return NativeModule.getAudioStreams(videoId)
+  const raw = await NativeModule.getAudioStreams(videoId)
+  console.log(`[getAudioStreams] raw from native (${videoId}):`, JSON.stringify(raw))
+  return raw
 }
 
 /**

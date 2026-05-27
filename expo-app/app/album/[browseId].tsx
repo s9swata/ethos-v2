@@ -57,10 +57,10 @@ export default function AlbumScreen() {
   const t = album.thumbnails;
   const artUrl = t?.[t.length - 1]?.url;
 
-  const handlePlayAll = () => {
-    const firstTrack = album.tracks.find((t) => t.videoId);
-    if (firstTrack?.videoId) playTrack(firstTrack.videoId, { albumBrowseId: browseId, title: firstTrack.title ?? undefined, artist: firstTrack.artists?.[0] ?? undefined, thumbnail: artUrl });
-  };
+   const handlePlayAll = () => {
+     const firstTrack = album.tracks.find((t) => t.videoId);
+     if (firstTrack?.videoId) playTrack(firstTrack.videoId, { albumBrowseId: browseId, title: firstTrack.title ?? undefined, artist: firstTrack.artists?.[0] ?? undefined, thumbnail: artUrl, duration: firstTrack.duration });
+   };
 
   const header = (
     <View style={{ marginBottom: layout.sectionGap }}>
@@ -108,7 +108,7 @@ export default function AlbumScreen() {
           <Pressable
             key={track.videoId ?? idx}
             style={{ flexDirection: "row", alignItems: "center", paddingVertical: 12, borderBottomWidth: 0.5, borderBottomColor: theme.colors.border }}
-            onPress={() => track.videoId && playTrack(track.videoId, { albumBrowseId: browseId, title: track.title ?? undefined, artist: track.artists?.[0] ?? undefined, thumbnail: artUrl })}
+             onPress={() => track.videoId && playTrack(track.videoId, { albumBrowseId: browseId, title: track.title ?? undefined, artist: track.artists?.[0] ?? undefined, thumbnail: artUrl, duration: track.duration })}
           >
             <View style={{ flex: 1 }}>
               <Text style={{ color: theme.colors.textPrimary, fontSize: 14, fontWeight: "500" }} numberOfLines={1}>{track.title}</Text>

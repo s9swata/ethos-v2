@@ -12,6 +12,7 @@ class ExpoYoutubeAudioStreamModule : Module() {
   private val proxyServer = YoutubeAudioProxyServer()
   private var initialized = false
 
+  @Synchronized
   private fun ensureInitialized(): Boolean {
     if (initialized) return true
     try {
@@ -20,7 +21,7 @@ class ExpoYoutubeAudioStreamModule : Module() {
         Log.w(TAG, "ensureInitialized: reactContext is null")
         return false
       }
-      org.schabi.newpipe.extractor.NewPipe.init(OkHttpDownloader())
+      org.schabi.newpipe.extractor.NewPipe.init(OkHttpDownloader(proxyServer.okClient))
       proxyServer.start(context)
       initialized = true
       Log.d(TAG, "Initialized OK on port ${proxyServer.getPort()}")
@@ -39,9 +40,9 @@ class ExpoYoutubeAudioStreamModule : Module() {
     AsyncFunction("getAudioStreams") { videoId: String ->
       Log.d(TAG, "getAudioStreams($videoId)")
       try {
-        val ok = ensureInitialized()
-        if (!ok) return@AsyncFunction emptyList<Map<String, Any?>>()
         val result = runBlocking(Dispatchers.IO) {
+          val ok = ensureInitialized()
+          if (!ok) return@runBlocking emptyList<Map<String, Any?>>()
           proxyServer.getStreams(videoId)
         }
         Log.d(TAG, "getAudioStreams -> ${result.size} streams")

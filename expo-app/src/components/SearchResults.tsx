@@ -24,17 +24,19 @@ export function SearchResults({ results, query }: Props) {
 
   const handlePress = useCallback(
     (result: SearchResult) => {
+      console.log(`[SearchResults] pressed ${result.type}: "${result.name}" (${result.id})`);
       switch (result.type) {
-        case "track":
-          if (!result.id) return;
-          playTrack(result.id, {
-            artistBrowseId: result.artistId,
-            albumBrowseId: result.albumId ?? undefined,
-            title: result.name,
-            artist: result.artists?.[0] ?? "",
-            thumbnail: result.imageUrl,
-          });
-          break;
+         case "track":
+            if (!result.id) return;
+            playTrack(result.id, {
+             artistBrowseId: result.artistId,
+             albumBrowseId: result.albumId ?? undefined,
+             title: result.name,
+             artist: result.artists?.[0] ?? "",
+             thumbnail: result.imageUrl,
+             duration: result.duration,
+           });
+           break;
         case "artist":
           router.push(`/artist/${result.id}`);
           break;

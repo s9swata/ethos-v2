@@ -1,8 +1,8 @@
 import { create } from "zustand";
-import type { TrackInfo, RepeatMode, QueueContext, PlayHistoryItem } from "@/types";
+import type { TrackInfo, RepeatMode, QueueContext, PlayHistoryItem, AudioFormat } from "@/types";
 import { api } from "@/api/client";
-import { prefetchLyrics } from "@/utils/lyrics-cache";
-import { prefetchStream } from "expo-youtube-audio-stream";
+import { prefetchStream, getBestAudioStream } from "expo-youtube-audio-stream";
+import { parseDuration } from "@/utils/duration";
 
 const MAX_HISTORY = 10;
 
@@ -52,6 +52,7 @@ interface AutoQueueItem {
   isTopSong?: boolean;
   albumBrowseId?: string | null;
   albumIndex?: number | null;
+  duration?: string | null;
 }
 
 interface PlayerState {
@@ -86,7 +87,7 @@ interface PlayerActions {
   playTrack: (trackId: string, context?: QueueContext) => Promise<void>;
   setQueue: (tracks: TrackInfo[], startIndex: number) => void;
   playNext: () => Promise<void>;
-  playPrev: () => void;
+   playPrev: () => Promise<void>;
   togglePlay: () => void;
   setPlaying: (playing: boolean) => void;
   setCurrentTime: (time: number) => void;
@@ -147,22 +148,65 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
   currentAutoQueueSource: null,
   recentAlbumIds: [],
 
-  playTrack: async (trackId, context) => {
-    const state = get();
-    if (state.currentTrack?.id === trackId) {
-      set({ isPlaying: true });
-      return;
-    }
+   playTrack: async (trackId, context) => {
+     const state = get();
+     if (state.currentTrack?.id === trackId) {
+       set({ isPlaying: true });
+       return;
+     }
 
-    set({ isLoading: true, error: null });
-    try {
-      const track = await api.getTrack(trackId);
+     set({ isLoading: true, error: null });
+     try {
+       let track: TrackInfo | null = null;
+
+       const hasContextMetadata = !!(context?.title && context?.artist);
+       if (hasContextMetadata) {
+         try {
+            const stream = await getBestAudioStream(trackId, {
+              preferredMimeType: "audio/mp4",
+              minBitrate: 48000,
+            });
+             console.log(`[playTrack] getBestAudioStream result:`, JSON.stringify(stream));
+             if (stream?.url) {
+               console.log(`[playTrack] stream URL: ${stream.url}`);
+               const durationNum = context.duration ? parseDuration(context.duration) : 0;
+               const formats: AudioFormat[] = [{
+                 url: stream.url,
+                 ext: stream.container,
+                 format: `${stream.container} ${Math.round(stream.bitrate / 1000)}k`,
+                 bitrate: stream.bitrate,
+               }];
+               track = {
+                 id: trackId,
+                 title: context.title,
+                 artist: context.artist,
+                 duration: durationNum,
+                 url: stream.url,
+                 directUrl: stream.url,
+                 thumbnail: context.thumbnail ?? "",
+                 webpageUrl: `https://www.youtube.com/watch?v=${trackId}`,
+                 formats,
+               };
+             } else {
+               console.log(`[playTrack] no stream URL from local proxy`);
+             }
+         } catch (e) {
+           console.warn("[playTrack] Local stream extraction failed:", e);
+         }
+       }
+
+       if (!track) {
+         track = await api.getTrack(trackId);
+       }
+
       const trackWithOverride = {
-        ...track,
-        title: context?.title ?? track.title,
-        artist: context?.artist ?? track.artist,
-        thumbnail: context?.thumbnail ?? track.thumbnail,
-      };
+          ...track,
+          title: context?.title ?? track.title,
+          artist: context?.artist ?? track.artist,
+          thumbnail: context?.thumbnail ?? track.thumbnail,
+        };
+      const source = track.directUrl?.startsWith("http://127.0.0.1:") ? "local proxy" : "server yt-dlp";
+      console.log(`[playTrack] ${trackWithOverride.title} — ${source}`);
       const historyEntry = trackToHistoryEntry(trackWithOverride);
       const history = addToPlayHistory(state.playHistory, historyEntry);
       const existingQueueIndex = state.queue.findIndex((t) => t.id === trackId);
@@ -183,6 +227,12 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
         playHistory: history,
         playedVideoIds: [...state.playedVideoIds, trackId],
       });
+
+      if (context?.albumBrowseId) {
+        set((s) => ({
+          recentAlbumIds: [context.albumBrowseId!, ...s.recentAlbumIds].slice(0, 3),
+        }));
+      }
 
       if (context?.artistBrowseId) {
         try {
@@ -208,17 +258,18 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
               const album = await api.getAlbum(allAlbumIds[0]);
               const albumThumb = album.thumbnails?.[0]?.url;
               const seenIds = new Set(items.map((i) => i.videoId).filter(Boolean));
-              const albumTracks = album.tracks
-                .filter((t) => t.videoId && !seenIds.has(t.videoId))
-                .map((t) => ({
-                  title: t.title,
-                  videoId: t.videoId,
-                  artists: t.artists,
-                  thumbnail: albumThumb,
-                  isTopSong: false,
-                  albumBrowseId: allAlbumIds[0],
-                  albumIndex: t.index ?? null,
-                }));
+               const albumTracks = album.tracks
+                 .filter((t) => t.videoId && !seenIds.has(t.videoId))
+                 .map((t) => ({
+                   title: t.title,
+                   videoId: t.videoId,
+                   artists: t.artists,
+                   thumbnail: albumThumb,
+                   isTopSong: false,
+                   albumBrowseId: allAlbumIds[0],
+                   albumIndex: t.index ?? null,
+                   duration: t.duration,
+                 }));
               items = [...topItems, ...shuffle(albumTracks)].slice(0, 10);
               consumedAlbumId = allAlbumIds[0];
             } catch {}
@@ -261,17 +312,18 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
                 const album = await api.getAlbum(allAlbumIds[0]);
                 const albumThumb = album.thumbnails?.[0]?.url;
                 const seenIds = new Set(items.map((i) => i.videoId).filter(Boolean));
-                const albumTracks = album.tracks
-                  .filter((t) => t.videoId && !seenIds.has(t.videoId))
-                  .map((t) => ({
-                    title: t.title,
-                    videoId: t.videoId,
-                    artists: t.artists,
-                    thumbnail: albumThumb,
-                    isTopSong: false,
-                    albumBrowseId: allAlbumIds[0],
-                    albumIndex: t.index ?? null,
-                  }));
+                 const albumTracks = album.tracks
+                   .filter((t) => t.videoId && !seenIds.has(t.videoId))
+                   .map((t) => ({
+                     title: t.title,
+                     videoId: t.videoId,
+                     artists: t.artists,
+                     thumbnail: albumThumb,
+                     isTopSong: false,
+                     albumBrowseId: allAlbumIds[0],
+                     albumIndex: t.index ?? null,
+                     duration: t.duration,
+                   }));
                 items = [...topItems, ...shuffle(albumTracks)].slice(0, 10);
                 consumedAlbumId = allAlbumIds[0];
               } catch {}
@@ -286,13 +338,12 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
             artistTrackPool: [],
             pendingAlbumBrowseIds: consumedAlbumId ? allAlbumIds.slice(1) : allAlbumIds,
           });
-        }
-        } catch {}
-      }
+           }
+         } catch {}
+       }
 
-      // Prefetch lyrics + stream in background
-      prefetchLyrics(trackWithOverride.id, trackWithOverride.artist, trackWithOverride.title, trackWithOverride.duration);
-      prefetchStream(trackId).catch(() => {});
+       // Prefetch stream in background
+       prefetchStream(trackId).catch(() => {});
     } catch (err) {
       set({
         error: err instanceof Error ? err.message : "Failed to load track",
@@ -336,46 +387,21 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
       return;
     }
 
-    // 3. autoQueue has more tracks
-    if (state.autoQueueIndex + 1 < state.autoQueue.length) {
-      const nextIndex = state.autoQueueIndex + 1;
-      const item = state.autoQueue[nextIndex];
-      set({ autoQueueIndex: nextIndex, isLoading: true });
-      if (item.videoId) {
-        try {
-          const track = await api.getTrack(item.videoId);
-          const resolvedTrack: TrackInfo = {
-            id: track.id,
-            title: item.title ?? track.title,
-            artist: item.artists?.join(", ") ?? track.artist,
-            thumbnail: item.thumbnail ?? track.thumbnail,
-            duration: track.duration,
-            url: track.url,
-            webpageUrl: track.webpageUrl,
-            directUrl: track.directUrl,
-            formats: track.formats,
-          };
-          const history = addToPlayHistory(get().playHistory, trackToHistoryEntry(resolvedTrack));
-          set((s) => ({
-            currentTrack: resolvedTrack,
-            isPlaying: true,
-            currentTime: 0,
-            duration: resolvedTrack.duration,
-            isLoading: false,
-            playHistory: history,
-            playedVideoIds: [...s.playedVideoIds, resolvedTrack.id],
-            recentAlbumIds: item.albumBrowseId
-              ? [item.albumBrowseId, ...s.recentAlbumIds].slice(0, 3)
-              : s.recentAlbumIds,
-          }));
-        } catch {
-          set({ isLoading: false, isPlaying: false });
-        }
-      } else {
-        set({ isLoading: false, isPlaying: false });
-      }
-      return;
-    }
+     // 3. autoQueue has more tracks
+     if (state.autoQueueIndex + 1 < state.autoQueue.length) {
+       const nextIndex = state.autoQueueIndex + 1;
+       const item = state.autoQueue[nextIndex];
+       if (item.videoId) {
+         await get().playTrack(item.videoId, {
+           title: item.title ?? undefined,
+           artist: item.artists?.join(", "),
+           thumbnail: item.thumbnail ?? undefined,
+           duration: item.duration ?? undefined,
+           albumBrowseId: item.albumBrowseId ?? undefined,
+         });
+       }
+       return;
+     }
 
     // 4. autoQueue exhausted + currentArtistId — refill
     if (state.currentArtistId) {
@@ -391,17 +417,18 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
         try {
           const album = await api.getAlbum(nextId);
           const albumThumb = album.thumbnails?.[0]?.url;
-          const newTracks: AutoQueueItem[] = album.tracks
-            .filter((t) => t.videoId)
-            .map((t) => ({
-              title: t.title,
-              videoId: t.videoId,
-              artists: t.artists,
-              thumbnail: albumThumb,
-              isTopSong: false,
-              albumBrowseId: nextId,
-              albumIndex: t.index ?? null,
-            }));
+           const newTracks: AutoQueueItem[] = album.tracks
+             .filter((t) => t.videoId)
+             .map((t) => ({
+               title: t.title,
+               videoId: t.videoId,
+               artists: t.artists,
+               thumbnail: albumThumb,
+               isTopSong: false,
+               albumBrowseId: nextId,
+               albumIndex: t.index ?? null,
+               duration: t.duration,
+             }));
           set((s) => ({ artistTrackPool: [...s.artistTrackPool, ...newTracks] }));
           batch = scoreRefillBatch(get().artistTrackPool, state.playedVideoIds, state.recentAlbumIds);
         } catch {}
@@ -480,44 +507,22 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
         }
       }
 
-      if (batch && batch.length > 0) {
-        set({ autoQueue: batch, autoQueueIndex: 0 });
-        const first = batch[0];
-        if (first?.videoId) {
-          try {
-            const track = await api.getTrack(first.videoId);
-            const resolvedTrack: TrackInfo = {
-              id: track.id,
-              title: first.title ?? track.title,
-              artist: first.artists?.join(", ") ?? track.artist,
-              thumbnail: first.thumbnail ?? track.thumbnail,
-              duration: track.duration,
-              url: track.url,
-              webpageUrl: track.webpageUrl,
-              directUrl: track.directUrl,
-              formats: track.formats,
-            };
-            const history = addToPlayHistory(get().playHistory, trackToHistoryEntry(resolvedTrack));
-            set((s) => ({
-              currentTrack: resolvedTrack,
-              isPlaying: true,
-              currentTime: 0,
-              duration: resolvedTrack.duration,
-              isLoading: false,
-              playHistory: history,
-              playedVideoIds: [...s.playedVideoIds, resolvedTrack.id],
-              recentAlbumIds: first.albumBrowseId
-                ? [first.albumBrowseId, ...s.recentAlbumIds].slice(0, 3)
-                : s.recentAlbumIds,
-            }));
-          } catch {
-            set({ isLoading: false, isPlaying: false });
-          }
-        } else {
-          set({ isLoading: false, isPlaying: false });
-        }
-        return;
-      }
+       if (batch && batch.length > 0) {
+         set({ autoQueue: batch, autoQueueIndex: 0 });
+         const first = batch[0];
+         if (first?.videoId) {
+           await get().playTrack(first.videoId, {
+             title: first.title ?? undefined,
+             artist: first.artists?.join(", "),
+             thumbnail: first.thumbnail ?? undefined,
+             duration: first.duration ?? undefined,
+             albumBrowseId: first.albumBrowseId ?? undefined,
+           });
+         } else {
+           set({ isLoading: false });
+         }
+         return;
+       }
 
       // All refill options exhausted — fall through
       set({ isLoading: false });
@@ -538,7 +543,7 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
     set({ isPlaying: false });
   },
 
-  playPrev: () => {
+   playPrev: async () => {
     const state = get();
 
     // 1. If past 3 seconds, restart current track
@@ -558,34 +563,21 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
       return;
     }
 
-    // 3. Go back in autoQueue
-    if (state.autoQueueIndex > 0) {
-      const prevIndex = state.autoQueueIndex - 1;
-      const item = state.autoQueue[prevIndex];
-      set({ autoQueueIndex: prevIndex, isLoading: true });
-      if (item.videoId) {
-        api.getTrack(item.videoId).then((track) => {
-          const resolvedTrack: TrackInfo = {
-            id: track.id,
-            title: item.title ?? track.title,
-            artist: item.artists?.join(", ") ?? track.artist,
-            thumbnail: item.thumbnail ?? track.thumbnail,
-            duration: track.duration,
-            url: track.url,
-            webpageUrl: track.webpageUrl,
-            directUrl: track.directUrl,
-            formats: track.formats,
-          };
-          const history = addToPlayHistory(get().playHistory, trackToHistoryEntry(resolvedTrack));
-          set({ currentTrack: resolvedTrack, isPlaying: true, currentTime: 0, duration: resolvedTrack.duration, isLoading: false, playHistory: history, playedVideoIds: [...get().playedVideoIds, resolvedTrack.id] });
-        }).catch(() => {
-          set({ isLoading: false, isPlaying: false });
-        });
-      } else {
-        set({ isLoading: false, isPlaying: false });
-      }
-      return;
-    }
+     // 3. Go back in autoQueue
+     if (state.autoQueueIndex > 0) {
+       const prevIndex = state.autoQueueIndex - 1;
+       const item = state.autoQueue[prevIndex];
+       if (item.videoId) {
+         await get().playTrack(item.videoId, {
+           title: item.title ?? undefined,
+           artist: item.artists?.join(", "),
+           thumbnail: item.thumbnail ?? undefined,
+           duration: item.duration ?? undefined,
+           albumBrowseId: item.albumBrowseId ?? undefined,
+         });
+       }
+       return;
+     }
 
     // 4. Restart current track
     if (state.currentTrack) {

@@ -88,8 +88,8 @@ export const api = {
         track.directUrl = stream.url;
         if (track.formats?.[0]) track.formats[0].url = stream.url;
       }
-    } catch {
-      // Fall back to server URL — extraction may fail for age-restricted etc.
+    } catch (e) {
+      console.warn("[yt-audio] getBestAudioStream failed, using server URL:", e);
     }
     return track;
   },
@@ -125,6 +125,14 @@ export interface LRCLIBResponse {
   duration: number;
 }
 
+function normalizeQuery(s: string): string {
+  return s.replace(/\(official\s+(video|audio|lyrics?|music\s*video)\)/gi, "")
+    .replace(/\(.*?version\)/gi, "")
+    .replace(/\[.*?\]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 async function requestLRCLIB(artist: string, title: string, duration: number): Promise<LRCLIBResponse | null> {
   const params = new URLSearchParams({
     artist_name: artist,
@@ -132,9 +140,26 @@ async function requestLRCLIB(artist: string, title: string, duration: number): P
     duration: String(Math.round(duration)),
   });
   try {
-    const res = await fetch(`https://lrclib.net/api/get?${params}`);
-    if (!res.ok) return null;
-    return res.json();
+    let res = await fetch(`https://lrclib.net/api/get?${params}`);
+    if (res.ok) return res.json();
+
+    const query = `${normalizeQuery(artist)} ${normalizeQuery(title)}`;
+    const searchRes = await fetch(`https://lrclib.net/api/search?q=${encodeURIComponent(query)}`);
+    if (!searchRes.ok) return null;
+
+    const results = await searchRes.json() as any[];
+    if (!Array.isArray(results) || results.length === 0) return null;
+
+    const roundedDuration = Math.round(duration);
+    const exact = results.find((r) => Math.round(r.duration) === roundedDuration);
+    if (exact) return exact;
+
+    const similar = results.filter((r) => Math.abs(Math.round(r.duration) - roundedDuration) <= 3);
+    if (similar.length > 0) return similar.reduce((a, b) =>
+      Math.abs(Math.round(a.duration) - roundedDuration) < Math.abs(Math.round(b.duration) - roundedDuration) ? a : b
+    );
+
+    return results[0];
   } catch {
     return null;
   }

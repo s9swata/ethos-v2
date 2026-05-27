@@ -6,6 +6,7 @@ import { Icon } from "@/components/icons";
 import { Image } from "expo-image";
 import { usePlayerStore } from "@/stores/player-store";
 import { upscaleThumbnail } from "@/api/client";
+import { formatDuration } from "@/utils/duration";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { theme } from "@/theme";
 
@@ -158,11 +159,11 @@ const displayPool = artistTrackPool.filter(
                   const actualIdx = queue.indexOf(track);
                   return (
                     <SwipeableRow key={`q-${track.id}-${idx}`} onRemove={() => removeFromQueue(actualIdx)}>
-                      <TouchableOpacity
-                        activeOpacity={0.7}
-                        onPress={() => { if (track.id !== currentTrack?.id) playTrack(track.id); }}
-                        style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 8, paddingHorizontal: 16 }}
-                      >
+                       <TouchableOpacity
+                         activeOpacity={0.7}
+                         onPress={() => { if (track.id !== currentTrack?.id) playTrack(track.id, { title: track.title, artist: track.artist, thumbnail: track.thumbnail, duration: formatDuration(track.duration) }); }}
+                         style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 8, paddingHorizontal: 16 }}
+                       >
                         <Image
                           source={{ uri: upscaleThumbnail(track.thumbnail || "", 120) }}
                           style={{ width: 44, height: 44, borderRadius: 6 }}
@@ -180,7 +181,7 @@ const displayPool = artistTrackPool.filter(
                   <Pressable
                     key={`aq-${item.videoId}-${idx}`}
                     style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 8, paddingHorizontal: 16 }}
-                    onPress={() => item.videoId && playTrack(item.videoId, { title: item.title ?? undefined, artist: item.artists?.join(", "), thumbnail: item.thumbnail ?? undefined })}
+                    onPress={() => item.videoId && playTrack(item.videoId, { title: item.title ?? undefined, artist: item.artists?.join(", "), thumbnail: item.thumbnail ?? undefined, duration: item.duration ?? undefined })}
                   >
                     {item.thumbnail ? (
                       <Image source={{ uri: upscaleThumbnail(item.thumbnail, 120) }} style={{ width: 44, height: 44, borderRadius: 6 }} />
@@ -206,7 +207,7 @@ const displayPool = artistTrackPool.filter(
                       <Pressable
                         key={`pool-${item.videoId}-${idx}`}
                         style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 8, paddingHorizontal: 16 }}
-                        onPress={() => item.videoId && playTrack(item.videoId, { title: item.title ?? undefined, artist: item.artists?.join(", "), thumbnail: item.thumbnail ?? undefined })}
+                        onPress={() => item.videoId && playTrack(item.videoId, { title: item.title ?? undefined, artist: item.artists?.join(", "), thumbnail: item.thumbnail ?? undefined, duration: item.duration ?? undefined })}
                       >
                         {item.thumbnail ? (
                           <Image source={{ uri: upscaleThumbnail(item.thumbnail, 120) }} style={{ width: 44, height: 44, borderRadius: 6 }} />
