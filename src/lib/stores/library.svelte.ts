@@ -1,3 +1,7 @@
+import Database from "@tauri-apps/plugin-sql";
+import type { TrackItem, SongItem } from "$lib/types";
+
+let db: Database | null = $state(null);
 let ready = $state(false);
 let likedIds = $state<Set<string>>(new Set());
 let playlists = $state<Playlist[]>([]);
@@ -34,27 +38,47 @@ export interface PlaylistTrack {
   added_at: string;
 }
 
-let rpc: any = null;
+const SCHEMA = `
+  CREATE TABLE IF NOT EXISTS liked_songs (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    artist TEXT NOT NULL DEFAULT '',
+    album TEXT,
+    thumbnail TEXT NOT NULL DEFAULT '',
+    duration TEXT NOT NULL DEFAULT '',
+    added_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
 
-function getRpc() {
-  if (!rpc) {
-    try {
-      const { ev } = window as any;
-      rpc = ev?.rpc;
-    } catch {}
-  }
-  return rpc;
-}
+  CREATE TABLE IF NOT EXISTS playlists (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
 
-async function dbRequest<T>(method: string, params?: any): Promise<T> {
-  const rpc = getRpc();
-  if (!rpc) return [] as any;
-  return rpc.request.db[method](params ?? {});
-}
+  CREATE TABLE IF NOT EXISTS playlist_tracks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    playlist_id TEXT NOT NULL REFERENCES playlists(id) ON DELETE CASCADE,
+    track_id TEXT NOT NULL,
+    title TEXT NOT NULL,
+    artist TEXT NOT NULL DEFAULT '',
+    album TEXT,
+    thumbnail TEXT NOT NULL DEFAULT '',
+    duration TEXT NOT NULL DEFAULT '',
+    position INTEGER NOT NULL DEFAULT 0,
+    added_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_playlist_tracks_playlist ON playlist_tracks(playlist_id, position);
+  CREATE INDEX IF NOT EXISTS idx_liked_songs_added ON liked_songs(added_at DESC);
+`;
 
 export async function initDb(): Promise<void> {
   if (ready) return;
   try {
+    db = await Database.load("sqlite:ethos.db");
+    await db.execute(SCHEMA);
     await refreshLikedIds();
     await refreshPlaylists();
     ready = true;
@@ -64,16 +88,17 @@ export async function initDb(): Promise<void> {
 }
 
 async function refreshLikedIds(): Promise<void> {
-  try {
-    const songs = await dbRequest<{ id: string }[]>("getLikedSongs");
-    likedIds = new Set(songs.map((r) => r.id));
-  } catch {}
+  if (!db) return;
+  const rows = await db.select<{ id: string }[]>("SELECT id FROM liked_songs");
+  likedIds = new Set(rows.map((r) => r.id));
 }
 
 async function refreshPlaylists(): Promise<void> {
-  try {
-    playlists = await dbRequest<Playlist[]>("getPlaylists");
-  } catch {}
+  if (!db) return;
+  playlists = await db.select<Playlist[]>(
+    `SELECT p.*, (SELECT COUNT(*) FROM playlist_tracks WHERE playlist_id = p.id) as track_count
+     FROM playlists p ORDER BY p.updated_at DESC`,
+  );
 }
 
 export async function likeSong(
@@ -86,10 +111,12 @@ export async function likeSong(
 ): Promise<void> {
   likedIds.add(id);
   try {
-    await dbRequest("toggleLike", {
-      id,
-      track: { id, title, artist, album, thumbnail, duration, addedAt: new Date().toISOString() },
-    });
+    if (db) {
+      await db.execute(
+        `INSERT OR IGNORE INTO liked_songs (id, title, artist, album, thumbnail, duration) VALUES (?, ?, ?, ?, ?, ?)`,
+        [id, title, artist, album, thumbnail, duration],
+      );
+    }
   } catch {
     likedIds.delete(id);
   }
@@ -98,10 +125,9 @@ export async function likeSong(
 export async function unlikeSong(id: string): Promise<void> {
   likedIds.delete(id);
   try {
-    await dbRequest("toggleLike", {
-      id,
-      track: { id, title: "", artist: "", album: null, thumbnail: "", duration: "", addedAt: "" },
-    });
+    if (db) {
+      await db.execute("DELETE FROM liked_songs WHERE id = ?", [id]);
+    }
   } catch {
     likedIds.add(id);
   }
@@ -124,63 +150,71 @@ export async function toggleLike(
 }
 
 export async function getLikedSongs(): Promise<LikedSong[]> {
-  try {
-    return await dbRequest<LikedSong[]>("getLikedSongs");
-  } catch {
-    return [];
-  }
+  if (!db) return [];
+  return db.select("SELECT * FROM liked_songs ORDER BY added_at DESC");
 }
 
 export async function createPlaylist(name: string, description = ""): Promise<string> {
-  try {
-    const playlist = await dbRequest<Playlist>("createPlaylist", { name, description });
-    await refreshPlaylists();
-    return String(playlist.id);
-  } catch {
-    throw new Error("Failed to create playlist");
-  }
+  if (!db) throw new Error("DB not ready");
+  const id = crypto.randomUUID();
+  await db.execute(
+    "INSERT INTO playlists (id, name, description) VALUES (?, ?, ?)",
+    [id, name, description],
+  );
+  await refreshPlaylists();
+  return id;
 }
 
 export async function deletePlaylist(id: string): Promise<void> {
-  try {
-    await dbRequest("deletePlaylist", { id: Number(id) });
-    await refreshPlaylists();
-  } catch {}
+  if (!db) return;
+  await db.execute("DELETE FROM playlists WHERE id = ?", [id]);
+  await refreshPlaylists();
 }
 
 export async function renamePlaylist(id: string, name: string): Promise<void> {
-  try {
-    await dbRequest("renamePlaylist", { id: Number(id), name });
-    await refreshPlaylists();
-  } catch {}
+  if (!db) return;
+  await db.execute(
+    "UPDATE playlists SET name = ?, updated_at = datetime('now') WHERE id = ?",
+    [name, id],
+  );
+  await refreshPlaylists();
 }
 
 export async function addTrackToPlaylist(
   playlistId: string,
   track: { id: string; title: string; artist: string; album: string | null; thumbnail: string; duration: string },
 ): Promise<void> {
-  try {
-    await dbRequest("addTrack", {
-      playlistId: Number(playlistId),
-      track: { ...track, addedAt: new Date().toISOString() },
-    });
-    await refreshPlaylists();
-  } catch {}
+  if (!db) return;
+  const maxPos = await db.select<{ m: number | null }[]>(
+    "SELECT MAX(position) as m FROM playlist_tracks WHERE playlist_id = ?",
+    [playlistId],
+  );
+  const pos = (maxPos[0]?.m ?? -1) + 1;
+  await db.execute(
+    `INSERT INTO playlist_tracks (playlist_id, track_id, title, artist, album, thumbnail, duration, position)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [playlistId, track.id, track.title, track.artist, track.album, track.thumbnail, track.duration, pos],
+  );
+  await db.execute("UPDATE playlists SET updated_at = datetime('now') WHERE id = ?", [playlistId]);
+  await refreshPlaylists();
 }
 
 export async function removeTrackFromPlaylist(playlistId: string, position: number): Promise<void> {
-  try {
-    await dbRequest("removeTrack", { playlistId: Number(playlistId), trackId: String(position) });
-    await refreshPlaylists();
-  } catch {}
+  if (!db) return;
+  await db.execute(
+    "DELETE FROM playlist_tracks WHERE playlist_id = ? AND position = ?",
+    [playlistId, position],
+  );
+  await db.execute("UPDATE playlists SET updated_at = datetime('now') WHERE id = ?", [playlistId]);
+  await refreshPlaylists();
 }
 
 export async function getPlaylistTracks(playlistId: string): Promise<PlaylistTrack[]> {
-  try {
-    return await dbRequest<PlaylistTrack[]>("getPlaylistTracks", { id: Number(playlistId) });
-  } catch {
-    return [];
-  }
+  if (!db) return [];
+  return db.select(
+    "SELECT * FROM playlist_tracks WHERE playlist_id = ? ORDER BY position",
+    [playlistId],
+  );
 }
 
 export async function reorderPlaylistTrack(
@@ -188,13 +222,27 @@ export async function reorderPlaylistTrack(
   fromPos: number,
   toPos: number,
 ): Promise<void> {
-  try {
-    await dbRequest("reorderTrack", {
-      playlistId: Number(playlistId),
-      trackId: String(fromPos),
-      newIndex: toPos,
-    });
-  } catch {}
+  if (!db) return;
+  await db.execute("BEGIN TRANSACTION");
+  if (fromPos < toPos) {
+    await db.execute(
+      `UPDATE playlist_tracks SET position = position - 1
+       WHERE playlist_id = ? AND position > ? AND position <= ?`,
+      [playlistId, fromPos, toPos],
+    );
+  } else {
+    await db.execute(
+      `UPDATE playlist_tracks SET position = position + 1
+       WHERE playlist_id = ? AND position >= ? AND position < ?`,
+      [playlistId, toPos, fromPos],
+    );
+  }
+  await db.execute(
+    "UPDATE playlist_tracks SET position = ? WHERE playlist_id = ? AND position = ?",
+    [toPos, playlistId, fromPos],
+  );
+  await db.execute("COMMIT");
+  await db.execute("UPDATE playlists SET updated_at = datetime('now') WHERE id = ?", [playlistId]);
 }
 
 export const library = {
