@@ -3,6 +3,7 @@ import { Icon } from "@/components/icons";
 import { Dimensions, Pressable, View, Text, PanResponder, Image as RNImage } from "react-native";
 import { Image } from "expo-image";
 import { usePlayerStore } from "@/stores/player-store";
+import { useLyricsStore } from "@/stores/lyrics-store";
 import { seekTo } from "@/components/AudioPlayerProvider";
 import { upscaleThumbnail } from "@/api/client";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -31,6 +32,11 @@ export default function PlayerScreen() {
   const playNext = usePlayerStore((s) => s.playNext);
   const playPrev = usePlayerStore((s) => s.playPrev);
   const togglePlay = usePlayerStore((s) => s.togglePlay);
+
+  const lyricsTrackId = useLyricsStore((s) => s.trackId);
+  const timedLyrics = useLyricsStore((s) => s.timedLyrics);
+  const plainText = useLyricsStore((s) => s.plainText);
+  const hasLyrics = lyricsTrackId === currentTrack?.id && (!!timedLyrics || !!plainText);
 
   // Direct progress polling (sync, no native module issues)
   const [rntpCurrentTime, setRntpCurrentTime] = useState(0);
@@ -108,7 +114,7 @@ export default function PlayerScreen() {
         <Pressable onPress={() => router.back()} style={{ padding: 8 }}>
           <Icon name="chevron-down" size={20} color="#fff" />
         </Pressable>
-        <Text style={{ color: "#a1a1a1", fontSize: 11, fontWeight: "600", letterSpacing: 1 }}>
+        <Text style={{ color: "#a1a1a1", fontSize: 14, fontWeight: "700", letterSpacing: 1.5 }}>
           NOW PLAYING
         </Text>
         <Pressable onPress={() => router.push("/queue")} style={{ padding: 8 }}>
@@ -191,15 +197,12 @@ export default function PlayerScreen() {
       </View>
 
       <View style={{ paddingBottom: insets.bottom + 16, paddingHorizontal: 32, flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-        <Pressable onPress={() => router.push("/lyrics")} style={{ padding: 8 }}>
-          <Icon name="music-note" size={18} color="#a1a1a1" />
-        </Pressable>
-        <Pressable style={{ padding: 8 }}>
-          <Icon name="share" size={18} color="#a1a1a1" />
-        </Pressable>
-        <Pressable style={{ padding: 8 }}>
-          <Icon name="ellipsis-horizontal" size={18} color="#a1a1a1" />
-        </Pressable>
+        {hasLyrics && (
+          <Pressable onPress={() => router.push("/lyrics")} style={{ padding: 8 }}>
+            <Icon name="music-note" size={18} color="#a1a1a1" />
+          </Pressable>
+        )}
+        {!hasLyrics && <View style={{ padding: 8, width: 34 }} />}
       </View>
     </View>
   );

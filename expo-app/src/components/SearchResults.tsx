@@ -1,11 +1,13 @@
 import { useCallback } from "react";
 import { useRouter } from "expo-router";
 import { FlatList, View, Text, Pressable } from "react-native";
+import { useQueryClient } from "@tanstack/react-query";
 import { Icon } from "@/components/icons";
 import { Image } from "expo-image";
 import { usePlayerStore } from "@/stores/player-store";
 import { useLibraryStore } from "@/stores/library-store";
-import { upscaleThumbnail } from "@/api/client";
+import { api, upscaleThumbnail } from "@/api/client";
+import { queryKeys } from "@/api/queries";
 import type { SearchResult } from "@/types";
 import { theme } from "@/theme";
 
@@ -18,9 +20,41 @@ const MAX_SONG_SUBTITLE = 2;
 
 export function SearchResults({ results, query }: Props) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const playTrack = usePlayerStore((s) => s.playTrack);
   const toggleLike = useLibraryStore((s) => s.toggleLike);
   const isLiked = useLibraryStore((s) => s.isLiked);
+
+  const handlePressIn = useCallback(
+    (result: SearchResult) => {
+      switch (result.type) {
+        case "artist":
+          queryClient.prefetchQuery({
+            queryKey: queryKeys.artist(result.id),
+            queryFn: () => api.getArtist(result.id),
+            staleTime: 1000 * 60 * 2,
+          });
+          break;
+        case "album":
+          queryClient.prefetchQuery({
+            queryKey: queryKeys.album(result.id),
+            queryFn: () => api.getAlbum(result.id),
+            staleTime: 1000 * 60 * 2,
+          });
+          break;
+        case "playlist":
+          queryClient.prefetchQuery({
+            queryKey: queryKeys.playlist(result.id),
+            queryFn: () => api.getPlaylist(`https://music.youtube.com/playlist?list=${result.id}`),
+            staleTime: 1000 * 60 * 2,
+          });
+          break;
+        case "track":
+          break;
+      }
+    },
+    [queryClient]
+  );
 
   const handlePress = useCallback(
     (result: SearchResult) => {
@@ -55,6 +89,7 @@ export function SearchResults({ results, query }: Props) {
     ({ item }: { item: SearchResult }) => (
       <Pressable
         style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 10, paddingHorizontal: 16 }}
+        onPressIn={() => handlePressIn(item)}
         onPress={() => handlePress(item)}
       >
         <Image

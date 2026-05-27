@@ -1,33 +1,24 @@
-import { useEffect, useState } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { View, Text, Pressable, ScrollView, ActivityIndicator } from "react-native";
+import { View, Text, Pressable, ScrollView } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Icon } from "@/components/icons";
 import { Image } from "expo-image";
-import { api, upscaleThumbnail } from "@/api/client";
+import { upscaleThumbnail } from "@/api/client";
+import { useArtistQuery } from "@/api/queries";
 import { usePlayerStore } from "@/stores/player-store";
 import { useLibraryStore } from "@/stores/library-store";
-import type { ArtistInfo } from "@/types";
 import { theme, layout } from "@/theme";
 
 export default function ArtistScreen() {
   const { browseId } = useLocalSearchParams<{ browseId: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [artist, setArtist] = useState<ArtistInfo | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: artist, isLoading, error } = useArtistQuery(browseId ?? null);
   const playTrack = usePlayerStore((s) => s.playTrack);
   const toggleLike = useLibraryStore((s) => s.toggleLike);
   const isLiked = useLibraryStore((s) => s.isLiked);
 
-  useEffect(() => {
-    if (!browseId) return;
-    setLoading(true);
-    api.getArtist(browseId).then(setArtist).catch((err) => setError(err.message)).finally(() => setLoading(false));
-  }, [browseId]);
-
-  if (loading) {
+  if (isLoading) {
     return (
       <View style={{ flex: 1, backgroundColor: theme.colors.surface }}>
         <View style={{ paddingTop: insets.top + 80, paddingHorizontal: layout.px, paddingBottom: 24, alignItems: "center" }}>
@@ -52,13 +43,7 @@ export default function ArtistScreen() {
   if (error || !artist) {
     return (
       <View style={{ flex: 1, backgroundColor: theme.colors.surface, justifyContent: "center", alignItems: "center", paddingHorizontal: 32 }}>
-        <Text style={{ color: theme.colors.accent, fontSize: 14, textAlign: "center" }}>{error || "Artist not found"}</Text>
-        <Pressable
-          style={{ marginTop: 16, backgroundColor: theme.colors.glass, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 99 }}
-          onPress={() => { setLoading(true); setError(null); api.getArtist(browseId!).then(setArtist).catch((err) => setError(err.message)).finally(() => setLoading(false)); }}
-        >
-          <Text style={{ color: theme.colors.textPrimary, fontSize: 13, fontWeight: "600" }}>Try Again</Text>
-        </Pressable>
+        <Text style={{ color: theme.colors.accent, fontSize: 14, textAlign: "center" }}>{error?.message || "Artist not found"}</Text>
       </View>
     );
   }

@@ -1,45 +1,6 @@
 import { create } from "zustand";
-import * as SQLite from "expo-sqlite";
-
-let db: SQLite.SQLiteDatabase | null = null;
-
-async function getDb() {
-  if (!db) {
-    db = await SQLite.openDatabaseAsync("ethos.db");
-    await db.execAsync(`
-      CREATE TABLE IF NOT EXISTS liked_songs (
-        id TEXT PRIMARY KEY,
-        title TEXT NOT NULL,
-        artist TEXT NOT NULL,
-        album TEXT,
-        thumbnail TEXT,
-        duration TEXT,
-        added_at TEXT DEFAULT (datetime('now'))
-      );
-      CREATE TABLE IF NOT EXISTS playlists (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        description TEXT,
-        created_at TEXT DEFAULT (datetime('now')),
-        updated_at TEXT DEFAULT (datetime('now'))
-      );
-      CREATE TABLE IF NOT EXISTS playlist_tracks (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        playlist_id INTEGER NOT NULL,
-        track_id TEXT NOT NULL,
-        title TEXT NOT NULL,
-        artist TEXT NOT NULL,
-        album TEXT,
-        thumbnail TEXT,
-        duration TEXT,
-        position INTEGER NOT NULL,
-        added_at TEXT DEFAULT (datetime('now')),
-        FOREIGN KEY (playlist_id) REFERENCES playlists(id) ON DELETE CASCADE
-      );
-    `);
-  }
-  return db;
-}
+import { recordLikedTrack } from "@/utils/taste";
+import { getEthosDb } from "@/utils/db";
 
 export interface LikedSong {
   id: string;
@@ -111,7 +72,7 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
   playlistTracks: {},
 
   init: async () => {
-    const d = await getDb();
+    const d = await getEthosDb();
     const liked = await d.getAllAsync<LikedSong>(
       "SELECT * FROM liked_songs ORDER BY added_at DESC"
     );
@@ -127,7 +88,7 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
   },
 
   toggleLike: async (song) => {
-    const d = await getDb();
+    const d = await getEthosDb();
     const isLiked = get().likedIds.has(song.id);
     if (isLiked) {
       await d.runAsync("DELETE FROM liked_songs WHERE id = ?", song.id);
@@ -139,6 +100,7 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
           likedSongs: state.likedSongs.filter((s) => s.id !== song.id),
         };
       });
+      recordLikedTrack(song.id, false).catch(() => {});
       return false;
     } else {
       await d.runAsync(
@@ -155,6 +117,7 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
         likedIds.add(song.id);
         return { likedIds };
       });
+      recordLikedTrack(song.id, true).catch(() => {});
       return true;
     }
   },
@@ -162,7 +125,7 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
   isLiked: (id) => get().likedIds.has(id),
 
   getLikedSongs: async () => {
-    const d = await getDb();
+    const d = await getEthosDb();
     const songs = await d.getAllAsync<LikedSong>(
       "SELECT * FROM liked_songs ORDER BY added_at DESC"
     );
@@ -171,7 +134,7 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
   },
 
   createPlaylist: async (name, description) => {
-    const d = await getDb();
+    const d = await getEthosDb();
     const result = await d.runAsync(
       "INSERT INTO playlists (name, description) VALUES (?, ?)",
       name,
@@ -188,7 +151,7 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
   },
 
   deletePlaylist: async (id) => {
-    const d = await getDb();
+    const d = await getEthosDb();
     await d.runAsync("DELETE FROM playlists WHERE id = ?", id);
     set((state) => ({
       playlists: state.playlists.filter((p) => p.id !== id),
@@ -196,7 +159,7 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
   },
 
   renamePlaylist: async (id, name) => {
-    const d = await getDb();
+    const d = await getEthosDb();
     await d.runAsync(
       "UPDATE playlists SET name = ?, updated_at = datetime('now') WHERE id = ?",
       name,
@@ -210,7 +173,7 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
   },
 
   addTrackToPlaylist: async (playlistId, track) => {
-    const d = await getDb();
+    const d = await getEthosDb();
     const tracks = await d.getAllAsync<PlaylistTrack>(
       "SELECT * FROM playlist_tracks WHERE playlist_id = ? ORDER BY position DESC LIMIT 1",
       playlistId
@@ -230,7 +193,7 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
   },
 
   removeTrackFromPlaylist: async (playlistId, position) => {
-    const d = await getDb();
+    const d = await getEthosDb();
     await d.runAsync(
       "DELETE FROM playlist_tracks WHERE playlist_id = ? AND position = ?",
       playlistId,
@@ -239,7 +202,7 @@ export const useLibraryStore = create<LibraryStore>((set, get) => ({
   },
 
   getPlaylistTracks: async (playlistId) => {
-    const d = await getDb();
+    const d = await getEthosDb();
     const tracks = await d.getAllAsync<PlaylistTrack>(
       "SELECT * FROM playlist_tracks WHERE playlist_id = ? ORDER BY position ASC",
       playlistId

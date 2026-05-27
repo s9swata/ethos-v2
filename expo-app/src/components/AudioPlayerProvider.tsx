@@ -1,7 +1,8 @@
 import { useEffect, useRef } from "react";
 import TrackPlayer from "@rntp/player";
-import { Event, RepeatMode, PlaybackState } from "@rntp/player";
+import { Event, RepeatMode, PlaybackState, PlayerCommand } from "@rntp/player";
 import { usePlayerStore } from "@/stores/player-store";
+import { upscaleThumbnail } from "@/api/client";
 
 // ---------------------------------------------------------------------------
 // Module-level seekTo export
@@ -46,6 +47,22 @@ export function AudioPlayerProvider() {
     return () => {
       seekToGlobal = null;
     };
+  }, []);
+
+  useEffect(() => {
+    TrackPlayer.setCommands({
+      capabilities: [
+        PlayerCommand.Previous,
+        PlayerCommand.PlayPause,
+        PlayerCommand.Next,
+        PlayerCommand.Seek,
+      ],
+      handling: "hybrid",
+      perCommandHandling: {
+        [PlayerCommand.Next]: "js",
+        [PlayerCommand.Previous]: "js",
+      },
+    });
   }, []);
 
   // ── Progress polling (250 ms) ────────────────────────────────────────────
@@ -103,7 +120,7 @@ export function AudioPlayerProvider() {
             url:        currentTrack.url,
             title:      currentTrack.title,
             artist:     currentTrack.artist,
-            artworkUrl: currentTrack.thumbnail,
+            artworkUrl: upscaleThumbnail(currentTrack.thumbnail || "", 640),
             duration:   currentTrack.duration,
           });
         } catch (err) {
@@ -113,6 +130,7 @@ export function AudioPlayerProvider() {
         }
 
         isLoadingTrack.current = false;
+        setCurrentTime(0);
       }
 
       // 2. Skip play/pause if the change originated from native (already applied).
@@ -167,6 +185,12 @@ export function AudioPlayerProvider() {
       Event.PlaybackStateChanged,
       (event: { state: PlaybackState }) => {
         if (event.state === PlaybackState.Ended) {
+          if (isLoadingTrack.current) return;
+          const state = usePlayerStore.getState();
+          const duration = state.duration || state.currentTrack?.duration || 0;
+          if (duration > 0 && state.currentTime < Math.max(0, duration - 2)) {
+            return;
+          }
           if (repeat === "one") {
             TrackPlayer.seekTo(0);
             TrackPlayer.play();

@@ -1,11 +1,13 @@
-import { useState, useCallback } from "react";
-import { useFocusEffect, useRouter } from "expo-router";
+import { useCallback } from "react";
+import { useRouter } from "expo-router";
 import { View, Text, Pressable, ScrollView } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useQueryClient } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import { Icon } from "@/components/icons";
 import { SkeletonCard } from "@/components/Skeleton";
 import { api, upscaleThumbnail } from "@/api/client";
+import { queryKeys, useHomeFeedQuery } from "@/api/queries";
 import { usePlayerStore } from "@/stores/player-store";
 import { theme, layout, typography } from "@/theme";
 import type { HomeSection } from "@/types";
@@ -19,7 +21,7 @@ function greeting(): string {
   return GREETINGS[2];
 }
 
-function SectionRow({ section, onItemPress }: { section: HomeSection; onItemPress: (item: HomeSection["items"][number]) => void }) {
+function SectionRow({ section, onItemPress, onItemPressIn }: { section: HomeSection; onItemPress: (item: HomeSection["items"][number]) => void; onItemPressIn?: (item: HomeSection["items"][number]) => void }) {
   return (
     <View style={{ marginBottom: layout.sectionGap }}>
       <Text style={[typography.h3, { paddingHorizontal: layout.px, marginBottom: 12 }]}>{section.title}</Text>
@@ -30,6 +32,7 @@ function SectionRow({ section, onItemPress }: { section: HomeSection; onItemPres
             <Pressable
               key={`${item.id}-${i}`}
               style={{ width: isArtist ? 120 : 150 }}
+              onPressIn={() => onItemPressIn?.(item)}
               onPress={() => onItemPress(item)}
             >
               {item.imageUrl ? (
@@ -69,31 +72,38 @@ function SectionRow({ section, onItemPress }: { section: HomeSection; onItemPres
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const getTasteProfile = usePlayerStore((s) => s.getTasteProfile);
+  const queryClient = useQueryClient();
   const playTrack = usePlayerStore((s) => s.playTrack);
 
-  const [sections, setSections] = useState<HomeSection[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: home, isLoading, error } = useHomeFeedQuery();
+  const sections = home?.sections ?? [];
 
-  const fetchHome = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const profile = getTasteProfile();
-      const data = await api.getHomeFeed(profile || undefined);
-      setSections(data.sections);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load");
-    } finally {
-      setLoading(false);
-    }
-  }, [getTasteProfile]);
-
-  useFocusEffect(
-    useCallback(() => {
-      fetchHome();
-    }, [fetchHome])
+  const handleItemPressIn = useCallback(
+    (item: HomeSection["items"][number]) => {
+      const id = item.browseId || item.id;
+      if (!id) return;
+      if (item.type === "artist") {
+        queryClient.prefetchQuery({
+          queryKey: queryKeys.artist(id),
+          queryFn: () => api.getArtist(id),
+          staleTime: 1000 * 60 * 2,
+        });
+      } else if (item.type === "album") {
+        queryClient.prefetchQuery({
+          queryKey: queryKeys.album(id),
+          queryFn: () => api.getAlbum(id),
+          staleTime: 1000 * 60 * 2,
+        });
+      } else if (item.type === "playlist") {
+        queryClient.prefetchQuery({
+          queryKey: queryKeys.playlist(id),
+          queryFn: () => api.getPlaylist(`https://music.youtube.com/playlist?list=${id}`),
+          staleTime: 1000 * 60 * 2,
+        });
+      } else if (item.type === "track") {
+      }
+    },
+    [queryClient]
   );
 
   const handleItemPress = useCallback(
@@ -132,7 +142,7 @@ export default function HomeScreen() {
           <Text style={[typography.h1, { fontSize: 34, letterSpacing: -1 }]}>{greeting()}</Text>
         </View>
 
-        {loading && sections.length === 0 ? (
+        {isLoading ? (
           <View style={{ gap: layout.sectionGap }}>
             {Array.from({ length: 4 }).map((_, i) => (
               <View key={i} style={{ paddingHorizontal: layout.px }}>
@@ -148,18 +158,12 @@ export default function HomeScreen() {
         ) : error ? (
           <View style={{ justifyContent: "center", alignItems: "center", paddingHorizontal: 32, gap: 16, paddingVertical: 60 }}>
             <Icon name="x-circle" size={36} color={theme.colors.textTertiary} />
-            <Text style={{ color: theme.colors.textSecondary, fontSize: 14, textAlign: "center" }}>{error}</Text>
-            <Pressable
-              style={{ backgroundColor: theme.colors.glass, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 99 }}
-              onPress={fetchHome}
-            >
-              <Text style={{ color: theme.colors.textPrimary, fontSize: 13, fontWeight: "600" }}>Try Again</Text>
-            </Pressable>
+            <Text style={{ color: theme.colors.textSecondary, fontSize: 14, textAlign: "center" }}>{error.message}</Text>
           </View>
         ) : (
           <View style={{ gap: layout.sectionGap }}>
             {sections.map((section, i) => (
-              <SectionRow key={`${section.title}-${i}`} section={section} onItemPress={handleItemPress} />
+              <SectionRow key={`${section.title}-${i}`} section={section} onItemPress={handleItemPress} onItemPressIn={handleItemPressIn} />
             ))}
           </View>
         )}

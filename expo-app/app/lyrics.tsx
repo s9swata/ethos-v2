@@ -73,6 +73,11 @@ function LyricLine({
         useNativeDriver: true,
       }),
     ]).start();
+
+    return () => {
+      scale.stopAnimation();
+      opacity.stopAnimation();
+    };
   }, [isActive, isPast, dist]);
 
   return (
@@ -236,6 +241,7 @@ export default function LyricsScreen() {
 
       <Animated.View style={{ flex: 1, opacity: contentOpacity }}>
         <ScrollView
+          key={lyricsVersion || displayMode}
           ref={scrollRef}
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}

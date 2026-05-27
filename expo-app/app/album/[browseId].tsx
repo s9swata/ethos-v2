@@ -1,35 +1,26 @@
-import { useEffect, useState } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { View, Text, Pressable, ScrollView, ActivityIndicator } from "react-native";
+import { View, Text, Pressable, ScrollView } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Icon } from "@/components/icons";
 import { Image } from "expo-image";
 
-import { api, upscaleThumbnail } from "@/api/client";
+import { upscaleThumbnail } from "@/api/client";
+import { useAlbumQuery } from "@/api/queries";
 import { usePlayerStore } from "@/stores/player-store";
 import { useLibraryStore } from "@/stores/library-store";
 import { SkeletonAlbumHeader, SkeletonTrackRow } from "@/components/Skeleton";
-import type { AlbumInfo } from "@/types";
 import { theme, layout } from "@/theme";
 
 export default function AlbumScreen() {
   const { browseId } = useLocalSearchParams<{ browseId: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [album, setAlbum] = useState<AlbumInfo | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: album, isLoading, error } = useAlbumQuery(browseId ?? null);
   const playTrack = usePlayerStore((s) => s.playTrack);
   const toggleLike = useLibraryStore((s) => s.toggleLike);
   const isLiked = useLibraryStore((s) => s.isLiked);
 
-  useEffect(() => {
-    if (!browseId) return;
-    setLoading(true);
-    api.getAlbum(browseId).then(setAlbum).catch((err) => setError(err.message)).finally(() => setLoading(false));
-  }, [browseId]);
-
-  if (loading) {
+  if (isLoading) {
     return (
       <View style={{ flex: 1, backgroundColor: theme.colors.surface }}>
         <SkeletonAlbumHeader />
@@ -43,13 +34,7 @@ export default function AlbumScreen() {
   if (error || !album) {
     return (
       <View style={{ flex: 1, backgroundColor: theme.colors.surface, justifyContent: "center", alignItems: "center", paddingHorizontal: 32 }}>
-        <Text style={{ color: theme.colors.accent, fontSize: 14, textAlign: "center" }}>{error || "Album not found"}</Text>
-        <Pressable
-          style={{ marginTop: 16, backgroundColor: theme.colors.glass, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 99 }}
-          onPress={() => { setLoading(true); setError(null); api.getAlbum(browseId!).then(setAlbum).catch((err) => setError(err.message)).finally(() => setLoading(false)); }}
-        >
-          <Text style={{ color: theme.colors.textPrimary, fontSize: 13, fontWeight: "600" }}>Try Again</Text>
-        </Pressable>
+        <Text style={{ color: theme.colors.accent, fontSize: 14, textAlign: "center" }}>{error?.message || "Album not found"}</Text>
       </View>
     );
   }

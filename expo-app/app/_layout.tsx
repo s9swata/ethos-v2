@@ -12,6 +12,8 @@ import { MiniPlayer } from "@/components/MiniPlayer";
 import { useLibraryStore } from "@/stores/library-store";
 import { usePlayerStore } from "@/stores/player-store";
 import { initLyricsStoreListener } from "@/utils/lyrics-cache";
+import { initTaste } from "@/utils/taste";
+import { saveQueue } from "@/utils/queue-store";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -24,28 +26,35 @@ const queryClient = new QueryClient({
 
 let setupDone = false;
 
-TrackPlayer.registerBackgroundEventHandler(() => async (event: BackgroundEvent) => {
-  switch (event.type) {
-    case Event.RemotePlay:
-      TrackPlayer.play();
-      break;
-    case Event.RemotePause:
-      TrackPlayer.pause();
-      break;
-    case Event.RemoteStop:
-      TrackPlayer.stop();
-      break;
-    case Event.RemoteNext:
-      usePlayerStore.getState().playNext();
-      break;
-    case Event.RemotePrevious:
-      usePlayerStore.getState().playPrev();
-      break;
-    case Event.RemoteSeek:
-      TrackPlayer.seekTo(event.position);
-      break;
-  }
-});
+const trackPlayerGlobals = globalThis as typeof globalThis & {
+  __ethosTrackPlayerBackgroundHandlerRegistered?: boolean;
+};
+
+if (!trackPlayerGlobals.__ethosTrackPlayerBackgroundHandlerRegistered) {
+  trackPlayerGlobals.__ethosTrackPlayerBackgroundHandlerRegistered = true;
+  TrackPlayer.registerBackgroundEventHandler(() => async (event: BackgroundEvent) => {
+    switch (event.type) {
+      case Event.RemotePlay:
+        TrackPlayer.play();
+        break;
+      case Event.RemotePause:
+        TrackPlayer.pause();
+        break;
+      case Event.RemoteStop:
+        TrackPlayer.stop();
+        break;
+      case Event.RemoteNext:
+        usePlayerStore.getState().playNext();
+        break;
+      case Event.RemotePrevious:
+        usePlayerStore.getState().playPrev();
+        break;
+      case Event.RemoteSeek:
+        TrackPlayer.seekTo(event.position);
+        break;
+    }
+  });
+}
 
 export default function RootLayout() {
   const init = useLibraryStore((s) => s.init);
@@ -69,11 +78,10 @@ export default function RootLayout() {
 
     TrackPlayer.setCommands({
       capabilities: [
+        PlayerCommand.Previous,
         PlayerCommand.PlayPause,
         PlayerCommand.Next,
-        PlayerCommand.Previous,
         PlayerCommand.Seek,
-        PlayerCommand.Stop,
       ],
       handling: "hybrid",
       perCommandHandling: {
@@ -89,8 +97,36 @@ export default function RootLayout() {
   }, []);
 
    useEffect(() => {
-    init();
+    init().catch((err) => console.warn("[library] init failed:", err));
+    initTaste().catch((err) => console.warn("[taste] init failed:", err));
   }, [init]);
+
+  useEffect(() => {
+    const player = usePlayerStore.getState();
+    player.restoreQueue().catch((err) => console.warn("[queue] restore failed:", err));
+
+    const unsub = usePlayerStore.subscribe((state) => {
+      saveQueue({
+        queue: state.queue.map((t) => ({ id: t.id, title: t.title, artist: t.artist, duration: t.duration, thumbnail: t.thumbnail })),
+        queueIndex: state.queueIndex,
+        autoQueue: state.autoQueue,
+        autoQueueIndex: state.autoQueueIndex,
+        currentTrack: state.currentTrack ? { id: state.currentTrack.id, title: state.currentTrack.title, artist: state.currentTrack.artist, duration: state.currentTrack.duration, thumbnail: state.currentTrack.thumbnail } : null,
+        currentTime: state.currentTime,
+        duration: state.duration,
+        repeat: state.repeat,
+        isShuffled: state.isShuffled,
+        volume: state.volume,
+        currentArtistId: state.currentArtistId,
+        currentAlbumId: state.currentAlbumId,
+        currentAutoQueueSource: state.currentAutoQueueSource,
+        playHistory: state.playHistory,
+        recentAlbumIds: state.recentAlbumIds,
+      }).catch(() => {});
+    });
+
+    return () => unsub();
+  }, []);
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
