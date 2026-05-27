@@ -11,6 +11,7 @@ import { stop as stopAudioProxy } from "expo-youtube-audio-stream";
 import { MiniPlayer } from "@/components/MiniPlayer";
 import { useLibraryStore } from "@/stores/library-store";
 import { usePlayerStore } from "@/stores/player-store";
+import { initLyricsStoreListener } from "@/utils/lyrics-cache";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -80,10 +81,14 @@ export default function RootLayout() {
         [PlayerCommand.Previous]: "js",
       },
     });
-    return () => { stopAudioProxy().catch(() => {}); };
-  }, []);
+     return () => { stopAudioProxy().catch(() => {}); };
+   }, []);
 
   useEffect(() => {
+    initLyricsStoreListener();
+  }, []);
+
+   useEffect(() => {
     init();
   }, [init]);
 

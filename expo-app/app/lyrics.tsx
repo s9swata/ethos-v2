@@ -9,22 +9,21 @@ import {
   Image as RNImage,
   ScrollView,
   StyleSheet,
-  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { usePlayerStore } from "@/stores/player-store";
-import { api, upscaleThumbnail, requestLRCLIB } from "@/api/client";
+import { useLyricsStore } from "@/stores/lyrics-store";
+import { fetchLyricsForTrack } from "@/utils/lyrics-cache";
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
-import type { LyricsResponse } from "@/types";
-import { parseLRC, findActiveLineIndex, type TimedLyricLine } from "@/utils/lrc";
+import type { TimedLyricLine } from "@/utils/lrc";
+import { findActiveLineIndex } from "@/utils/lrc";
+import { upscaleThumbnail } from "@/api/client";
 
 const { height: SCREEN_HEIGHT, width: SCREEN_WIDTH } = Dimensions.get("window");
-const DURATION_THRESHOLD = 5;
 const VIEWPORT_CENTER = 0.38;
 
 type DisplayMode = "synced" | "plain" | "none";
 
-// Individual animated lyric line
 function LyricLine({
   line,
   index,
@@ -40,10 +39,8 @@ function LyricLine({
   const isPast = index < activeIndex;
   const dist = Math.abs(index - activeIndex);
 
-  // Animated values per line
   const scale = useRef(new Animated.Value(1)).current;
   const opacity = useRef(new Animated.Value(0.35)).current;
-  const blur = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     let targetOpacity: number;
@@ -53,11 +50,9 @@ function LyricLine({
       targetOpacity = 1;
       targetScale = 1.04;
     } else if (isPast) {
-      // Past lines fade more the further they are
       targetOpacity = Math.max(0.15, 0.45 - dist * 0.08);
       targetScale = 1;
     } else {
-      // Future lines are slightly dimmer than past
       targetOpacity = Math.max(0.2, 0.5 - dist * 0.07);
       targetScale = 1;
     }
@@ -78,10 +73,7 @@ function LyricLine({
   }, [isActive, isPast, dist]);
 
   return (
-    <View
-      onLayout={(e) => onLayout(index, e.nativeEvent.layout.y)}
-      style={styles.lineContainer}
-    >
+    <View onLayout={(e) => onLayout(index, e.nativeEvent.layout.y)} style={styles.lineContainer}>
       <Animated.Text
         style={[
           styles.lyricText,
@@ -100,24 +92,17 @@ export default function LyricsScreen() {
   const currentTrack = usePlayerStore((s) => s.currentTrack);
   const currentTime = usePlayerStore((s) => s.currentTime);
 
-  useEffect(() => {
-    if (!currentTrack) router.back();
-  }, [currentTrack]);
+  const { trackId, timedLyrics, plainText, loading } = useLyricsStore();
 
-  const [lyricsResult, setLyricsResult] = useState<LyricsResponse | null>(null);
-  const [lrclibLyrics, setLrclibLyrics] = useState<TimedLyricLine[] | null>(null);
-  const [loading, setLoading] = useState(false);
   const [offset, setOffset] = useState(0);
   const [showOffsetSlider, setShowOffsetSlider] = useState(false);
 
-  // Animations
   const headerOpacity = useRef(new Animated.Value(1)).current;
   const contentOpacity = useRef(new Animated.Value(0)).current;
   const offsetPillScale = useRef(new Animated.Value(0)).current;
   const offsetPillOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // Fade in content when loaded
     if (!loading) {
       Animated.timing(contentOpacity, {
         toValue: 1,
@@ -162,59 +147,28 @@ export default function LyricsScreen() {
   }, [showOffsetSlider]);
 
   useEffect(() => {
-    if (!currentTrack?.id) return;
-    setLoading(true);
-    setOffset(0);
-    setLrclibLyrics(null);
-    setLyricsResult(null);
+    if (!currentTrack) router.back();
+  }, [currentTrack]);
 
-    const { artist, title, duration } = currentTrack;
-
-    requestLRCLIB(artist, title, duration).then((lrclibData) => {
-      if (lrclibData?.syncedLyrics) {
-        const diff = lrclibData.duration
-          ? Math.abs(lrclibData.duration - duration)
-          : Infinity;
-        if (diff <= DURATION_THRESHOLD) {
-          setLrclibLyrics(parseLRC(lrclibData.syncedLyrics));
-          setLoading(false);
-          return;
-        }
-      }
-      api
-        .getLyrics(currentTrack.id)
-        .then(setLyricsResult)
-        .catch(() => setLyricsResult(null))
-        .finally(() => setLoading(false));
-    });
-  }, [currentTrack?.id]);
-
-  const timedLyrics = useMemo<TimedLyricLine[]>(() => {
-    if (lrclibLyrics) return lrclibLyrics;
-    if (lyricsResult?.hasTimestamps && Array.isArray(lyricsResult.lyrics)) {
-      return lyricsResult.lyrics
-        .filter((l) => l.text)
-        .map((l) => ({ time: l.startTime / 1000, text: l.text }));
-    }
-    return [];
-  }, [lrclibLyrics, lyricsResult]);
-
-  const plainText = useMemo<string | null>(() => {
-    if (lrclibLyrics) return null;
-    if (!lyricsResult?.lyrics) return null;
-    if (typeof lyricsResult.lyrics === "string") return lyricsResult.lyrics;
-    return null;
-  }, [lrclibLyrics, lyricsResult]);
+  useEffect(() => {
+    if (!currentTrack) return;
+    if (trackId === currentTrack.id && (timedLyrics || plainText || loading)) return;
+    fetchLyricsForTrack(currentTrack.id, currentTrack.artist, currentTrack.title, currentTrack.duration);
+  }, [currentTrack?.id, trackId, timedLyrics, plainText, loading]);
 
   const displayMode: DisplayMode =
-    timedLyrics.length ? "synced" : plainText ? "plain" : "none";
+    timedLyrics && timedLyrics.length
+      ? "synced"
+      : plainText
+        ? "plain"
+        : "none";
 
   const effectiveOffset = useMemo(
     () => offset + (currentTrack?.startTime || 0),
     [offset, currentTrack?.startTime]
   );
   const adjustedTime = currentTime + effectiveOffset;
-  const activeIndex = findActiveLineIndex(timedLyrics, adjustedTime);
+  const activeIndex = timedLyrics ? findActiveLineIndex(timedLyrics, adjustedTime) : -1;
 
   const scrollRef = useRef<ScrollView>(null);
   const lineLayouts = useRef<number[]>([]);
@@ -242,21 +196,15 @@ export default function LyricsScreen() {
 
   return (
     <SafeAreaView style={styles.root}>
-      {/* Blurred background */}
       <RNImage
         source={{ uri: thumbUri }}
         style={StyleSheet.absoluteFill}
         blurRadius={90}
       />
-      {/* Dark overlay — slightly stronger at bottom for footer legibility */}
       <View style={[StyleSheet.absoluteFill, styles.overlay]} />
-
-      {/* Subtle top vignette */}
       <View style={styles.topVignette} pointerEvents="none" />
-      {/* Subtle bottom vignette */}
       <View style={styles.bottomVignette} pointerEvents="none" />
 
-      {/* Header */}
       <Animated.View style={[styles.header, { opacity: headerOpacity }]}>
         <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={12}>
           <Icon name="chevron-down" size={22} color="rgba(255,255,255,0.85)" />
@@ -269,13 +217,11 @@ export default function LyricsScreen() {
           </Text>
         </View>
 
-        {/* Small album art */}
         <View style={styles.headerArtWrap}>
           <RNImage source={{ uri: thumbUri }} style={styles.headerArt} />
         </View>
       </Animated.View>
 
-      {/* Lyrics scroll */}
       <Animated.View style={{ flex: 1, opacity: contentOpacity }}>
         <ScrollView
           ref={scrollRef}
@@ -291,7 +237,7 @@ export default function LyricsScreen() {
               <Text style={styles.loadingDot}>♪</Text>
               <Text style={styles.statusText}>Loading lyrics…</Text>
             </View>
-          ) : displayMode === "synced" ? (
+          ) : displayMode === "synced" && timedLyrics ? (
             timedLyrics.map((line, i) => (
               <LyricLine
                 key={i}
@@ -301,7 +247,7 @@ export default function LyricsScreen() {
                 onLayout={onLineLayout}
               />
             ))
-          ) : displayMode === "plain" ? (
+          ) : displayMode === "plain" && plainText ? (
             <Text style={styles.plainText}>{plainText}</Text>
           ) : (
             <View style={styles.centerMsg}>
@@ -314,7 +260,6 @@ export default function LyricsScreen() {
         </ScrollView>
       </Animated.View>
 
-      {/* Sync offset control */}
       {displayMode === "synced" && (
         <View style={styles.syncContainer}>
           <Animated.View
@@ -328,9 +273,7 @@ export default function LyricsScreen() {
             pointerEvents={showOffsetSlider ? "auto" : "none"}
           >
             <Pressable
-              onPress={() =>
-                setOffset((o) => Math.max(-15, +(o - 0.5).toFixed(1)))
-              }
+              onPress={() => setOffset((o) => Math.max(-15, +(o - 0.5).toFixed(1)))}
               style={styles.offsetBtn}
               hitSlop={8}
             >
@@ -346,9 +289,7 @@ export default function LyricsScreen() {
             </View>
 
             <Pressable
-              onPress={() =>
-                setOffset((o) => Math.min(15, +(o + 0.5).toFixed(1)))
-              }
+              onPress={() => setOffset((o) => Math.min(15, +(o + 0.5).toFixed(1)))}
               style={styles.offsetBtn}
               hitSlop={8}
             >
@@ -356,11 +297,7 @@ export default function LyricsScreen() {
             </Pressable>
 
             {offset !== 0 && (
-              <Pressable
-                onPress={() => setOffset(0)}
-                style={styles.resetBtn}
-                hitSlop={8}
-              >
+              <Pressable onPress={() => setOffset(0)} style={styles.resetBtn} hitSlop={8}>
                 <Text style={styles.resetText}>RESET</Text>
               </Pressable>
             )}
@@ -415,7 +352,6 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
   },
 
-  // Header
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -464,7 +400,6 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
 
-  // Scroll
   scroll: {
     flex: 1,
   },
@@ -473,7 +408,6 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
 
-  // Lyric lines
   lineContainer: {
     paddingVertical: 5,
     alignItems: "flex-start",
@@ -495,7 +429,6 @@ const styles = StyleSheet.create({
     lineHeight: 34,
   },
 
-  // Plain lyrics
   plainText: {
     color: "rgba(255,255,255,0.85)",
     fontSize: 16,
@@ -505,7 +438,6 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
 
-  // Status
   centerMsg: {
     alignItems: "center",
     paddingTop: 20,
@@ -527,7 +459,6 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
 
-  // Sync controls
   syncContainer: {
     position: "absolute",
     bottom: 36,

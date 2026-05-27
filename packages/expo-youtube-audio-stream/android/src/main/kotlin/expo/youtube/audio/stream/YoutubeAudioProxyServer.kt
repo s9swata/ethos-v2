@@ -1,6 +1,7 @@
 package expo.youtube.audio.stream
 
 import android.content.Context
+import android.util.Log
 import fi.iki.elonen.NanoHTTPD
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -27,11 +28,13 @@ data class StreamEntry(
 internal class YoutubeAudioProxyServer {
   private var server: ProxyServer? = null
   private val streamCache = ConcurrentHashMap<String, List<StreamEntry>>()
+  private val tag = "YT-AudioStream"
 
-  private val okClient = OkHttpClient.Builder()
+  internal val okClient = OkHttpClient.Builder()
     .connectTimeout(30, TimeUnit.SECONDS)
     .readTimeout(60, TimeUnit.SECONDS)
     .followRedirects(true)
+    .dns(DnsResolver.build())
     .build()
 
   fun start(context: Context) {
@@ -55,6 +58,9 @@ internal class YoutubeAudioProxyServer {
 
     val streams = withContext(Dispatchers.IO) {
       extractStreams(videoId)
+    }
+    if (streams.isEmpty()) {
+      throw Exception("extractStreams returned 0 streams for video $videoId")
     }
     streamCache[videoId] = streams
     return streams.map { it.toMap(videoId, getPort()) }
@@ -81,8 +87,12 @@ internal class YoutubeAudioProxyServer {
         val extractor = ServiceList.YouTube.getStreamExtractor(linkHandler)
         extractor.fetchPage()
 
+        Log.d(tag, "streamType=${extractor.streamType} name=${extractor.name}")
+        Log.d(tag, "videoStreams=${extractor.videoStreams?.size} audioStreams=${extractor.audioStreams?.size} videoOnlyStreams=${extractor.videoOnlyStreams?.size}")
+
         if (extractor.streamType == StreamType.LIVE_STREAM) {
           val hlsUrl = extractor.hlsUrl
+          Log.d(tag, "hlsUrl=$hlsUrl")
           if (hlsUrl != null) {
             return@withContext listOf(
               StreamEntry(
@@ -97,20 +107,43 @@ internal class YoutubeAudioProxyServer {
           }
         }
 
-        val audioStreams = extractor.audioStreams ?: emptyList()
-        audioStreams.mapNotNull { stream ->
-          val url = stream.content ?: return@mapNotNull null
-          val mimeType = stream.format?.mimeType ?: "audio/mp4"
+        val audioStreams = extractor.audioStreams
+        Log.d(tag, "raw audioStreams count=${audioStreams?.size}")
+
+        val result = (audioStreams ?: emptyList()).mapNotNull { stream ->
+          val url = stream.content
+          Log.d(tag, "audio stream: url=$url bitrate=${stream.bitrate} codec=${stream.codec} format=${stream.format}")
+          if (url == null) return@mapNotNull null
           StreamEntry(
             url = url,
-            mimeType = mimeType,
+            mimeType = stream.format?.mimeType ?: "audio/mp4",
             bitrate = stream.bitrate,
             codec = stream.codec ?: "",
             container = stream.format?.suffix ?: "m4a",
             isHls = false,
           )
+        }.ifEmpty {
+          // Fallback to muxed video streams (which contain audio) when no audio-only streams
+          Log.d(tag, "No audio-only streams, falling back to muxed videoStreams")
+          (extractor.videoStreams ?: emptyList()).mapNotNull { stream ->
+            val url = stream.content
+            Log.d(tag, "muxed stream: url=$url bitrate=${stream.bitrate} codec=${stream.codec}")
+            if (url == null) return@mapNotNull null
+            StreamEntry(
+              url = url,
+              mimeType = stream.format?.mimeType ?: "audio/mp4",
+              bitrate = stream.bitrate,
+              codec = stream.codec ?: "",
+              container = stream.format?.suffix ?: "mp4",
+              isHls = false,
+            )
+          }
         }.sortedByDescending { it.bitrate }
+
+        Log.d(tag, "final stream count=${result.size}")
+        result
       } catch (e: Exception) {
+        Log.e(tag, "extractStreams failed for $videoId", e)
         throw e
       }
     }

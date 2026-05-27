@@ -135,6 +135,7 @@ export interface QueueContext {
   title?: string;
   artist?: string;
   thumbnail?: string;
+  duration?: string;
 }
 
 export interface HomeItem {

@@ -9,14 +9,16 @@ import org.schabi.newpipe.extractor.downloader.Request
 import org.schabi.newpipe.extractor.downloader.Response
 import java.util.concurrent.TimeUnit
 
-class OkHttpDownloader : Downloader() {
-  private val client = OkHttpClient.Builder()
+class OkHttpDownloader(
+  private val client: OkHttpClient = OkHttpClient.Builder()
     .connectTimeout(30, TimeUnit.SECONDS)
     .readTimeout(30, TimeUnit.SECONDS)
     .followRedirects(true)
     .build()
+) : Downloader() {
 
   override fun execute(request: Request): Response {
+    val url = request.url()
     val reqBody = request.dataToSend()
     val okBody = if (reqBody != null) {
       okhttp3.RequestBody.create(null, reqBody)
@@ -27,7 +29,7 @@ class OkHttpDownloader : Downloader() {
     }
 
     val builder = OkRequest.Builder()
-      .url(request.url())
+      .url(url)
       .method(request.httpMethod(), okBody)
 
     val headers = request.headers()

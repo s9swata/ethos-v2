@@ -6,6 +6,7 @@ import { Icon } from "@/components/icons";
 import { useLibraryStore } from "@/stores/library-store";
 import { usePlayerStore } from "@/stores/player-store";
 import { api, upscaleThumbnail } from "@/api/client";
+import { formatDuration } from "@/utils/duration";
 import { theme, layout } from "@/theme";
 import type { PlaylistInfo } from "@/types";
 
@@ -80,17 +81,17 @@ export default function PlaylistDetailScreen() {
         </View>
         {tracks.length > 0 && (
           <View style={{ flexDirection: "row", gap: 12, marginTop: 16 }}>
-            <Pressable
-              style={{ backgroundColor: theme.colors.accent, paddingHorizontal: 36, paddingVertical: 12, borderRadius: 99, flexDirection: "row", alignItems: "center", gap: 8 }}
-              onPress={() => { const t = tracks[0]; playTrack(t.id ?? ""); }}
-            >
-              <Icon name="play" size={16} color="#fff" />
-              <Text style={{ color: "#fff", fontSize: 13, fontWeight: "600" }}>Play</Text>
-            </Pressable>
-            <Pressable
-              style={{ backgroundColor: theme.colors.glass, paddingHorizontal: 36, paddingVertical: 12, borderRadius: 99, flexDirection: "row", alignItems: "center", gap: 8 }}
-              onPress={() => { const randomIdx = Math.floor(Math.random() * tracks.length); playTrack(tracks[randomIdx].id ?? ""); }}
-            >
+             <Pressable
+               style={{ backgroundColor: theme.colors.accent, paddingHorizontal: 36, paddingVertical: 12, borderRadius: 99, flexDirection: "row", alignItems: "center", gap: 8 }}
+               onPress={() => { const t = tracks[0]; playTrack(t.id ?? "", { title: t.title, artist: t.artist, thumbnail: t.thumbnail, duration: formatDuration(t.duration) }); }}
+             >
+               <Icon name="play" size={16} color="#fff" />
+               <Text style={{ color: "#fff", fontSize: 13, fontWeight: "600" }}>Play</Text>
+             </Pressable>
+             <Pressable
+               style={{ backgroundColor: theme.colors.glass, paddingHorizontal: 36, paddingVertical: 12, borderRadius: 99, flexDirection: "row", alignItems: "center", gap: 8 }}
+               onPress={() => { const randomIdx = Math.floor(Math.random() * tracks.length); const t = tracks[randomIdx]; playTrack(t.id ?? "", { title: t.title, artist: t.artist, thumbnail: t.thumbnail, duration: formatDuration(t.duration) }); }}
+             >
               <Icon name="shuffle" size={16} color={theme.colors.textPrimary} />
               <Text style={{ color: theme.colors.textPrimary, fontSize: 13, fontWeight: "600" }}>Shuffle</Text>
             </Pressable>
@@ -128,7 +129,7 @@ export default function PlaylistDetailScreen() {
               <Pressable
                 key={track.id ?? idx}
                 style={{ flexDirection: "row", alignItems: "center", paddingVertical: 12, borderBottomWidth: 0.5, borderBottomColor: theme.colors.border }}
-                onPress={() => track.id && playTrack(track.id, { title: track.title, artist: track.artist })}
+                onPress={() => track.id && playTrack(track.id, { title: track.title, artist: track.artist, thumbnail: track.thumbnail, duration: formatDuration(track.duration) })}
               >
                 <Text style={{ color: theme.colors.textTertiary, fontSize: 13, width: 32 }}>{idx + 1}</Text>
                 <View style={{ flex: 1 }}>
