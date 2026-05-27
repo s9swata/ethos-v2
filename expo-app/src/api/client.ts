@@ -133,18 +133,25 @@ function normalizeQuery(s: string): string {
     .trim();
 }
 
-async function requestLRCLIB(artist: string, title: string, duration: number): Promise<LRCLIBResponse | null> {
+async function requestLRCLIB(
+  artist: string,
+  title: string,
+  duration: number,
+  timeoutMs = 8000
+): Promise<LRCLIBResponse | null> {
+  const ac = new AbortController();
+  const timeout = setTimeout(() => ac.abort(), timeoutMs);
   const params = new URLSearchParams({
     artist_name: artist,
     track_name: title,
     duration: String(Math.round(duration)),
   });
   try {
-    let res = await fetch(`https://lrclib.net/api/get?${params}`);
+    let res = await fetch(`https://lrclib.net/api/get?${params}`, { signal: ac.signal });
     if (res.ok) return res.json();
 
     const query = `${normalizeQuery(artist)} ${normalizeQuery(title)}`;
-    const searchRes = await fetch(`https://lrclib.net/api/search?q=${encodeURIComponent(query)}`);
+    const searchRes = await fetch(`https://lrclib.net/api/search?q=${encodeURIComponent(query)}`, { signal: ac.signal });
     if (!searchRes.ok) return null;
 
     const results = await searchRes.json() as any[];
@@ -162,6 +169,8 @@ async function requestLRCLIB(artist: string, title: string, duration: number): P
     return results[0];
   } catch {
     return null;
+  } finally {
+    clearTimeout(timeout);
   }
 }
 

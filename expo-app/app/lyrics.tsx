@@ -43,6 +43,9 @@ function LyricLine({
   const opacity = useRef(new Animated.Value(0.35)).current;
 
   useEffect(() => {
+    scale.stopAnimation();
+    opacity.stopAnimation();
+
     let targetOpacity: number;
     let targetScale: number;
 
@@ -66,7 +69,7 @@ function LyricLine({
       }),
       Animated.timing(opacity, {
         toValue: targetOpacity,
-        duration: 320,
+        duration: isActive ? 180 : 120,
         useNativeDriver: true,
       }),
     ]).start();
@@ -162,6 +165,10 @@ export default function LyricsScreen() {
       : plainText
         ? "plain"
         : "none";
+  const lyricsVersion = useMemo(
+    () => timedLyrics?.map((line) => `${line.time}:${line.text}`).join("|") ?? "",
+    [timedLyrics]
+  );
 
   const effectiveOffset = useMemo(
     () => offset + (currentTrack?.startTime || 0),
@@ -173,6 +180,11 @@ export default function LyricsScreen() {
   const scrollRef = useRef<ScrollView>(null);
   const lineLayouts = useRef<number[]>([]);
   const lastScrolledIndex = useRef<number>(-1);
+
+  useEffect(() => {
+    lineLayouts.current = [];
+    lastScrolledIndex.current = -1;
+  }, [lyricsVersion]);
 
   useEffect(() => {
     if (activeIndex < 0 || !scrollRef.current) return;
@@ -240,7 +252,7 @@ export default function LyricsScreen() {
           ) : displayMode === "synced" && timedLyrics ? (
             timedLyrics.map((line, i) => (
               <LyricLine
-                key={i}
+                key={`${line.time}:${line.text}`}
                 line={line}
                 index={i}
                 activeIndex={activeIndex}

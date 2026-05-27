@@ -114,6 +114,7 @@ export function SearchResults({ results, query }: Props) {
       data={results}
       keyExtractor={keyExtractor}
       renderItem={renderItem}
+      keyboardShouldPersistTaps="handled"
       contentContainerStyle={{ paddingBottom: 120 }}
       ListHeaderComponent={
         <Text style={{ color: theme.colors.textTertiary, fontSize: 11, fontWeight: "600", letterSpacing: 0.8, textTransform: "uppercase", paddingHorizontal: 16, paddingTop: 4, paddingBottom: 6 }}>

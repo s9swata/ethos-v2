@@ -11,6 +11,7 @@ const cache = new Map<
   }
 >();
 const inflight = new Set<string>();
+const LRCLIB_TIMEOUT_MS = 20_000;
 
 export function getCachedLyrics(
   trackId: string
@@ -22,6 +23,47 @@ export function isPrefetching(trackId: string): boolean {
   return inflight.has(trackId);
 }
 
+function publishLyrics(
+  trackId: string,
+  timedLyrics: TimedLyricLine[] | null,
+  plainText: string | null
+) {
+  cache.set(trackId, { timedLyrics, plainText });
+  if (usePlayerStore.getState().currentTrack?.id === trackId) {
+    useLyricsStore.getState().setLyrics(trackId, timedLyrics, plainText);
+  }
+}
+
+async function fetchServerLyrics(trackId: string) {
+  const serverResult = await api.getLyrics(trackId);
+  if (serverResult.hasTimestamps && Array.isArray(serverResult.lyrics)) {
+    return {
+      timedLyrics: serverResult.lyrics
+        .filter((l: any) => l.text)
+        .map((l: any) => ({ time: l.startTime / 1000, text: l.text })),
+      plainText: null,
+    };
+  }
+  if (typeof serverResult.lyrics === "string") {
+    return { timedLyrics: null, plainText: serverResult.lyrics };
+  }
+  return { timedLyrics: null, plainText: null };
+}
+
+async function fetchLRCLIBLyrics(artist: string, title: string, duration: number) {
+  const lrclibData = await requestLRCLIB(artist, title, duration, LRCLIB_TIMEOUT_MS);
+  if (lrclibData?.syncedLyrics) {
+    return {
+      timedLyrics: parseLRC(lrclibData.syncedLyrics),
+      plainText: lrclibData.plainLyrics ?? null,
+    };
+  }
+  if (lrclibData?.plainLyrics) {
+    return { timedLyrics: null, plainText: lrclibData.plainLyrics };
+  }
+  return { timedLyrics: null, plainText: null };
+}
+
 export async function fetchLyricsForTrack(
   trackId: string,
   artist: string,
@@ -31,8 +73,8 @@ export async function fetchLyricsForTrack(
   if (inflight.has(trackId)) return;
 
   const existing = cache.get(trackId);
-  if (existing && (existing.timedLyrics || existing.plainText)) {
-    useLyricsStore.getState().setLyrics(trackId, existing.timedLyrics, existing.plainText);
+  if (existing) {
+    publishLyrics(trackId, existing.timedLyrics, existing.plainText);
     return;
   }
 
@@ -40,33 +82,24 @@ export async function fetchLyricsForTrack(
   useLyricsStore.getState().setLoading(true);
 
   try {
-    let timedLyrics: TimedLyricLine[] | null = null;
-    let plainText: string | null = null;
+    let published = false;
+    const lrclibPromise = fetchLRCLIBLyrics(artist, title, duration);
 
-    const lrclibData = await requestLRCLIB(artist, title, duration);
+    try {
+      const serverLyrics = await fetchServerLyrics(trackId);
+      publishLyrics(trackId, serverLyrics.timedLyrics, serverLyrics.plainText);
+      published = true;
+    } catch {}
 
-    if (lrclibData?.syncedLyrics) {
-      timedLyrics = parseLRC(lrclibData.syncedLyrics);
-      plainText = lrclibData.plainLyrics ?? null;
-    } else if (lrclibData?.plainLyrics) {
-      plainText = lrclibData.plainLyrics;
-    } else {
-      try {
-        const serverResult = await api.getLyrics(trackId);
-        if (serverResult.hasTimestamps && Array.isArray(serverResult.lyrics)) {
-          timedLyrics = serverResult.lyrics
-            .filter((l: any) => l.text)
-            .map((l: any) => ({ time: l.startTime / 1000, text: l.text }));
-        } else if (typeof serverResult.lyrics === "string") {
-          plainText = serverResult.lyrics;
-        }
-      } catch {}
+    const lrclibLyrics = await lrclibPromise;
+    if (lrclibLyrics.timedLyrics || lrclibLyrics.plainText) {
+      publishLyrics(trackId, lrclibLyrics.timedLyrics, lrclibLyrics.plainText);
+      published = true;
+    } else if (!published) {
+      publishLyrics(trackId, null, null);
     }
-
-    cache.set(trackId, { timedLyrics, plainText });
-    useLyricsStore.getState().setLyrics(trackId, timedLyrics, plainText);
   } catch (e) {
-    useLyricsStore.getState().setLyrics(trackId, null, null);
+    publishLyrics(trackId, null, null);
   } finally {
     inflight.delete(trackId);
   }
@@ -80,24 +113,27 @@ export async function prefetchLyrics(
 ): Promise<void> {
   if (inflight.has(trackId)) return;
   const existing = cache.get(trackId);
-  if (existing && (existing.timedLyrics || existing.plainText)) return;
+  if (existing) return;
   fetchLyricsForTrack(trackId, artist, title, duration);
 }
 
 export function initLyricsStoreListener() {
   const currentTrack = usePlayerStore.getState().currentTrack;
+  let previousTrackId = currentTrack?.id ?? null;
+
   if (currentTrack) {
     fetchLyricsForTrack(currentTrack.id, currentTrack.artist, currentTrack.title, currentTrack.duration);
   }
 
-  usePlayerStore.subscribe(
-    (state) => state.currentTrack,
-    (track) => {
-      if (!track) {
-        useLyricsStore.getState().clearLyrics();
-        return;
-      }
-      fetchLyricsForTrack(track.id, track.artist, track.title, track.duration);
+  usePlayerStore.subscribe((state) => {
+    const track = state.currentTrack;
+    if ((track?.id ?? null) === previousTrackId) return;
+    previousTrackId = track?.id ?? null;
+
+    if (!track) {
+      useLyricsStore.getState().clearLyrics();
+      return;
     }
-  );
+    fetchLyricsForTrack(track.id, track.artist, track.title, track.duration);
+  });
 }
