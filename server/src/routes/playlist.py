@@ -5,7 +5,7 @@ from fastapi.responses import JSONResponse
 
 from src.logger import logger
 from src.services.ytdlp import get_playlist, get_artist_uploads
-from src.services.ytmusic import search_playlists
+from src.services.ytmusic import search_playlists, get_playlist_v2
 
 router = APIRouter(tags=["Playlist"])
 
@@ -35,9 +35,23 @@ async def playlist(url: str = Query(..., description="Full YouTube/YT Music play
     result = await get_playlist(url)
     return {
         "title": result["title"],
+        "thumbnail": result.get("thumbnail", ""),
         "tracks": result["tracks"][:limit],
         "count": min(len(result["tracks"]), limit),
     }
+
+
+@router.get(
+    "/api/playlist-v2",
+    summary="Get YouTube Music playlist via ytmusicapi",
+    description="Fetch playlist details using ytmusicapi which returns proper thumbnails, track info, and structured data.",
+)
+async def playlist_v2(id: str = Query(..., description="YouTube Music playlist ID (e.g. PLaKJDHF123 or VLPLaKJDHF123)"), limit: int = Query(default=100, ge=1, le=200, description="Max tracks to return")):
+    if not id:
+        return JSONResponse(status_code=400, content={"error": "Query parameter 'id' is required"})
+    logger.info("Playlist v2 request: id=%s limit=%d", id, limit)
+    result = await get_playlist_v2(id, limit)
+    return result
 
 
 @router.get(
