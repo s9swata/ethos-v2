@@ -18,6 +18,8 @@ export interface TrackInfo {
   title: string;
   artist: string;
   duration: number;
+  startTime?: number;
+  endTime?: number;
   url: string;
   thumbnail: string;
   webpageUrl: string;

@@ -7,17 +7,6 @@
     "sql:default",
     "sql:allow-load",
     "sql:allow-execute",
-    "sql:allow-select",
-    "shell:default",
-    {
-      "identifier": "shell:allow-execute",
-      "allow": [
-        {
-          "name": "yt-dlp",
-          "cmd": "yt-dlp",
-          "args": true
-        }
-      ]
-    }
+    "sql:allow-select"
   ]
 }

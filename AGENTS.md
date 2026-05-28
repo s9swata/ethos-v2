@@ -162,6 +162,23 @@ Svelte 5 desktop app built with Tauri v2. Uses the ethos API at a configurable U
 - **State**: Svelte 5 runes (`$state` in `.svelte.ts` files)
 - **Audio**: HTML5 `<audio>` element
 
+### Tauri v2 / yt-dlp crate notes
+
+- **`src-tauri/src/lib.rs`** — entry point with Tauri commands + `Downloader` managed state.
+  - `Downloader::with_new_binaries()` auto-downloads yt-dlp + ffmpeg to a dir. Use in `setup` via `tauri::async_runtime::spawn`.
+  - Store `Downloader` in `Arc<tokio::sync::Mutex<Option<Downloader>>>` — lazy init during setup.
+  - Use `use tauri::Manager;` trait for `app.path()` and `app.state()` in setup.
+  - `Video::best_audio_format()` returns `Option<&Format>` — clone it to avoid borrow conflicts when moving `Video` fields.
+  - `Format::url()` is a method returning `Result<&String>`, not a field. Clone the result.
+  - `Format::container` gives extension via `Display` (e.g. `"webm"`, `"mp4"`).
+  - `Format::rates_info.audio_rate` is `Option<OrderedFloat<f64>>` — access via `.map(|r| r.0)`.
+- **`yt-dlp` crate pin**: version `2.7.2` on crates.io has yanked dep `lofty ^0.23.2`. Use fork `Guilherme-j10/yt-dlp.git` `rev = "acfed53..."` (develop branch, updates to lofty 0.24.0). Pin to a specific `rev`, not a branch, to prevent supply-chain risk from future commits.
+- **Security**: The yt-dlp crate uses `tokio::process::Command::arg()` (not shell), so shell injection is impossible. However, a user-supplied string starting with `--` could be interpreted by yt-dlp's Python argument parser as an option flag (option injection). Sanitize IDs to reject `--` prefixed and control-character inputs before passing them to the crate.
+- **ffmpeg source**: `Downloader::with_new_binaries()` downloads ffmpeg from `boul2gom/ffmpeg-builds` (original crate author's repo), not the official FFmpeg project. SHA256 checksums are self-hosted in the same repo. For production, provide a system ffmpeg path via `Libraries::new()` instead. The yt-dlp binary itself is downloaded from the official `yt-dlp/yt-dlp` GitHub releases.
+- **`aws-lc-sys`**: Pulled in via `yt-dlp → reqwest → rustls → aws-lc-rs → aws-lc-sys`. It's AWS-LC (AWS's C crypto library) compiled from source — used for HTTPS/TLS by reqwest. Not malicious, but adds C compilation time.
+- **Capabilities**: `src-tauri/capabilities/default.json` — must keep valid JSON (no trailing commas).
+- **Tauri commands** replace shell `Command.create("yt-dlp", ...)` with `invoke` from `@tauri-apps/api/core`.
+
 ### Key files
 
 - `src/lib/services/api.ts` — API client (fetch, configurable base URL stored in localStorage)

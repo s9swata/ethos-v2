@@ -20,6 +20,7 @@
         togglePlay,
         setPlaying,
         setCurrentTime,
+        clearSeekTarget,
         setDuration,
         setVolume,
         playNext,
@@ -31,27 +32,7 @@
     let audioEl: HTMLAudioElement;
     let shuffle = $state(false);
     let repeat = $state(false);
-    let titleTrackEl: HTMLElement | undefined;
-    let artistTrackEl: HTMLElement | undefined;
 
-    function setupMarquee(track: HTMLElement) {
-        const container = track.parentElement;
-        if (!container) return;
-        const copyWidth = track.scrollWidth / 2;
-        if (copyWidth > container.offsetWidth) {
-            track.classList.add("marquee-active");
-        } else {
-            track.classList.remove("marquee-active");
-        }
-    }
-
-    $effect(() => {
-        void player.currentTrack;
-        requestAnimationFrame(() => {
-            if (titleTrackEl) setupMarquee(titleTrackEl);
-            if (artistTrackEl) setupMarquee(artistTrackEl);
-        });
-    });
 
     function formatTime(s: number): string {
         const m = Math.floor(s / 60);
@@ -145,6 +126,13 @@
         if (player.isPlaying) audioEl.play().catch(() => {});
         else audioEl.pause();
     });
+
+    $effect(() => {
+        const t = player.seekTarget;
+        if (t === null || !audioEl) return;
+        audioEl.currentTime = t;
+        clearSeekTarget();
+    });
 </script>
 
 <footer class="shrink-0 flex flex-col items-center pb-2">
@@ -222,35 +210,23 @@
                                     ></span>
                                 {/if}
                             </button>
-                            <div class="min-w-0 max-w-[140px]">
+                            <div class="min-w-0 max-w-[140px] flex flex-col leading-none">
                                 <button
                                     onclick={() => {
                                         if (player.currentAlbumId) nav.navigate("album", { browseId: player.currentAlbumId });
                                         else nav.navigate("player");
                                     }}
-                                    class="text-sm font-medium leading-tight text-text-primary hover:text-accent transition-colors w-full text-left cursor-pointer overflow-hidden"
+                                    class="text-sm font-medium text-text-primary hover:text-accent transition-colors w-full text-left cursor-pointer overflow-hidden"
                                 >
-                                    <span
-                                        class="marquee-track"
-                                        bind:this={titleTrackEl}
-                                    >
-                                        <span>{player.currentTrack.title}</span>
-                                        <span>{player.currentTrack.title}</span>
-                                    </span>
+                                    <span class="truncate">{player.currentTrack.title}</span>
                                 </button>
                                 <button
                                     onclick={() => {
                                         if (player.currentArtistId) nav.navigate("artist", { browseId: player.currentArtistId });
                                     }}
-                                    class="text-xs text-text-tertiary leading-tight hover:text-accent transition-colors w-full text-left cursor-pointer overflow-hidden"
+                                    class="text-xs text-text-tertiary hover:text-accent transition-colors w-full text-left cursor-pointer overflow-hidden"
                                 >
-                                    <span
-                                        class="marquee-track"
-                                        bind:this={artistTrackEl}
-                                    >
-                                        <span>{player.currentTrack.artist}</span>
-                                        <span>{player.currentTrack.artist}</span>
-                                    </span>
+                                    <span class="truncate">{player.currentTrack.artist}</span>
                                 </button>
                             </div>
                         </div>
@@ -423,38 +399,8 @@
                 </span>
             </div>
         </div>
-    {:else}
-        <!-- Empty state skeleton -->
-        <div class="w-[80vw] max-w-[900px]">
-            <div
-                class="flex items-center gap-3 px-5 py-4 rounded-full"
-                style="
-                    background: rgba(255,255,255,0.06);
-                    backdrop-filter: blur(20px) saturate(180%);
-                    -webkit-backdrop-filter: blur(20px) saturate(180%);
-                    border: 1px solid rgba(255,255,255,0.12);
-                "
-            >
-                <div class="w-9 h-9 rounded-lg skeleton shrink-0"></div>
-                <div class="flex-1 space-y-1.5">
-                    <div class="h-2.5 skeleton rounded w-4/5"></div>
-                    <div class="h-2 skeleton rounded w-3/5"></div>
-                </div>
-            </div>
-        </div>
     {/if}
 </footer>
 
 <style>
-  @keyframes marquee-seamless {
-    0% { transform: translateX(0); }
-    100% { transform: translateX(-50%); }
-  }
-  :global(.marquee-track) {
-    display: inline-flex;
-    white-space: nowrap;
-  }
-  :global(.marquee-active) {
-    animation: marquee-seamless 12s linear infinite;
-  }
 </style>

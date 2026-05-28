@@ -21,6 +21,7 @@ let isPlaying = $state(false);
 let currentTime = $state(0);
 let duration = $state(0);
 let volume = $state(1);
+let seekTarget = $state<number | null>(null);
 
 let queue: TrackInfo[] = $state([]);
 let queueIndex = $state(-1);
@@ -42,6 +43,7 @@ export const player = {
   get autoQueueIndex() { return autoQueueIndex; },
   get currentArtistId() { return currentArtistId; },
   get currentAlbumId() { return currentAlbumId; },
+  get seekTarget() { return seekTarget; },
 };
 
 async function fillAutoQueue(browseId: string, excludeTrackId: string): Promise<void> {
@@ -96,6 +98,8 @@ export async function playTrack(trackId: string, context?: PlayContext): Promise
     thumbnail: context?.thumbnail ?? info.thumbnail,
     url: info.url,
     duration: info.duration,
+    startTime: info.startTime,
+    endTime: info.endTime,
     webpageUrl: info.webpageUrl,
     directUrl: info.directUrl,
     formats: info.formats,
@@ -187,6 +191,15 @@ export function setPlaying(v: boolean): void {
 
 export function setCurrentTime(t: number): void {
   currentTime = t;
+}
+
+export function seekTo(t: number): void {
+  currentTime = t;
+  seekTarget = t;
+}
+
+export function clearSeekTarget(): void {
+  seekTarget = null;
 }
 
 export function setDuration(d: number): void {

@@ -28,10 +28,6 @@ function thumb(url: string | undefined): Thumbnail[] {
   return url ? [{ url, width: 0, height: 0 }] : [];
 }
 
-function thumbUrl(url: string | undefined): string {
-  return url ?? "";
-}
-
 export function getBaseUrl(): string {
   return serverUrl();
 }
@@ -119,9 +115,9 @@ export const api = {
       description: data.description,
       year: data.year ?? 0,
       artists: (data.artists || []).map((a: any) => ({ name: a.name, id: a.id })),
-      thumbnails: thumb(data.thumbnail),
       isExplicit: data.isExplicit ?? false,
       trackCount: data.trackCount ?? data.tracks?.length ?? 0,
+      thumbnails: (data.thumbnails && data.thumbnails.length > 0) ? data.thumbnails : thumb(data.thumbnail),
       duration: data.duration,
       durationSeconds: data.durationSeconds,
       audioPlaylistId: data.audioPlaylistId,
@@ -139,6 +135,11 @@ export const api = {
   getTrack: async (trackId: string) => {
     const { getTrackInfo } = await import("$lib/services/ytdlp");
     return await getTrackInfo(trackId);
+  },
+
+  getPlaylist: async (playlistId: string) => {
+    const { getPlaylistInfo } = await import("$lib/services/ytdlp");
+    return await getPlaylistInfo(playlistId);
   },
 
   searchArtists: async (q: string, limit = 5) => {
@@ -178,20 +179,13 @@ export const api = {
     };
   },
 
-  getPlaylist: async (playlistId: string) => {
-    const url = `https://music.youtube.com/playlist?list=${playlistId}`;
-    const res = await fetch(`${serverUrl()}/api/playlist?url=${encodeURIComponent(url)}&limit=100`);
-    if (!res.ok) throw new Error("Playlist fetch failed");
-    const data = await res.json();
-    return {
-      title: data.title,
-      tracks: (data.tracks || []).map((t: any) => ({
-        id: t.id,
-        title: t.title,
-        artist: t.artist,
-        duration: t.duration,
-        thumbnail: thumbUrl(t.thumbnail),
-      })),
+  getLyrics: async (trackId: string) => {
+    const res = await fetch(`${serverUrl()}/api/tracks/${encodeURIComponent(trackId)}/lyrics`);
+    if (!res.ok) return null;
+    return await res.json() as {
+      lyrics: string | { text: string; startTime: number; endTime: number }[];
+      source: string;
+      hasTimestamps: boolean;
     };
   },
 };
