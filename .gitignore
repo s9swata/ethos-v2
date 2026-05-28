@@ -29,3 +29,6 @@ api/*.spec
 api/dist/
 cache/
 server/ethos.service
+
+# Planning docs (intent, not committed)
+FEED_ENGINE.md
