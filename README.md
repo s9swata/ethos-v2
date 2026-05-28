@@ -93,7 +93,10 @@ git clone https://github.com/your-org/ethos
 cd ethos && bun install
 
 # Terminal 1 — API server
-bun --cwd server run dev
+python3 -m venv server/.venv
+source server/.venv/bin/activate
+cd server && pip install -e .
+uvicorn src.main:app --reload
 
 # Terminal 2 — desktop app
 bun run tauri dev
