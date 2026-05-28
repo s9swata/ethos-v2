@@ -151,9 +151,24 @@ Python FastAPI server using two services for media resolution:
 
 `server/Dockerfile` installs `python:3.12-slim` + ffmpeg + pip packages. Render Blueprint via `server/render.yaml`.
 
-## Desktop Client — root `src/` + `src-tauri/`
+## Queue System (player.svelte.ts)
 
-Svelte 5 desktop app built with Tauri v2. Uses the ethos API at a configurable URL.
+Two-layer queue: **userQueue** (Layer 1, user-initiated) drained first, then **contextQueue** (Layer 2, auto-populated from album/playlist/watch playlist).
+
+- **QueueItem** is lightweight (no stream URL). Stream URLs come from yt-dlp via `api.getTrack()`, fetched JIT and cached in `ytdlp.ts`.
+- `playTrack(videoId, options?)` — single entry point. Pass `options.queueType + queueId` for queue context, `options.contextItems + startIndex` to pre-fill contextQueue from album/playlist tracks.
+- `playNext()` — drains userQueue → contextQueue. Fires `refillFromWatch()` when contextQueue < 3 items. Skips failed tracks recursively.
+- `playPrev()` — checks `currentTime > 3` for seek-back. Pops from history, pushes current to front of contextQueue.
+- `refillFromWatch()` — calls GET `/api/watch/{videoId}?playlistId=` with dedup against userQueue + contextQueue + history.
+- `prefetchNext()` — prefetches yt-dlp for first 2 upcoming tracks (fire-and-forget, cached).
+- `setQueue(items, startIndex, context?)` — replaces old `queue`/`autoQueue` pattern. Sets contextQueue + background refill.
+- `player.visibleQueue` — derived getter: `[...userQueue, ...contextQueue]`.
+- `player.hasNext` / `player.hasPrev` — derived booleans for PlayerBar button states.
+- `addToQueue(item)` / `playNextInline(item)` — Layer 1 operations, no API calls.
+
+### Server
+
+`GET /api/watch/{videoId}?playlistId=&limit=25` in `tracks.py` → `ytmusic.get_watch_playlist()` wraps ytmusicapi's `get_watch_playlist()`. Returns `{ tracks: QueueItem[], playlistId }`.
 
 ### Tech stack
 
@@ -161,23 +176,6 @@ Svelte 5 desktop app built with Tauri v2. Uses the ethos API at a configurable U
 - **Desktop**: Tauri v2 (Rust)
 - **State**: Svelte 5 runes (`$state` in `.svelte.ts` files)
 - **Audio**: HTML5 `<audio>` element
-
-### Tauri v2 / yt-dlp crate notes
-
-- **`src-tauri/src/lib.rs`** — entry point with Tauri commands + `Downloader` managed state.
-  - `Downloader::with_new_binaries()` auto-downloads yt-dlp + ffmpeg to a dir. Use in `setup` via `tauri::async_runtime::spawn`.
-  - Store `Downloader` in `Arc<tokio::sync::Mutex<Option<Downloader>>>` — lazy init during setup.
-  - Use `use tauri::Manager;` trait for `app.path()` and `app.state()` in setup.
-  - `Video::best_audio_format()` returns `Option<&Format>` — clone it to avoid borrow conflicts when moving `Video` fields.
-  - `Format::url()` is a method returning `Result<&String>`, not a field. Clone the result.
-  - `Format::container` gives extension via `Display` (e.g. `"webm"`, `"mp4"`).
-  - `Format::rates_info.audio_rate` is `Option<OrderedFloat<f64>>` — access via `.map(|r| r.0)`.
-- **`yt-dlp` crate pin**: version `2.7.2` on crates.io has yanked dep `lofty ^0.23.2`. Use fork `Guilherme-j10/yt-dlp.git` `rev = "acfed53..."` (develop branch, updates to lofty 0.24.0). Pin to a specific `rev`, not a branch, to prevent supply-chain risk from future commits.
-- **Security**: The yt-dlp crate uses `tokio::process::Command::arg()` (not shell), so shell injection is impossible. However, a user-supplied string starting with `--` could be interpreted by yt-dlp's Python argument parser as an option flag (option injection). Sanitize IDs to reject `--` prefixed and control-character inputs before passing them to the crate.
-- **ffmpeg source**: `Downloader::with_new_binaries()` downloads ffmpeg from `boul2gom/ffmpeg-builds` (original crate author's repo), not the official FFmpeg project. SHA256 checksums are self-hosted in the same repo. For production, provide a system ffmpeg path via `Libraries::new()` instead. The yt-dlp binary itself is downloaded from the official `yt-dlp/yt-dlp` GitHub releases.
-- **`aws-lc-sys`**: Pulled in via `yt-dlp → reqwest → rustls → aws-lc-rs → aws-lc-sys`. It's AWS-LC (AWS's C crypto library) compiled from source — used for HTTPS/TLS by reqwest. Not malicious, but adds C compilation time.
-- **Capabilities**: `src-tauri/capabilities/default.json` — must keep valid JSON (no trailing commas).
-- **Tauri commands** replace shell `Command.create("yt-dlp", ...)` with `invoke` from `@tauri-apps/api/core`.
 
 ### Key files
 

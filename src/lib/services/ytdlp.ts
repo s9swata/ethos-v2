@@ -1,6 +1,7 @@
 import type { TrackInfo, AudioFormat } from "$lib/types";
 
-const trackCache = new Map<string, TrackInfo>();
+const CACHE_TTL = 4 * 60 * 60 * 1000;
+const trackCache = new Map<string, { data: TrackInfo; ts: number }>();
 
 function isTauri(): boolean {
   try {
@@ -31,7 +32,7 @@ type TrackInfoResult = {
 
 export async function getTrackInfo(trackId: string): Promise<TrackInfo> {
   const cached = trackCache.get(trackId);
-  if (cached) return cached;
+  if (cached && Date.now() - cached.ts < CACHE_TTL) return cached.data;
 
   if (!isTauri()) throw new Error("Tauri API not available");
 
@@ -58,7 +59,7 @@ export async function getTrackInfo(trackId: string): Promise<TrackInfo> {
     ),
   };
 
-  trackCache.set(trackId, info);
+  trackCache.set(trackId, { data: info, ts: Date.now() });
   return info;
 }
 

@@ -6,7 +6,7 @@ from fastapi.responses import JSONResponse
 from src.logger import logger
 from src.services.validate import validate_track_id
 from src.services.ytdlp import get_info
-from src.services.ytmusic import get_lyrics, get_lyrics_browse_id, get_track_related
+from src.services.ytmusic import get_lyrics, get_lyrics_browse_id, get_track_related, get_watch_playlist
 
 router = APIRouter(tags=["Tracks"])
 
@@ -71,3 +71,18 @@ async def track_related(track_id: str):
     logger.info("Track related request: id=%s", track_id)
     related = await get_track_related(track_id)
     return {"results": related, "count": len(related)}
+
+
+@router.get(
+    "/api/watch/{video_id}",
+    summary="Get watch playlist",
+    description="Fetch recommended tracks and continuation playlist for a given video via ytmusicapi. Used for queue refill.",
+)
+async def watch_playlist(video_id: str, playlist_id: str | None = None, limit: int = 25):
+    err = validate_track_id(video_id)
+    if err:
+        return JSONResponse(status_code=400, content={"error": err})
+
+    logger.info("Watch playlist request: videoId=%s playlistId=%s", video_id, playlist_id)
+    result = await get_watch_playlist(video_id, playlist_id, limit)
+    return result

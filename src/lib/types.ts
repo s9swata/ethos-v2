@@ -119,3 +119,19 @@ export interface HomeItem {
 }
 
 export type Page = "home" | "search" | "artist" | "album" | "library" | "playlist" | "player";
+
+export interface QueueItem {
+  videoId: string;
+  title: string;
+  artist: string;
+  artistId?: string;
+  album?: string;
+  albumId?: string;
+  thumbnail: string;
+  duration: number;
+}
+
+export interface WatchPlaylistResponse {
+  tracks: QueueItem[];
+  playlistId: string;
+}

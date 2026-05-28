@@ -9,6 +9,7 @@
     setVolume,
     playNext,
     playPrev,
+    prefetchNext,
   } from "$lib/stores/player.svelte";
   import { lyrics, clearLyrics, fetch } from "$lib/stores/lyrics.svelte";
   import { upscaleThumbnail } from "$lib/utils";
@@ -53,6 +54,7 @@
     if (!track) { clearLyrics(); return; }
     clearLyrics();
     fetch(track.id, track.artist, track.title, track.duration);
+    prefetchNext();
   });
 
   $effect(() => {

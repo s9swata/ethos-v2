@@ -1,8 +1,8 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { Music2, ListMusic, Plus, Trash2, ChevronLeft } from "lucide-svelte";
+  import { Music2, ListMusic, Plus, Trash2, ChevronLeft, ListPlus } from "lucide-svelte";
   import { nav } from "$lib/stores/navigation.svelte";
-  import { playTrack } from "$lib/stores/player.svelte";
+  import { playTrack, addToQueue } from "$lib/stores/player.svelte";
   import {
     library,
     getLikedSongs,
@@ -13,6 +13,14 @@
   import { upscaleThumbnail } from "$lib/utils";
   import TrackSkeleton from "$lib/components/ui/TrackSkeleton.svelte";
   import type { LikedSong, PlaylistTrack } from "$lib/stores/library.svelte";
+
+  function parseDuration(d: string | undefined): number {
+    if (!d) return 0;
+    const parts = d.split(":").map(Number);
+    if (parts.length === 2) return parts[0] * 60 + parts[1];
+    if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+    return 0;
+  }
 
   let likedSongs = $state<LikedSong[]>([]);
   let selectedPlaylist = $state<{ id: string; name: string; tracks: PlaylistTrack[] } | null>(null);
@@ -116,22 +124,38 @@
       {:else}
         <div class="space-y-0.5">
           {#each selectedPlaylist.tracks as track}
-            <button
-              onclick={() => handlePlayTrack(track.track_id)}
-              class="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl hover:bg-white/[0.05] transition-all text-left group"
-            >
-              <img
-                src={upscaleThumbnail(track.thumbnail, 120)}
-                alt={track.title}
-                onerror={(e: Event) => { const img = e.target as HTMLImageElement; img.style.display = "none"; }}
-                class="w-10 h-10 rounded-lg object-cover shrink-0 shadow-md"
-              />
-              <div class="min-w-0 flex-1">
-                <div class="text-sm font-medium truncate">{track.title}</div>
-                <div class="text-xs text-text-tertiary/50 truncate mt-0.5">{track.artist}</div>
-              </div>
-              <span class="text-xs text-text-tertiary/40 tabular-nums">{track.duration}</span>
-            </button>
+            <div class="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl hover:bg-white/[0.05] transition-all text-left group">
+              <button
+                onclick={() => handlePlayTrack(track.track_id)}
+                class="flex items-center gap-3 min-w-0 flex-1"
+              >
+                <img
+                  src={upscaleThumbnail(track.thumbnail, 120)}
+                  alt={track.title}
+                  onerror={(e: Event) => { const img = e.target as HTMLImageElement; img.style.display = "none"; }}
+                  class="w-10 h-10 rounded-lg object-cover shrink-0 shadow-md"
+                />
+                <div class="min-w-0 flex-1">
+                  <div class="text-sm font-medium truncate">{track.title}</div>
+                  <div class="text-xs text-text-tertiary/50 truncate mt-0.5">{track.artist}</div>
+                </div>
+              </button>
+              <button
+                onclick={() => addToQueue({
+                  videoId: track.track_id,
+                  title: track.title,
+                  artist: track.artist,
+                  thumbnail: track.thumbnail,
+                  duration: parseDuration(track.duration),
+                  album: track.album ?? undefined,
+                })}
+                class="text-text-tertiary hover:text-accent transition-colors p-1 shrink-0 opacity-0 group-hover:opacity-100"
+                aria-label="Add to queue"
+              >
+                <ListPlus size={14} />
+              </button>
+              <span class="text-xs text-text-tertiary/40 tabular-nums shrink-0">{track.duration}</span>
+            </div>
           {/each}
         </div>
       {/if}
@@ -155,23 +179,41 @@
     {:else}
       <div class="space-y-0.5">
         {#each likedSongs as song, i}
-          <button
-            onclick={() => handlePlayTrack(song.id)}
+          <div
             class="row-animate flex items-center gap-3 w-full px-3 py-2.5 rounded-xl hover:bg-white/[0.05] transition-all text-left group"
             style="animation-delay: {Math.min(i * 20, 300)}ms"
           >
-            <img
-              src={upscaleThumbnail(song.thumbnail, 120)}
-              alt={song.title}
-              onerror={(e: Event) => { const img = e.target as HTMLImageElement; img.style.display = "none"; }}
-              class="w-10 h-10 rounded-lg object-cover shrink-0 shadow-md"
-            />
-            <div class="min-w-0 flex-1">
-              <div class="text-sm font-medium truncate">{song.title}</div>
-              <div class="text-xs text-text-tertiary/50 truncate mt-0.5">{song.artist}</div>
-            </div>
-            <span class="text-xs text-text-tertiary/40 tabular-nums">{song.duration}</span>
-          </button>
+            <button
+              onclick={() => handlePlayTrack(song.id)}
+              class="flex items-center gap-3 min-w-0 flex-1"
+            >
+              <img
+                src={upscaleThumbnail(song.thumbnail, 120)}
+                alt={song.title}
+                onerror={(e: Event) => { const img = e.target as HTMLImageElement; img.style.display = "none"; }}
+                class="w-10 h-10 rounded-lg object-cover shrink-0 shadow-md"
+              />
+              <div class="min-w-0 flex-1">
+                <div class="text-sm font-medium truncate">{song.title}</div>
+                <div class="text-xs text-text-tertiary/50 truncate mt-0.5">{song.artist}</div>
+              </div>
+            </button>
+            <button
+              onclick={() => addToQueue({
+                videoId: song.id,
+                title: song.title,
+                artist: song.artist,
+                thumbnail: song.thumbnail,
+                duration: parseDuration(song.duration),
+                album: song.album ?? undefined,
+              })}
+              class="text-text-tertiary hover:text-accent transition-colors p-1 shrink-0 opacity-0 group-hover:opacity-100"
+              aria-label="Add to queue"
+            >
+              <ListPlus size={14} />
+            </button>
+            <span class="text-xs text-text-tertiary/40 tabular-nums shrink-0">{song.duration}</span>
+          </div>
         {/each}
       </div>
     {/if}

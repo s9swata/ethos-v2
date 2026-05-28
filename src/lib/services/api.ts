@@ -10,6 +10,8 @@ import type {
   AlbumItem,
   TrackItem,
   Thumbnail,
+  QueueItem,
+  WatchPlaylistResponse,
 } from "$lib/types";
 
 function serverUrl(): string {
@@ -187,5 +189,32 @@ export const api = {
       source: string;
       hasTimestamps: boolean;
     };
+  },
+
+  getPlaylistV2: async (id: string) => {
+    const res = await fetch(`${serverUrl()}/api/playlist-v2?id=${encodeURIComponent(id)}&limit=200`);
+    if (!res.ok) throw new Error("Playlist fetch failed");
+    const data = await res.json();
+    return {
+      title: data.title,
+      thumbnail: data.thumbnail || "",
+      tracks: (data.tracks || []).map((t: any, i: number) => ({
+        index: i + 1,
+        videoId: t.id,
+        title: t.title,
+        artists: t.artist ? t.artist.split(", ") : [],
+        duration: typeof t.duration === "number" ? formatDuration(t.duration) : t.duration,
+        thumbnail: t.thumbnail || "",
+      })),
+    };
+  },
+
+  getWatchPlaylist: async (videoId: string, playlistId?: string, limit = 25) => {
+    const base = serverUrl();
+    let url = `${base}/api/watch/${encodeURIComponent(videoId)}?limit=${limit}`;
+    if (playlistId) url += `&playlistId=${encodeURIComponent(playlistId)}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error("Watch playlist fetch failed");
+    return await res.json() as WatchPlaylistResponse;
   },
 };

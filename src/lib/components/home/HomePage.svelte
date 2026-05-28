@@ -58,7 +58,7 @@
     } else if (item.type === "playlist") {
       const isTrack = /^[a-zA-Z0-9_-]{11}$/.test(tid);
       if (isTrack) { playTrack(tid, { title: item.title, artistName: item.subtitle, thumbnail: item.imageUrl }); return; }
-      nav.navigate("playlist", { id: tid, source: "api" });
+      nav.navigate("playlist", { id: tid });
     }
   }
 
@@ -127,7 +127,7 @@
     </div>
 
     <div class="px-8 pb-8 space-y-10">
-      {#each sections as section}
+      {#each sections.filter(s => !s.title.toLowerCase().includes("community")) as section}
         <section>
           <h2 class="text-lg font-bold tracking-tight mb-4">{section.title}</h2>
           <div class="flex gap-4 overflow-x-auto pb-2 snap-x snap-mandatory scroll-smooth" style="scrollbar-width: none;">
@@ -144,6 +144,11 @@
                     style="background: rgba(255,255,255,0.04);"
                     loading="lazy"
                   />
+                  <div class="absolute top-1.5 left-1.5">
+                    <span class="text-[9px] font-semibold uppercase tracking-widest px-1.5 py-[2px] rounded-full backdrop-blur-sm" style="background: rgba(0,0,0,0.5); color: rgba(255,255,255,0.75);">
+                      {item.type === "track" ? "Song" : item.type === "album" ? "Album" : item.type === "artist" ? "Artist" : item.type === "playlist" ? "Playlist" : item.type}
+                    </span>
+                  </div>
                   <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                     <div class="w-10 h-10 rounded-full flex items-center justify-center shadow-xl translate-y-2 group-hover:translate-y-0 transition-transform duration-200" style="background: rgba(255,255,255,0.9);">
                       <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="black" class="ml-0.5"><path d="M8 5v14l11-7z"/></svg>

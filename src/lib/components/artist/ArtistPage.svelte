@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { Heart, Play } from "lucide-svelte";
+  import { Heart, Play, ListPlus } from "lucide-svelte";
   import { api } from "$lib/services/api";
   import { nav } from "$lib/stores/navigation.svelte";
-  import { playTrack } from "$lib/stores/player.svelte";
+  import { playTrack, addToQueue } from "$lib/stores/player.svelte";
   import { toggleLike, library } from "$lib/stores/library.svelte";
   import { upscaleThumbnail } from "$lib/utils";
   import TrackSkeleton from "$lib/components/ui/TrackSkeleton.svelte";
@@ -70,45 +70,41 @@
     <div class="text-sm text-error font-medium">{error}</div>
   </div>
 {:else if artist}
-  <!-- Artist background image (full width extending behind sidebar) -->
-  {#if heroThumb}
-    <div
-      class="absolute top-0 pointer-events-none"
-      style="
-        height: 40vh;
-        width: calc(100% + 252px);
-        left: -252px;
-        background-image: url({upscaleThumbnail(heroThumb, 800)});
-        background-size: cover;
-        background-position: top center;
-        z-index: 0;
-      "
-    ></div>
-  {/if}
+  <div class="page-enter">
+    <!-- Header with ambient background -->
+    <div class="relative overflow-hidden rounded-xl">
+      {#if heroThumb}
+        <img
+          src={upscaleThumbnail(heroThumb, 400)}
+          alt=""
+          aria-hidden="true"
+          class="absolute left-1/2 w-screen h-full object-cover blur-3xl opacity-25 pointer-events-none"
+          style="transform: translateX(-50%);"
+        />
+      {/if}
+      <div class="absolute inset-0 pointer-events-none" style="background: linear-gradient(to top, var(--color-surface) 0%, transparent 100%);"></div>
 
-  <div class="relative z-10 page-enter">
-    <!-- Hero gradient overlay -->
-    <div class="relative h-[40vh] min-h-[280px] overflow-hidden rounded-xl" style="z-index: 1;">
-      <div class="absolute inset-0" style="background: linear-gradient(to top, var(--color-surface) 0%, rgba(10,10,10,0.4) 50%, transparent 100%);"></div>
-      <div class="absolute bottom-0 left-0 p-7">
-        <span class="text-[10px] uppercase tracking-widest text-text-secondary/60 font-semibold mb-2 block">Artist</span>
-        <h1 class="text-4xl font-bold tracking-tight leading-none mb-3">{artist.name}</h1>
-        <div class="flex items-center gap-2 flex-wrap">
-          {#if artist.subscribers}
-            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-medium" style="background: rgba(255,255,255,0.1); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.1);">
-              {artist.subscribers} subscribers
-            </span>
-          {/if}
-          {#if artist.monthlyListeners}
-            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-medium" style="background: rgba(255,255,255,0.1); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.1);">
-              {formatListeners(artist.monthlyListeners)} monthly listeners
-            </span>
-          {/if}
+      <div class="relative h-[40vh] min-h-[280px]">
+        <div class="absolute bottom-0 left-0 p-7">
+          <span class="text-[10px] uppercase tracking-widest text-text-secondary/60 font-semibold mb-2 block">Artist</span>
+          <h1 class="text-4xl font-bold tracking-tight leading-none mb-3">{artist.name}</h1>
+          <div class="flex items-center gap-2 flex-wrap">
+            {#if artist.subscribers}
+              <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-medium" style="background: rgba(255,255,255,0.1); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.1);">
+                {artist.subscribers} subscribers
+              </span>
+            {/if}
+            {#if artist.monthlyListeners}
+              <span class="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-medium" style="background: rgba(255,255,255,0.1); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.1);">
+                {formatListeners(artist.monthlyListeners)} monthly listeners
+              </span>
+            {/if}
+          </div>
         </div>
       </div>
     </div>
 
-    <div class="px-6 pb-8">
+    <div class="px-6 pb-8" style="background: var(--color-surface);">
       <!-- Top Songs -->
       {#if artist.topSongs?.length}
         <section class="mb-10">
@@ -149,6 +145,22 @@
 
                 <!-- Actions -->
                 <div class="flex items-center gap-1.5 shrink-0">
+                  <button
+                    onclick={(e: MouseEvent) => {
+                      e.stopPropagation();
+                      addToQueue({
+                        videoId: song.videoId,
+                        title: song.title,
+                        artist: song.artists?.[0] ?? "",
+                        thumbnail: song.thumbnails?.at(-1)?.url || song.thumbnails?.[0]?.url || "",
+                        duration: 0,
+                      });
+                    }}
+                    class="text-text-tertiary hover:text-accent transition-colors p-1"
+                    aria-label="Add to queue"
+                  >
+                    <ListPlus size={14} />
+                  </button>
                   <button
                     onclick={(e: MouseEvent) => {
                       e.stopPropagation();

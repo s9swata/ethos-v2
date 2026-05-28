@@ -1,12 +1,33 @@
 <script lang="ts">
-  import { Heart } from "lucide-svelte";
+  import { Heart, ListPlus } from "lucide-svelte";
   import { api } from "$lib/services/api";
   import { nav } from "$lib/stores/navigation.svelte";
-  import { playTrack } from "$lib/stores/player.svelte";
+  import { playTrack, addToQueue } from "$lib/stores/player.svelte";
   import { toggleLike, library } from "$lib/stores/library.svelte";
   import { upscaleThumbnail } from "$lib/utils";
   import TrackSkeleton from "$lib/components/ui/TrackSkeleton.svelte";
   import type { SearchResult } from "$lib/types";
+
+  function parseDuration(d: string | undefined): number {
+    if (!d) return 0;
+    const parts = d.split(":").map(Number);
+    if (parts.length === 2) return parts[0] * 60 + parts[1];
+    if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+    return 0;
+  }
+
+  function handleAddToQueue(result: SearchResult): void {
+    addToQueue({
+      videoId: result.id,
+      title: result.name,
+      artist: result.artists?.[0] ?? "",
+      artistId: result.artistId,
+      album: result.album ?? undefined,
+      albumId: result.albumId,
+      thumbnail: result.imageUrl,
+      duration: parseDuration(result.duration),
+    });
+  }
 
   let results = $state<SearchResult[]>([]);
   let loading = $state(false);
@@ -207,6 +228,16 @@
             <span class="text-[11px] text-text-tertiary/60 tabular-nums w-10 text-right">{result.duration}</span>
           {/if}
           {#if result.type === "track"}
+            <button
+              onclick={(e: MouseEvent) => {
+                e.stopPropagation();
+                handleAddToQueue(result);
+              }}
+              class="text-text-tertiary hover:text-accent transition-colors p-1"
+              aria-label="Add to queue"
+            >
+              <ListPlus size={14} />
+            </button>
             <button
               onclick={(e: MouseEvent) => {
                 e.stopPropagation();

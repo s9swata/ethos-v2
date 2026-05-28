@@ -25,13 +25,15 @@
         setVolume,
         playNext,
         playPrev,
+        toggleShuffle,
+        setRepeat,
     } from "$lib/stores/player.svelte";
   import { toggleLike, library } from "$lib/stores/library.svelte";
   import ElasticSlider from "$lib/components/svelte-bits/ElasticSlider.svelte";
+  import QueuePanel from "$lib/components/queue/QueuePanel.svelte";
 
     let audioEl: HTMLAudioElement;
-    let shuffle = $state(false);
-    let repeat = $state(false);
+    let showQueue = $state(false);
 
 
     function formatTime(s: number): string {
@@ -48,12 +50,7 @@
     }
 
     function onEnded(): void {
-        if (repeat && audioEl) {
-            audioEl.currentTime = 0;
-            audioEl.play().catch(() => {});
-        } else {
-            playNext();
-        }
+        playNext();
     }
 
     function handleTogglePlay(): void {
@@ -259,20 +256,19 @@
                             class="flex items-center justify-center gap-3 flex-1 min-w-0"
                         >
                             <button
-                                onclick={() => (shuffle = !shuffle)}
+                                onclick={() => toggleShuffle()}
                                 class="text-text-tertiary hover:text-text-secondary transition-colors"
                                 aria-label="Shuffle"
                             >
                                 <Shuffle
                                     size={16}
-                                    class={shuffle ? "text-accent" : ""}
+                                    class={player.shuffle ? "text-accent" : ""}
                                 />
                             </button>
 
                             <button
                                 onclick={playPrev}
-                                disabled={player.queueIndex <= 0 &&
-                                    player.autoQueueIndex <= 0}
+                                disabled={!player.hasPrev}
                                 class="text-text-secondary hover:text-text-primary disabled:opacity-25 transition-all"
                                 aria-label="Previous track"
                             >
@@ -303,10 +299,7 @@
 
                             <button
                                 onclick={playNext}
-                                disabled={player.queueIndex >=
-                                    player.queue.length - 1 &&
-                                    player.autoQueueIndex >=
-                                        player.autoQueue.length - 1}
+                                disabled={!player.hasNext}
                                 class="text-text-secondary hover:text-text-primary disabled:opacity-25 transition-all"
                                 aria-label="Next track"
                             >
@@ -314,13 +307,13 @@
                             </button>
 
                             <button
-                                onclick={() => (repeat = !repeat)}
+                                onclick={() => setRepeat(player.repeat === "none" ? "all" : "none")}
                                 class="text-text-tertiary hover:text-text-secondary transition-colors"
                                 aria-label="Repeat"
                             >
                                 <Repeat
                                     size={16}
-                                    class={repeat ? "text-accent" : ""}
+                                    class={player.repeat !== "none" ? "text-accent" : ""}
                                 />
                             </button>
                         </div>
@@ -335,6 +328,7 @@
                                 <Maximize2 size={16} />
                             </button>
                             <button
+                                onclick={() => (showQueue = !showQueue)}
                                 class="text-text-tertiary hover:text-text-secondary transition-colors"
                                 aria-label="Queue"
                             >
@@ -400,6 +394,10 @@
             </div>
         </div>
     {/if}
+{#if showQueue}
+  <QueuePanel onClose={() => (showQueue = false)} />
+{/if}
+
 </footer>
 
 <style>

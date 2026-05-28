@@ -1,12 +1,20 @@
 <script lang="ts">
-  import { Heart, Play, Shuffle } from "lucide-svelte";
+  import { Heart, Play, Shuffle, ListPlus } from "lucide-svelte";
   import { api } from "$lib/services/api";
   import { nav } from "$lib/stores/navigation.svelte";
-  import { playTrack } from "$lib/stores/player.svelte";
+  import { playTrack, addToQueue } from "$lib/stores/player.svelte";
   import { toggleLike, library } from "$lib/stores/library.svelte";
   import { upscaleThumbnail } from "$lib/utils";
   import TrackSkeleton from "$lib/components/ui/TrackSkeleton.svelte";
-  import type { AlbumInfo } from "$lib/types";
+  import type { AlbumInfo, QueueItem } from "$lib/types";
+
+  function parseDuration(d: string | undefined): number {
+    if (!d) return 0;
+    const parts = d.split(":").map(Number);
+    if (parts.length === 2) return parts[0] * 60 + parts[1];
+    if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+    return 0;
+  }
 
   let album = $state<AlbumInfo | null>(null);
   let loading = $state(true);
@@ -33,6 +41,17 @@
       });
   });
 
+  function getQueueItems(): QueueItem[] {
+    if (!album) return [];
+    return album.tracks.map((t) => ({
+      videoId: t.videoId,
+      title: t.title,
+      artist: t.artists.join(", "),
+      thumbnail: albumThumb,
+      duration: parseDuration(t.duration),
+    }));
+  }
+
   function trackContext(track?: { title: string }): Record<string, string | undefined> {
     const artist = album?.artists?.[0];
     return {
@@ -45,7 +64,14 @@
 
   function handlePlayTrack(videoId: string): void {
     const track = album?.tracks.find((t) => t.videoId === videoId);
-    playTrack(videoId, trackContext(track));
+    const idx = album?.tracks.findIndex((t) => t.videoId === videoId) ?? 0;
+    playTrack(videoId, {
+      ...trackContext(track),
+      queueType: "album",
+      queueId: album?.audioPlaylistId,
+      contextItems: getQueueItems(),
+      startIndex: idx,
+    });
   }
 
   let albumThumb = $derived(album ? (album.thumbnails?.at(-1)?.url || album.thumbnails?.[0]?.url || "") : "");
@@ -53,14 +79,26 @@
   function handlePlayAll(): void {
     if (!album) return;
     const first = album.tracks[0];
-    if (first) playTrack(first.videoId, trackContext(first));
+    playTrack(first.videoId, {
+      ...trackContext(first),
+      queueType: "album",
+      queueId: album?.audioPlaylistId,
+      contextItems: getQueueItems(),
+      startIndex: 0,
+    });
   }
 
   function handleShuffle(): void {
     if (!album?.tracks.length) return;
     const idx = Math.floor(Math.random() * album.tracks.length);
     const track = album.tracks[idx];
-    playTrack(track.videoId, trackContext(track));
+    playTrack(track.videoId, {
+      ...trackContext(track),
+      queueType: "album",
+      queueId: album?.audioPlaylistId,
+      contextItems: getQueueItems(),
+      startIndex: idx,
+    });
   }
 </script>
 
@@ -90,16 +128,17 @@
   <div class="page-enter">
     <!-- Header with ambient background -->
     <div class="relative overflow-hidden">
-      <!-- Ambient blurred art -->
+      <!-- Ambient blurred art — full width -->
       {#if albumThumb}
         <img
           src={upscaleThumbnail(albumThumb, 400)}
           alt=""
           aria-hidden="true"
-          class="absolute inset-0 w-full h-full object-cover scale-150 blur-3xl opacity-25 pointer-events-none"
+          class="absolute left-1/2 w-screen h-full object-cover blur-3xl opacity-25 pointer-events-none"
+          style="transform: translateX(-50%);"
         />
       {/if}
-      <div class="absolute inset-0" style="background: linear-gradient(to bottom, transparent 0%, var(--color-surface) 85%);"></div>
+      <div class="absolute inset-0 pointer-events-none" style="background: linear-gradient(to bottom, transparent 0%, var(--color-surface) 100%);"></div>
 
       <div class="relative flex flex-col md:flex-row items-end gap-7 px-6 pt-10 pb-8">
         <!-- Album art -->
@@ -156,7 +195,7 @@
     </div>
 
     <!-- Track list -->
-    <div class="px-6 pb-10">
+    <div class="px-6 pb-10" style="background: var(--color-surface);">
       <!-- Header row -->
       <div class="flex items-center gap-4 px-3 py-2 text-[10px] uppercase tracking-widest text-text-tertiary/40 font-semibold border-b border-white/[0.04] mb-1">
         <span class="w-7 text-right shrink-0">#</span>
@@ -188,6 +227,22 @@
 
             <!-- Actions -->
             <div class="flex items-center gap-1.5 shrink-0">
+              <button
+                onclick={(e: MouseEvent) => {
+                  e.stopPropagation();
+                  addToQueue({
+                    videoId: track.videoId,
+                    title: track.title,
+                    artist: track.artists?.[0] ?? "",
+                    thumbnail: albumThumb,
+                    duration: parseDuration(track.duration),
+                  });
+                }}
+                class="text-text-tertiary hover:text-accent transition-colors p-1 opacity-0 group-hover:opacity-100"
+                aria-label="Add to queue"
+              >
+                <ListPlus size={14} />
+              </button>
               <button
                 onclick={(e: MouseEvent) => {
                   e.stopPropagation();
