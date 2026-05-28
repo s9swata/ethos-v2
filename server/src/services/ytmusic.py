@@ -583,3 +583,51 @@ async def get_artist_albums(channel_id: str, params: str, limit: int = 100, orde
         None,
         lambda: _get_client().get_artist_albums(channel_id, params, limit=limit, order=order),
     )
+
+
+async def get_watch_playlist(
+    video_id: str,
+    playlist_id: str | None = None,
+    limit: int = 25,
+) -> dict:
+    loop = asyncio.get_running_loop()
+    result = await loop.run_in_executor(
+        None,
+        lambda: _get_client().get_watch_playlist(
+            videoId=video_id,
+            playlistId=playlist_id,
+            limit=limit,
+        ),
+    )
+    tracks = result.get("tracks", [])
+
+    def _parse_length(length: str | None) -> int:
+        if not length:
+            return 0
+        parts = length.split(":")
+        if len(parts) == 2:
+            return int(parts[0]) * 60 + int(parts[1])
+        if len(parts) == 3:
+            return int(parts[0]) * 3600 + int(parts[1]) * 60 + int(parts[2])
+        return 0
+
+    parsed = [
+        {
+            "videoId": t.get("videoId", ""),
+            "title": t.get("title", ""),
+            "artist": ", ".join(
+                a.get("name", "") for a in (t.get("artists") or [])
+            ),
+            "artistId": (t.get("artists") or [{}])[0].get("id"),
+            "album": (t.get("album") or {}).get("name"),
+            "albumId": (t.get("album") or {}).get("id"),
+            "thumbnail": _best_thumb(t.get("thumbnail")),
+            "duration": _parse_length(t.get("length")),
+        }
+        for t in tracks
+        if t.get("videoId")
+    ]
+    return {
+        "tracks": parsed[:limit],
+        "playlistId": result.get("playlistId", ""),
+    }

@@ -4,7 +4,7 @@ import re
 
 from src.config import settings
 
-SUSPICIOUS_RE = re.compile(r'[<>"\'`;$|&{}\\]+')
+SUSPICIOUS_RE = re.compile(r'[<>"\'`;|{}\\]+')
 
 
 def validate_query(query: str) -> str | None:
