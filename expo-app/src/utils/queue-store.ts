@@ -8,22 +8,11 @@ export interface StoredTrack {
   thumbnail: string;
 }
 
-export interface StoredAutoQueueItem {
-  title: string | null;
-  videoId: string | null;
-  artists: string[];
-  thumbnail?: string | null;
-  isTopSong?: boolean;
-  albumBrowseId?: string | null;
-  albumIndex?: number | null;
-  duration?: string | null;
-}
-
 export interface SavedQueue {
-  queue: StoredTrack[];
-  queueIndex: number;
-  autoQueue: StoredAutoQueueItem[];
-  autoQueueIndex: number;
+  userQueue: StoredTrack[];
+  contextQueue: any[];
+  watchPlaylistId: string | null;
+  context: { type: string; id?: string };
   currentTrack: StoredTrack | null;
   currentTime: number;
   duration: number;
@@ -32,9 +21,7 @@ export interface SavedQueue {
   volume: number;
   currentArtistId: string | null;
   currentAlbumId: string | null;
-  currentAutoQueueSource: string | null;
-  playHistory: { id: string; title: string; artist: string; thumbnail: string }[];
-  recentAlbumIds: string[];
+  history: StoredTrack[];
 }
 
 export async function saveQueue(data: SavedQueue): Promise<void> {
@@ -68,15 +55,15 @@ export async function clearQueue(): Promise<void> {
   } catch {}
 }
 
-function stripTrack(t: StoredTrack): StoredTrack {
-  return { id: t.id, title: t.title, artist: t.artist, duration: t.duration, thumbnail: t.thumbnail };
+function stripTrack(t: { videoId?: string; title: string; artist: string; duration: number; thumbnail: string }): StoredTrack {
+  return { id: t.videoId ?? "", title: t.title, artist: t.artist, duration: t.duration, thumbnail: t.thumbnail };
 }
 
 export function serializeQueue(state: {
-  queue: StoredTrack[];
-  queueIndex: number;
-  autoQueue: StoredAutoQueueItem[];
-  autoQueueIndex: number;
+  userQueue: any[];
+  contextQueue: any[];
+  watchPlaylistId: string | null;
+  context: { type: string; id?: string };
   currentTrack: StoredTrack | null;
   currentTime: number;
   duration: number;
@@ -85,15 +72,13 @@ export function serializeQueue(state: {
   volume: number;
   currentArtistId: string | null;
   currentAlbumId: string | null;
-  currentAutoQueueSource: string | null;
-  playHistory: { id: string; title: string; artist: string; thumbnail: string }[];
-  recentAlbumIds: string[];
+  history: any[];
 }): SavedQueue {
   return {
-    queue: state.queue.map(stripTrack),
-    queueIndex: state.queueIndex,
-    autoQueue: state.autoQueue,
-    autoQueueIndex: state.autoQueueIndex,
+    userQueue: state.userQueue.map((t) => stripTrack(t)),
+    contextQueue: state.contextQueue,
+    watchPlaylistId: state.watchPlaylistId,
+    context: state.context,
     currentTrack: state.currentTrack ? stripTrack(state.currentTrack) : null,
     currentTime: state.currentTime,
     duration: state.duration,
@@ -102,8 +87,6 @@ export function serializeQueue(state: {
     volume: state.volume,
     currentArtistId: state.currentArtistId,
     currentAlbumId: state.currentAlbumId,
-    currentAutoQueueSource: state.currentAutoQueueSource,
-    playHistory: state.playHistory,
-    recentAlbumIds: state.recentAlbumIds,
+    history: state.history,
   };
 }

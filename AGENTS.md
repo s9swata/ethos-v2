@@ -187,6 +187,19 @@ Two-layer queue: **userQueue** (Layer 1, user-initiated) drained first, then **c
 - `src/lib/components/artist/ArtistPage.svelte` — Consumes `/api/artist/{browseId}`
 - `src/lib/components/album/AlbumPage.svelte` — Consumes `/api/album/{browseId}`
 
+### Android Dev Gotchas
+
+- **Android blocks cleartext (HTTP) to local dev servers** — `CLEARTEXT communication to <ip> is not permitted` means `usesCleartextTraffic` is missing. Fix: the `plugins/withCleartextDebug.js` plugin adds `android:usesCleartextTraffic="true"` to all builds. This is needed because the dev server and local proxy run on HTTP (not HTTPS). Don't use `"usesCleartextTraffic": true` in `app.json` directly — the plugin approach is more maintainable.
+
+### yt-dlp Rate Limiting
+
+- **Always prefer local audio extraction (`getBestAudioStream` from `expo-youtube-audio-stream`) over server-side yt-dlp.** The server's yt-dlp endpoint (`/api/tracks/:id`) is called by `api.getTrack()` and hits YouTube from the server's IP. If the server is on a cloud provider (Render), YouTube blocks cloud IPs and rate-limits. Local extraction via `getBestAudioStream` runs on-device, has no rate limits, and works offline.
+- **`fetchTrack` in `player-actions-next.ts` follows: cache → local (`getBestAudioStream`) → server (`api.getTrack()`).** Server is last resort fallback only.
+- **Prefetch is fire-and-forget on `fetchTrack`** (2 upcoming tracks in both `playTrackAction` and `playNextAction`). Since `fetchTrack` tries local first, these are cheap and don't hit yt-dlp unless local fails.
+- **Persistent 4-hour TTL cache** in `src/utils/track-cache.ts` (SQLite + in-memory) avoids redundant calls across app restarts.
+
+### Critical Findings - @findings.md 
+
 ### Running
 
 ```bash

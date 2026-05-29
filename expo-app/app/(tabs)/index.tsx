@@ -36,15 +36,24 @@ function SectionRow({ section, onItemPress, onItemPressIn }: { section: HomeSect
               onPress={() => onItemPress(item)}
             >
               {item.imageUrl ? (
-                <Image
-                  source={{ uri: upscaleThumbnail(item.imageUrl, isArtist ? 160 : 240) }}
-                  style={{
-                    width: isArtist ? 120 : 150,
-                    height: isArtist ? 120 : 150,
-                    borderRadius: isArtist ? 60 : 12,
-                    backgroundColor: theme.colors.surface3,
-                  }}
-                />
+                <View>
+                  <Image
+                    source={{ uri: upscaleThumbnail(item.imageUrl, isArtist ? 160 : 240) }}
+                    style={{
+                      width: isArtist ? 120 : 150,
+                      height: isArtist ? 120 : 150,
+                      borderRadius: isArtist ? 60 : 12,
+                      backgroundColor: theme.colors.surface3,
+                    }}
+                  />
+                  {!isArtist && (
+                    <View style={{ position: "absolute", top: 4, left: 4, backgroundColor: "rgba(0,0,0,0.65)", borderRadius: 4, paddingHorizontal: 5, paddingVertical: 2 }}>
+                      <Text style={{ color: "#fff", fontSize: 9, fontWeight: "600" }}>
+                        {item.type === "album" ? "Album" : item.type === "playlist" ? "Playlist" : "Song"}
+                      </Text>
+                    </View>
+                  )}
+                </View>
               ) : (
                 <View style={{
                   width: isArtist ? 120 : 150,
@@ -97,7 +106,7 @@ export default function HomeScreen() {
       } else if (item.type === "playlist") {
         queryClient.prefetchQuery({
           queryKey: queryKeys.playlist(id),
-          queryFn: () => api.getPlaylist(`https://music.youtube.com/playlist?list=${id}`),
+          queryFn: () => api.getPlaylistV2(id),
           staleTime: 1000 * 60 * 2,
         });
       } else if (item.type === "track") {

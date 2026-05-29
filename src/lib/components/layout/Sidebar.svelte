@@ -26,7 +26,7 @@
   ];
 </script>
 
-<nav class="relative w-60 shrink-0 flex flex-col select-none rounded-xl overflow-hidden mt-9 mb-3 ml-3" style="z-index: 1;">
+<nav class="fixed left-3 top-9 bottom-3 w-60 flex flex-col select-none rounded-xl overflow-hidden" style="z-index: 10;">
   <!-- Ambient album art background -->
   {#if player.currentTrack?.thumbnail}
     <div

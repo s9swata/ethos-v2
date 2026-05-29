@@ -13,7 +13,7 @@ import { useLibraryStore } from "@/stores/library-store";
 import { usePlayerStore } from "@/stores/player-store";
 import { initLyricsStoreListener } from "@/utils/lyrics-cache";
 import { initTaste } from "@/utils/taste";
-import { saveQueue } from "@/utils/queue-store";
+import { saveQueue, serializeQueue } from "@/utils/queue-store";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -106,12 +106,12 @@ export default function RootLayout() {
     player.restoreQueue().catch((err) => console.warn("[queue] restore failed:", err));
 
     const unsub = usePlayerStore.subscribe((state) => {
-      saveQueue({
-        queue: state.queue.map((t) => ({ id: t.id, title: t.title, artist: t.artist, duration: t.duration, thumbnail: t.thumbnail })),
-        queueIndex: state.queueIndex,
-        autoQueue: state.autoQueue,
-        autoQueueIndex: state.autoQueueIndex,
-        currentTrack: state.currentTrack ? { id: state.currentTrack.id, title: state.currentTrack.title, artist: state.currentTrack.artist, duration: state.currentTrack.duration, thumbnail: state.currentTrack.thumbnail } : null,
+      saveQueue(serializeQueue({
+        userQueue: state.userQueue,
+        contextQueue: state.contextQueue,
+        watchPlaylistId: state.watchPlaylistId,
+        context: state.context,
+        currentTrack: state.currentTrack,
         currentTime: state.currentTime,
         duration: state.duration,
         repeat: state.repeat,
@@ -119,10 +119,8 @@ export default function RootLayout() {
         volume: state.volume,
         currentArtistId: state.currentArtistId,
         currentAlbumId: state.currentAlbumId,
-        currentAutoQueueSource: state.currentAutoQueueSource,
-        playHistory: state.playHistory,
-        recentAlbumIds: state.recentAlbumIds,
-      }).catch(() => {});
+        history: state.history,
+      })).catch(() => {});
     });
 
     return () => unsub();

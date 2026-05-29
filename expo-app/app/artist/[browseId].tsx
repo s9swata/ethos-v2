@@ -51,6 +51,16 @@ export default function ArtistScreen() {
   const t = artist.thumbnails;
   const heroUrl = t?.[t.length - 1]?.url;
 
+  const artistContextItems = artist.topSongs
+    .filter((s) => s.videoId)
+    .map((s) => ({
+      videoId: s.videoId!,
+      title: s.title ?? "",
+      artist: s.artists?.[0] ?? artist.name ?? "",
+      thumbnail: s.thumbnails?.[0]?.url ?? "",
+      duration: 0,
+    }));
+
   return (
     <ScrollView style={{ flex: 1, backgroundColor: theme.colors.surface }} contentContainerStyle={{ paddingBottom: 120 }}>
       <View style={{ height: 320, justifyContent: "flex-end" }}>
@@ -85,7 +95,10 @@ export default function ArtistScreen() {
             <Pressable
               key={song.videoId ?? idx}
               style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 10 }}
-              onPress={() => song.videoId && playTrack(song.videoId, { artistBrowseId: browseId, title: song.title ?? undefined, artist: song.artists?.[0] ?? undefined, thumbnail: song.thumbnails?.[0]?.url })}
+              onPress={() => {
+                const startIdx = artistContextItems.findIndex((c) => c.videoId === song.videoId);
+                song.videoId && playTrack(song.videoId, { queueType: "artist", queueId: browseId, contextItems: artistContextItems, startIndex: startIdx >= 0 ? startIdx : 0, title: song.title ?? undefined, artist: song.artists?.[0] ?? undefined, thumbnail: song.thumbnails?.[0]?.url });
+              }}
             >
               <Text style={{ color: theme.colors.textTertiary, fontSize: 14, width: 24, textAlign: "right" }}>{idx + 1}</Text>
               {song.thumbnails?.[0]?.url && <Image source={{ uri: upscaleThumbnail(song.thumbnails[0].url) }} style={{ width: 44, height: 44, borderRadius: 6 }} />}

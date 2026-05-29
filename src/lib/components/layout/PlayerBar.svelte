@@ -130,6 +130,11 @@
         audioEl.currentTime = t;
         clearSeekTarget();
     });
+
+    $effect(() => {
+        if (!audioEl) return;
+        audioEl.volume = player.volume;
+    });
 </script>
 
 <footer class="shrink-0 flex flex-col items-center pb-2">

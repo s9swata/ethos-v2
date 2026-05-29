@@ -21,7 +21,7 @@ export default function LibraryScreen() {
   const createPlaylist = useLibraryStore((s) => s.createPlaylist);
   const deletePlaylist = useLibraryStore((s) => s.deletePlaylist);
   const playTrack = usePlayerStore((s) => s.playTrack);
-  const playHistory = usePlayerStore((s) => s.playHistory);
+  const history = usePlayerStore((s) => s.history);
   const [showNewPlaylist, setShowNewPlaylist] = useState(false);
   const [newName, setNewName] = useState("");
   const [loading, setLoading] = useState(true);
@@ -66,15 +66,15 @@ export default function LibraryScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: layout.px, paddingTop: 8, paddingBottom: 140, gap: 24 }}
       >
-        {playHistory.length > 0 && (
+        {history.length > 0 && (
           <View>
             <Text style={[typography.h3, { marginBottom: 8 }]}>Recently Played</Text>
             <View style={{ gap: 2 }}>
-              {playHistory.map((item) => (
+              {history.map((item) => (
                 <Pressable
-                  key={item.id}
+                  key={item.videoId}
                   style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 8 }}
-                  onPress={() => playTrack(item.id)}
+                  onPress={() => playTrack(item.videoId)}
                 >
                   <Image source={{ uri: upscaleThumbnail(item.thumbnail) }} style={{ width: 48, height: 48, borderRadius: 6 }} />
                   <View style={{ flex: 1 }}>

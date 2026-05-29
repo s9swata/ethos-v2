@@ -120,22 +120,30 @@ export interface PlaylistInfo {
   count: number;
 }
 
-export interface PlayHistoryItem {
-  id: string;
-  title: string;
-  artist: string;
-  thumbnail: string;
-}
-
 export type RepeatMode = "off" | "all" | "one";
 
+export interface QueueItem {
+  videoId: string;
+  title: string;
+  artist: string;
+  artistId?: string;
+  album?: string;
+  albumId?: string;
+  thumbnail: string;
+  duration: number;
+}
+
 export interface QueueContext {
-  artistBrowseId?: string;
-  albumBrowseId?: string;
   title?: string;
   artist?: string;
   thumbnail?: string;
   duration?: string;
+  artistBrowseId?: string;
+  albumBrowseId?: string;
+  queueType?: "album" | "artist" | "playlist" | "radio" | "single";
+  queueId?: string;
+  contextItems?: QueueItem[];
+  startIndex?: number;
 }
 
 export interface HomeItem {

@@ -7,7 +7,6 @@ export const queryKeys = {
   artist: (browseId: string) => ["artist", browseId] as const,
   album: (browseId: string) => ["album", browseId] as const,
   playlist: (id: string) => ["playlist", id] as const,
-  track: (id: string) => ["track", id] as const,
 };
 
 export function useHomeFeedQuery() {
@@ -38,20 +37,10 @@ export function useAlbumQuery(browseId: string | null) {
   });
 }
 
-export function useTrackQuery(trackId: string | null) {
-  return useQuery({
-    queryKey: queryKeys.track(trackId ?? ""),
-    queryFn: () => api.getTrack(trackId!),
-    enabled: !!trackId,
-    staleTime: 1000 * 60 * 60 * 2,
-    gcTime: 1000 * 60 * 60 * 2,
-  });
-}
-
 export function usePlaylistQuery(id: string | null, enabled: boolean) {
   return useQuery({
     queryKey: queryKeys.playlist(id ?? ""),
-    queryFn: () => api.getPlaylist(`https://music.youtube.com/playlist?list=${id}`),
+    queryFn: () => api.getPlaylistV2(id!),
     enabled: enabled && !!id,
   });
 }

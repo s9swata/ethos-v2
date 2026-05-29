@@ -70,22 +70,25 @@
     <div class="text-sm text-error font-medium">{error}</div>
   </div>
 {:else if artist}
-  <div class="page-enter">
-    <!-- Header with ambient background -->
-    <div class="relative overflow-hidden rounded-xl">
+    <div class="page-enter">
+    <!-- Header with artist image -->
+    <div class="relative h-[40vh] min-h-[280px]">
+      <div
+        class="absolute inset-0 overflow-hidden"
+        style="width: calc(100% + 264px); margin-left: -264px;"
+      >
       {#if heroThumb}
         <img
-          src={upscaleThumbnail(heroThumb, 400)}
+          src={upscaleThumbnail(heroThumb, 800)}
           alt=""
           aria-hidden="true"
-          class="absolute left-1/2 w-screen h-full object-cover blur-3xl opacity-25 pointer-events-none"
-          style="transform: translateX(-50%);"
+          class="absolute inset-0 w-full h-full object-cover pointer-events-none"
         />
       {/if}
-      <div class="absolute inset-0 pointer-events-none" style="background: linear-gradient(to top, var(--color-surface) 0%, transparent 100%);"></div>
+      <div class="absolute inset-0 pointer-events-none" style="background: linear-gradient(to top, var(--color-surface) 0%, rgba(0,0,0,0.5) 40%, rgba(0,0,0,0.3) 100%);"></div>
+      </div>
 
-      <div class="relative h-[40vh] min-h-[280px]">
-        <div class="absolute bottom-0 left-0 p-7">
+      <div class="absolute bottom-0 left-0 p-7">
           <span class="text-[10px] uppercase tracking-widest text-text-secondary/60 font-semibold mb-2 block">Artist</span>
           <h1 class="text-4xl font-bold tracking-tight leading-none mb-3">{artist.name}</h1>
           <div class="flex items-center gap-2 flex-wrap">
@@ -101,7 +104,6 @@
             {/if}
           </div>
         </div>
-      </div>
     </div>
 
     <div class="px-6 pb-8" style="background: var(--color-surface);">

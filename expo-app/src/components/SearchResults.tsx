@@ -45,7 +45,7 @@ export function SearchResults({ results, query }: Props) {
         case "playlist":
           queryClient.prefetchQuery({
             queryKey: queryKeys.playlist(result.id),
-            queryFn: () => api.getPlaylist(`https://music.youtube.com/playlist?list=${result.id}`),
+            queryFn: () => api.getPlaylistV2(result.id),
             staleTime: 1000 * 60 * 2,
           });
           break;

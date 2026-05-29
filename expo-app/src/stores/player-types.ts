@@ -1,15 +1,4 @@
-import type { TrackInfo, RepeatMode, PlayHistoryItem, QueueContext } from "@/types";
-
-export interface AutoQueueItem {
-  title: string | null;
-  videoId: string | null;
-  artists: string[];
-  thumbnail?: string | null;
-  isTopSong?: boolean;
-  albumBrowseId?: string | null;
-  albumIndex?: number | null;
-  duration?: string | null;
-}
+import type { TrackInfo, RepeatMode, QueueContext, QueueItem } from "@/types";
 
 export interface PlayerState {
   currentTrack: TrackInfo | null;
@@ -19,29 +8,21 @@ export interface PlayerState {
   volume: number;
   repeat: RepeatMode;
   isShuffled: boolean;
-  queue: TrackInfo[];
-  queueIndex: number;
-  autoQueue: AutoQueueItem[];
-  autoQueueIndex: number;
+  userQueue: QueueItem[];
+  contextQueue: QueueItem[];
+  watchPlaylistId: string | null;
+  context: { type: "album" | "artist" | "playlist" | "radio" | "single"; id?: string };
+  history: QueueItem[];
   currentArtistId: string | null;
   currentAlbumId: string | null;
   isLoading: boolean;
   error: string | null;
-  playHistory: PlayHistoryItem[];
   pendingSeekTo: number | null;
-  artistTrackPool: AutoQueueItem[];
-  pendingAlbumBrowseIds: string[];
-  playedVideoIds: string[];
-  relatedArtists: { browseId: string; artist: string }[];
-  relatedArtistIndex: number;
-  usedArtistIds: string[];
-  currentAutoQueueSource: string | null;
-  recentAlbumIds: string[];
 }
 
 export interface PlayerActions {
   playTrack: (trackId: string, context?: QueueContext) => Promise<void>;
-  setQueue: (tracks: TrackInfo[], startIndex: number) => void;
+  setQueue: (tracks: QueueItem[], startIndex: number, ctx?: { type: "album" | "artist" | "playlist" | "radio" | "single"; id?: string }) => void;
   playNext: () => Promise<void>;
   playPrev: () => Promise<void>;
   togglePlay: () => void;
@@ -51,8 +32,9 @@ export interface PlayerActions {
   setVolume: (volume: number) => void;
   setRepeat: (mode: RepeatMode) => void;
   toggleShuffle: () => void;
-  addToQueue: (trackId: string) => Promise<void>;
-  removeFromQueue: (index: number) => void;
+  addToQueue: (item: QueueItem) => void;
+  playNextInline: (item: QueueItem) => void;
+  removeFromQueue: (videoId: string) => void;
   clearQueue: () => void;
   restoreQueue: () => Promise<boolean>;
   getNextTrack: () => TrackInfo | null;
