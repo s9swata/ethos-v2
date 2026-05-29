@@ -46,7 +46,7 @@ export default function PlaylistDetailScreen() {
       getPlaylistTracks(playlistId).then((pt) => {
         setPlaylist({
           title: localPlaylist?.name ?? "Playlist",
-          thumbnail: "",
+          thumbnail: pt[0]?.thumbnail ?? "",
           tracks: pt.map((t) => ({
             id: t.track_id,
             title: t.title,
@@ -67,7 +67,7 @@ export default function PlaylistDetailScreen() {
     }
   }, [id, isLocalPlaylist]);
 
-  const artUrl = playlist?.thumbnail || "";
+  const artUrl = playlist?.thumbnail || tracks[0]?.thumbnail || "";
 
   if (loading) {
     return (

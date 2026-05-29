@@ -16,22 +16,23 @@
       },
       "bundleIdentifier": "com.s9swata.ethos"
     },
-    "android": {
-      "adaptiveIcon": {
-        "backgroundColor": "#000000",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
-      },
-      "permissions": [
-        "android.permission.RECORD_AUDIO",
-        "android.permission.MODIFY_AUDIO_SETTINGS",
-        "android.permission.FOREGROUND_SERVICE",
-        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
-      ],
-      "package": "com.s9swata.ethos",
-      "versionCode": 9
+  "android": {
+    "adaptiveIcon": {
+      "backgroundColor": "#000000",
+      "foregroundImage": "./assets/android-icon-foreground.png",
+      "backgroundImage": "./assets/android-icon-background.png",
+      "monochromeImage": "./assets/android-icon-monochrome.png"
     },
+    "permissions": [
+      "android.permission.RECORD_AUDIO",
+      "android.permission.MODIFY_AUDIO_SETTINGS",
+      "android.permission.FOREGROUND_SERVICE",
+      "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
+    ],
+    "package": "com.s9swata.ethos",
+    "versionCode": 9,
+    "usesCleartextTraffic": true
+  },
     "web": {
       "favicon": "./app-icons/favicon.png"
     },

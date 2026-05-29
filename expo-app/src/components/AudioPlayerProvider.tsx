@@ -93,12 +93,13 @@ export function AudioPlayerProvider() {
         prevTrackId.current = currentTrack.id;
 
         try {
+          const thumb = currentTrack.thumbnail ? upscaleThumbnail(currentTrack.thumbnail, 640) : undefined;
           await TrackPlayer.setMediaItem({
             mediaId:    currentTrack.id,
             url:        currentTrack.url,
             title:      currentTrack.title,
             artist:     currentTrack.artist,
-            artworkUrl: upscaleThumbnail(currentTrack.thumbnail || "", 640),
+            artworkUrl: thumb,
             duration:   currentTrack.duration,
           });
         } catch (err) {

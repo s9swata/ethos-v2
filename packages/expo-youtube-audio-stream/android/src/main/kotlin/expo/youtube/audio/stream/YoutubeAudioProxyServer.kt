@@ -30,7 +30,10 @@ internal class YoutubeAudioProxyServer {
   private val streamCache = ConcurrentHashMap<String, List<StreamEntry>>()
   private val tag = "YT-AudioStream"
 
-  internal val okClient = OkHttpClient.Builder()
+  internal var okClient = newOkHttpClient()
+    private set
+
+  private fun newOkHttpClient() = OkHttpClient.Builder()
     .connectTimeout(30, TimeUnit.SECONDS)
     .readTimeout(60, TimeUnit.SECONDS)
     .followRedirects(true)
@@ -48,6 +51,9 @@ internal class YoutubeAudioProxyServer {
     server?.stop()
     server = null
     streamCache.clear()
+    okClient.dispatcher.cancelAll()
+    okClient.connectionPool.evictAll()
+    okClient = newOkHttpClient()
   }
 
   fun getPort(): Int = server?.getListeningPort() ?: -1

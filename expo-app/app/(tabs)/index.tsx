@@ -119,7 +119,7 @@ export default function HomeScreen() {
     (item: HomeSection["items"][number]) => {
       try {
         if (item.type === "track") {
-          playTrack(item.id, { title: item.title, artist: item.subtitle });
+          playTrack(item.id, { title: item.title, artist: item.subtitle, thumbnail: item.imageUrl });
         } else if (item.type === "artist") {
           const id = item.browseId || item.id;
           if (id) router.push(`/artist/${id}`);

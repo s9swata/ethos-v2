@@ -438,13 +438,13 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 26,
     fontWeight: "700",
-    lineHeight: 34,
+    lineHeight: 44,
   },
   lyricInactive: {
     color: "rgba(255,255,255,0.9)",
     fontSize: 26,
     fontWeight: "700",
-    lineHeight: 34,
+    lineHeight: 44,
   },
 
   plainText: {

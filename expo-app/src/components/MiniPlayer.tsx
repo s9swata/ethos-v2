@@ -81,7 +81,17 @@ export function MiniPlayer() {
       shadowRadius: 16,
       elevation: 10,
     }}>
-      <View style={{ paddingHorizontal: 10, paddingBottom: insets.bottom > 0 ? insets.bottom : 8 }}>
+      <View style={{ paddingHorizontal: "5%", paddingBottom: insets.bottom > 0 ? insets.bottom : 8 }}>
+        <View style={{
+          borderRadius: 999,
+          borderCurve: "continuous",
+          backgroundColor: "#1c1c1e",
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 8 },
+          shadowOpacity: 0.4,
+          shadowRadius: 20,
+          elevation: 12,
+        }}>
         <Pressable
           onPress={() => router.push("/player")}
           style={{
@@ -130,10 +140,11 @@ export function MiniPlayer() {
           </View>
 
           {/* Thin progress bar at bottom of pill */}
-          <View style={{ height: 2, backgroundColor: "#2a2a2a" }}>
+          <View style={{ height: 3, backgroundColor: "#2a2a2a" }}>
             <View style={{ width: `${progress}%`, height: "100%", backgroundColor: theme.colors.accent }} />
           </View>
         </Pressable>
+        </View>
       </View>
     </View>
   );

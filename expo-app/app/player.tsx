@@ -108,17 +108,17 @@ export default function PlayerScreen() {
         }}
         blurRadius={80}
       />
-      <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.35)" }} />
+      <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.55)" }} />
 
       <View style={{ paddingTop: insets.top + 8, paddingHorizontal: 16, flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
         <Pressable onPress={() => router.back()} style={{ padding: 8 }}>
           <Icon name="chevron-down" size={20} color="#fff" />
         </Pressable>
-        <Text style={{ color: "#a1a1a1", fontSize: 14, fontWeight: "700", letterSpacing: 1.5 }}>
+        <Text style={{ color: "rgba(255,255,255,0.35)", fontSize: 14, fontWeight: "700", letterSpacing: 1.5 }}>
           NOW PLAYING
         </Text>
         <Pressable onPress={() => router.push("/queue")} style={{ padding: 8 }}>
-          <Icon name="queue-list" size={18} color="#a1a1a1" />
+          <Icon name="queue-list" size={18} color="rgba(255,255,255,0.35)" />
         </Pressable>
       </View>
 
@@ -145,7 +145,7 @@ export default function PlayerScreen() {
             onLayout={(e) => { seekBarWidth.current = e.nativeEvent.layout.width; }}
             {...scrubPanResponder.panHandlers}
           >
-            <View style={{ height: 4, backgroundColor: "rgba(255,255,255,0.15)", borderRadius: 2, overflow: "hidden" }}>
+            <View style={{ height: 4, backgroundColor: "rgba(255,255,255,0.35)", borderRadius: 2, overflow: "hidden" }}>
               <View
                 style={{
                   height: "100%",
@@ -199,7 +199,7 @@ export default function PlayerScreen() {
       <View style={{ paddingBottom: insets.bottom + 16, paddingHorizontal: 32, flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
         {hasLyrics && (
           <Pressable onPress={() => router.push("/lyrics")} style={{ padding: 8 }}>
-            <Icon name="music-note" size={18} color="#a1a1a1" />
+            <Icon name="music-note" size={18} color="rgba(255,255,255,0.35)" />
           </Pressable>
         )}
         {!hasLyrics && <View style={{ padding: 8, width: 34 }} />}

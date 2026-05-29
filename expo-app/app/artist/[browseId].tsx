@@ -16,6 +16,8 @@ export default function ArtistScreen() {
   const { data: artist, isLoading, error } = useArtistQuery(browseId ?? null);
   const playTrack = usePlayerStore((s) => s.playTrack);
   const toggleLike = useLibraryStore((s) => s.toggleLike);
+  const toggleLikeArtist = useLibraryStore((s) => s.toggleLikeArtist);
+  const isArtistLiked = useLibraryStore((s) => s.isArtistLiked);
   const isLiked = useLibraryStore((s) => s.isLiked);
 
   if (isLoading) {
@@ -85,6 +87,12 @@ export default function ArtistScreen() {
           {artist.subscribers && (
             <Text style={{ color: theme.colors.textSecondary, fontSize: 13, marginTop: 4 }}>{artist.subscribers} subscribers</Text>
           )}
+          <Pressable
+            style={{ marginTop: 12, backgroundColor: isArtistLiked(browseId ?? "") ? theme.colors.glass : theme.colors.accent, paddingHorizontal: 20, paddingVertical: 8, borderRadius: 99 }}
+            onPress={() => browseId && toggleLikeArtist({ id: browseId, name: artist.name, thumbnail: heroUrl })}
+          >
+            <Text style={{ color: "#fff", fontSize: 13, fontWeight: "600" }}>{isArtistLiked(browseId ?? "") ? "Following" : "Follow"}</Text>
+          </Pressable>
         </View>
       </View>
 
