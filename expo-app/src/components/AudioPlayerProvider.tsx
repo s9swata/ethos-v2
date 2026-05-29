@@ -142,9 +142,6 @@ export function AudioPlayerProvider() {
     const sub = TrackPlayer.addEventListener(Event.PlaybackStateChanged, (event: { state: PlaybackState }) => {
       if (event.state === PlaybackState.Ended) {
         if (isLoadingTrack.current) return;
-        const state = usePlayerStore.getState();
-        const duration = state.duration || state.currentTrack?.duration || 0;
-        if (duration > 0 && state.currentTime < Math.max(0, duration - 2)) return;
         if (repeat === "one") {
           TrackPlayer.seekTo(0);
           TrackPlayer.play();

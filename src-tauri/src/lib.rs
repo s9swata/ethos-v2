@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, watch};
 use serde::Serialize;
 use tauri::Manager;
 use yt_dlp::Downloader;
@@ -17,6 +17,7 @@ fn sanitize_id(id: &str) -> Result<(), String> {
 
 struct AppState {
     downloader: Arc<Mutex<Option<Downloader>>>,
+    ready: watch::Receiver<bool>,
 }
 
 #[derive(Serialize)]
@@ -55,6 +56,17 @@ struct PlaylistTrackResponse {
     artist: String,
     duration: f64,
     thumbnail: String,
+}
+
+#[tauri::command]
+async fn wait_for_downloader(
+    state: tauri::State<'_, AppState>,
+) -> Result<(), String> {
+    let mut rx = state.ready.clone();
+    while !*rx.borrow() {
+        rx.changed().await.map_err(|_| "Setup cancelled".to_string())?;
+    }
+    Ok(())
 }
 
 #[tauri::command]
@@ -155,12 +167,15 @@ async fn fetch_playlist(
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let (ready_tx, ready_rx) = watch::channel(false);
+
     tauri::Builder::default()
         .plugin(tauri_plugin_sql::Builder::default().build())
         .manage(AppState {
             downloader: Arc::new(Mutex::new(None)),
+            ready: ready_rx,
         })
-        .setup(|app| {
+        .setup(move |app| {
             let app_data = app.path().app_data_dir().expect("Failed to resolve app data dir");
             std::fs::create_dir_all(&app_data).ok();
 
@@ -171,9 +186,13 @@ pub fn run() {
 
             tauri::async_runtime::spawn(async move {
                 let builder = match Downloader::with_new_binaries(binaries_dir, downloads_dir).await {
-                    Ok(b) => b,
+                    Ok(b) => {
+                        eprintln!("[yt-dlp] binaries extracted, building downloader");
+                        b
+                    }
                     Err(e) => {
-                        eprintln!("[yt-dlp] failed to initialize binaries: {e}");
+                        eprintln!("[yt-dlp] failed to extract binaries: {e}");
+                        let _ = ready_tx.send(true);
                         return;
                     }
                 };
@@ -184,11 +203,16 @@ pub fn run() {
                     }
                     Err(e) => eprintln!("[yt-dlp] failed to build Downloader: {e}"),
                 }
+                let _ = ready_tx.send(true);
             });
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![fetch_track_info, fetch_playlist])
+        .invoke_handler(tauri::generate_handler![
+            fetch_track_info,
+            fetch_playlist,
+            wait_for_downloader
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

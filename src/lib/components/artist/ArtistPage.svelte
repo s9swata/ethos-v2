@@ -59,7 +59,7 @@
 {#if loading}
   <div class="p-6 space-y-0.5 page-enter">
     <!-- Hero skeleton -->
-    <div class="h-72 rounded-2xl skeleton mb-8"></div>
+    <div class="h-[50vh] min-h-[360px] rounded-2xl skeleton mb-8"></div>
     {#each { length: 6 } as _}
       <TrackSkeleton />
     {/each}
@@ -72,7 +72,7 @@
 {:else if artist}
     <div class="page-enter">
     <!-- Header with artist image -->
-    <div class="relative h-[40vh] min-h-[280px]">
+    <div class="relative h-[50vh] min-h-[360px]">
       <div
         class="absolute inset-0 overflow-hidden"
         style="width: calc(100% + 264px); margin-left: -264px;"
@@ -82,7 +82,7 @@
           src={upscaleThumbnail(heroThumb, 800)}
           alt=""
           aria-hidden="true"
-          class="absolute inset-0 w-full h-full object-cover pointer-events-none"
+          class="absolute inset-0 w-full h-full object-cover object-top pointer-events-none"
         />
       {/if}
       <div class="absolute inset-0 pointer-events-none" style="background: linear-gradient(to top, var(--color-surface) 0%, rgba(0,0,0,0.5) 40%, rgba(0,0,0,0.3) 100%);"></div>

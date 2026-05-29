@@ -9,3 +9,4 @@ Read the exact versioned docs at https://docs.expo.dev/versions/v56.0.0/ before 
 - `TrackPlayer.registerBackgroundEventHandler` is module-level and must be guarded with a `globalThis` flag because Fast Refresh can re-evaluate `_layout.tsx` and register `TrackPlayerServiceBridge` more than once.
 - Share one SQLite open promise for `ethos.db`; opening/preparing through separate helpers during startup can surface native `prepareAsync` null-pointer failures.
 - Do not call `playNext()` as a fallback when stream URL resolution fails. That turns transient extraction/load failures into unexpected automatic skips.
+- Auto-advance on track end uses `PlaybackState.Ended` from RNTP. Do NOT add a `currentTime < duration - 2` guard — `PlaybackState.Ended` is reliable on its own, and the polling-based `currentTime` can be stale, causing silent skipped advances.
