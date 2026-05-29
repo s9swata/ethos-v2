@@ -37,29 +37,42 @@ function publish(id: string, timed: TimedLyricLine[] | null, plain: string | nul
 }
 
 async function fetchServer(id: string) {
+  console.log(`[lyrics] fetchServer start id=${id}`);
   const data = await api.getLyrics(id);
+  console.log(`[lyrics] fetchServer raw:`, JSON.stringify(data).slice(0, 500));
   if (!data) return { timedLyrics: null, plainText: null };
   if (data.hasTimestamps && Array.isArray(data.lyrics)) {
     const timed = data.lyrics
       .filter((l: any) => l.text)
       .map((l: any) => ({ time: l.startTime / 1000, text: l.text }))
       .sort((a, b) => a.time - b.time);
+    console.log(`[lyrics] fetchServer parsed: ${timed.length} timed lines, first:`, timed.slice(0, 3));
     return { timedLyrics: timed, plainText: null };
   }
   if (typeof data.lyrics === "string") {
+    const preview = data.lyrics.slice(0, 200);
+    console.log(`[lyrics] fetchServer plain text, preview: "${preview}"`);
     return { timedLyrics: null, plainText: data.lyrics };
   }
+  console.log(`[lyrics] fetchServer empty`);
   return { timedLyrics: null, plainText: null };
 }
 
 async function fetchLRCLIB(artist: string, title: string, duration: number) {
+  console.log(`[lyrics] fetchLRCLIB start artist="${artist}" title="${title}" duration=${duration}`);
   const lrclibData = await requestLRCLIB(artist, title, duration);
   if (lrclibData?.syncedLyrics) {
-    return { timedLyrics: parseLRC(lrclibData.syncedLyrics), plainText: lrclibData.plainLyrics ?? null };
+    const lines = parseLRC(lrclibData.syncedLyrics);
+    console.log(`[lyrics] fetchLRCLIB synced: ${lines.length} lines, first:`, lines.slice(0, 3));
+    console.log(`[lyrics] fetchLRCLIB plainLyrics present: ${!!lrclibData.plainLyrics}`);
+    return { timedLyrics: lines, plainText: lrclibData.plainLyrics ?? null };
   }
   if (lrclibData?.plainLyrics) {
+    const preview = lrclibData.plainLyrics.slice(0, 200);
+    console.log(`[lyrics] fetchLRCLIB plain only, preview: "${preview}"`);
     return { timedLyrics: null, plainText: lrclibData.plainLyrics };
   }
+  console.log(`[lyrics] fetchLRCLIB no results`);
   return { timedLyrics: null, plainText: null };
 }
 
@@ -87,24 +100,34 @@ export async function fetch(
   lyrics.loading = true;
 
   try {
-    let serverResult: { timedLyrics: TimedLyricLine[] | null; plainText: string | null } | null = null;
+    let published = false;
     const lrclibPromise = fetchLRCLIB(artist, title, duration);
 
     try {
-      serverResult = await fetchServer(id);
+      const serverResult = await fetchServer(id);
+      const hasTimed = !!serverResult.timedLyrics;
+      const hasPlain = !!serverResult.plainText;
+      console.log(`[lyrics] publishing SERVER result: timed=${hasTimed} plain=${hasPlain}`);
       publish(id, serverResult.timedLyrics, serverResult.plainText);
-    } catch {}
+      published = true;
+    } catch (e) {
+      console.log(`[lyrics] fetchServer threw:`, e);
+    }
 
     const lrclibResult = await lrclibPromise;
-
-    if (lrclibResult.timedLyrics) {
-      publish(id, lrclibResult.timedLyrics, null);
-    } else if (lrclibResult.plainText && !serverResult?.timedLyrics && !serverResult?.plainText) {
-      publish(id, null, lrclibResult.plainText);
-    } else if (!serverResult) {
+    if (lrclibResult.timedLyrics || lrclibResult.plainText) {
+      const hasTimed = !!lrclibResult.timedLyrics;
+      console.log(`[lyrics] publishing LRCLIB result (overriding server): timed=${hasTimed}`);
+      publish(id, lrclibResult.timedLyrics, lrclibResult.plainText);
+      published = true;
+    } else if (!published) {
+      console.log(`[lyrics] no results from any source, publishing null`);
       publish(id, null, null);
+    } else {
+      console.log(`[lyrics] LRCLIB had no results, keeping server publish`);
     }
-  } catch {
+  } catch (e) {
+    console.log(`[lyrics] outer catch:`, e);
     publish(id, null, null);
   } finally {
     inflight.delete(id);

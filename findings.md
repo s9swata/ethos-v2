@@ -2,6 +2,12 @@
 
 Hard-won debugging discoveries and subtle gotchas that cost time to figure out.
 
+## LRCLIB `/api/get` duration mismatch
+
+`/api/get?artist_name=...&track_name=...&duration=...` requires exact match on all three params. yt-dlp's duration (what we pass) often differs from LRCLIB's recorded duration by 1-3 seconds, causing the exact match to miss. This silently falls through to `/api/search`, which may return a result without synced lyrics.
+
+**Fix:** Skip `/get` entirely and go straight to `/api/search`, or if using `/get` for speed, only accept the result if it has `syncedLyrics` — if it only has `plainLyrics`, fall through to `/search` which might find a different version with timestamps.
+
 ## Thumbnail key inconsistency in ytmusicapi
 
 ytmusicapi returns `"thumbnails"` (plural, `list[dict]`) on almost every endpoint (search, artist, album, playlist, home, charts).

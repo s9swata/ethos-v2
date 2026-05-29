@@ -105,7 +105,9 @@ async fn fetch_track_info(
     Ok(TrackInfoResponse {
         id: video.id,
         title: video.title,
-        artist: video.uploader.unwrap_or_default(),
+        artist: video.uploader
+            .map(|u| u.trim_end_matches("VEVO").trim_end_matches("- Topic").trim().to_string())
+            .unwrap_or_default(),
         duration: video.duration.unwrap_or(0) as f64,
         start_time: 0.0,
         end_time: 0.0,
@@ -157,7 +159,9 @@ async fn fetch_playlist(
             .map(|e| PlaylistTrackResponse {
                 id: e.id,
                 title: e.title,
-                artist: e.uploader.unwrap_or_default(),
+                artist: e.uploader
+                    .map(|u| u.trim_end_matches("VEVO").trim_end_matches("- Topic").trim().to_string())
+                    .unwrap_or_default(),
                 duration: e.duration.unwrap_or(0.0),
                 thumbnail: e.thumbnail.unwrap_or_default(),
             })
