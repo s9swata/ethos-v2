@@ -62,6 +62,14 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 **These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
 
+## 0. Always Commit Before Switching Branches
+
+**Before any `git checkout`, `git merge`, or branch switch, commit all changes in the current branch first.**
+
+Uncommitted changes get lost in stashes, conflict resolutions, and branch switches. Stashes are easy to forget, hard to find, and don't survive across tool contexts. Commits are permanent, reviewable, and referenceable.
+
+Rule: `git status` should be clean before any branch operation. If it's not, `git add -A && git commit -m "..."` first.
+
 ## 5. Persist Critical Findings
 
 **Write non-obvious, hard-won knowledge to `AGENTS.md` so future agents don't repeat mistakes.**
