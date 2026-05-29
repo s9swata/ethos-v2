@@ -10,8 +10,18 @@ const LRCLIB_TIMEOUT_MS = 8_000;
 
 function normalizeQuery(s: string): string {
   return s
+    .replace(/- topic$/gi, "")
     .replace(/\(official\s+(video|audio|lyrics?|music\s*video)\)/gi, "")
+    .replace(/\(official\)/gi, "")
+    .replace(/\(audio\)/gi, "")
+    .replace(/\(video\)/gi, "")
+    .replace(/\(lyric\s*video\)/gi, "")
+    .replace(/\(visualizer\)/gi, "")
     .replace(/\(.*?version\)/gi, "")
+    .replace(/\(remaster(ed)?.*?\)/gi, "")
+    .replace(/\(taylor.*version\)/gi, "")
+    .replace(/\(feat?\..*?\)/gi, "")
+    .replace(/\(ft\..*?\)/gi, "")
     .replace(/\[.*?\]/g, "")
     .replace(/\s+/g, " ")
     .trim();
@@ -24,19 +34,23 @@ export async function requestLRCLIB(
 ): Promise<LRCLIBResponse | null> {
   const ac = new AbortController();
   const timeout = setTimeout(() => ac.abort(), LRCLIB_TIMEOUT_MS);
-  const params = new URLSearchParams({
-    artist_name: artist,
-    track_name: title,
-    duration: String(Math.round(duration)),
-  });
+
   try {
-    let res = await fetch(`https://lrclib.net/api/get?${params}`, { signal: ac.signal });
-    if (res.ok) return res.json();
+    if (duration > 0) {
+      const params = new URLSearchParams({
+        artist_name: artist,
+        track_name: title,
+        duration: String(Math.round(duration)),
+      });
+      const res = await fetch(`https://lrclib.net/api/get?${params}`, { signal: ac.signal });
+      if (res.ok) return res.json();
+    }
 
     const query = `${normalizeQuery(artist)} ${normalizeQuery(title)}`;
-    const searchRes = await fetch(`https://lrclib.net/api/search?q=${encodeURIComponent(query)}`, {
-      signal: ac.signal,
-    });
+    const searchRes = await fetch(
+      `https://lrclib.net/api/search?q=${encodeURIComponent(query)}`,
+      { signal: ac.signal },
+    );
     if (!searchRes.ok) return null;
 
     const results = (await searchRes.json()) as any[];

@@ -12,14 +12,14 @@
     import { nav } from "$lib/stores/navigation.svelte";
 </script>
 
-<div class="h-full flex relative">
+<div class="h-full">
     <div
         data-tauri-drag-region
-        class="absolute top-0 left-0 right-0 h-9 z-50"
+        class="fixed top-0 left-0 right-0 h-9 z-50"
     ></div>
     <Sidebar />
 
-    <main class="flex-1 flex flex-col min-w-0 relative">
+    <main class="ml-[264px] h-full flex flex-col min-w-0 relative">
         <div class="flex-1 overflow-y-auto overflow-x-visible pb-28">
             {#key nav.currentPage}
                 {#if nav.currentPage === "home"}

@@ -7,12 +7,14 @@ import { useLibraryStore } from "@/stores/library-store";
 import { usePlayerStore } from "@/stores/player-store";
 import { api, upscaleThumbnail } from "@/api/client";
 import { formatDuration } from "@/utils/duration";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { theme, layout } from "@/theme";
 import type { PlaylistInfo } from "@/types";
 
 export default function PlaylistDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const playTrack = usePlayerStore((s) => s.playTrack);
   const toggleLike = useLibraryStore((s) => s.toggleLike);
   const isLiked = useLibraryStore((s) => s.isLiked);
@@ -22,6 +24,15 @@ export default function PlaylistDetailScreen() {
   const isLocalPlaylist = !isNaN(Number(id));
 
   const tracks = useMemo(() => playlist?.tracks ?? [], [playlist]);
+  const playlistContextItems = useMemo(() => tracks
+    .filter((t) => t.id)
+    .map((t) => ({
+      videoId: t.id ?? "",
+      title: t.title ?? "",
+      artist: t.artist ?? "",
+      thumbnail: t.thumbnail ?? "",
+      duration: t.duration ?? 0,
+    })), [tracks]);
 
   useEffect(() => {
     if (isLocalPlaylist && id) {
@@ -49,9 +60,8 @@ export default function PlaylistDetailScreen() {
         });
       }).finally(() => setLoading(false));
     } else if (id) {
-      const url = `https://music.youtube.com/playlist?list=${id}`;
       setLoading(true);
-      api.getPlaylist(url).then(setPlaylist).catch(() => {
+      api.getPlaylistV2(id).then(setPlaylist).catch(() => {
         setPlaylist({ title: "Playlist", thumbnail: "", tracks: [], count: 0 });
       }).finally(() => setLoading(false));
     }
@@ -69,7 +79,7 @@ export default function PlaylistDetailScreen() {
 
   const header = (
     <View style={{ marginBottom: layout.sectionGap }}>
-      <View style={{ alignItems: "center", paddingTop: 24, paddingBottom: 20, paddingHorizontal: layout.px }}>
+      <View style={{ alignItems: "center", paddingTop: insets.top + 40, paddingBottom: 20, paddingHorizontal: layout.px }}>
         {artUrl && (
           <View style={{ borderRadius: 16, overflow: "hidden", backgroundColor: theme.colors.surface3 }}>
             <Image source={{ uri: upscaleThumbnail(artUrl, 320) }} style={{ width: 208, height: 208 }} />
@@ -83,14 +93,14 @@ export default function PlaylistDetailScreen() {
           <View style={{ flexDirection: "row", gap: 12, marginTop: 16 }}>
              <Pressable
                style={{ backgroundColor: theme.colors.accent, paddingHorizontal: 36, paddingVertical: 12, borderRadius: 99, flexDirection: "row", alignItems: "center", gap: 8 }}
-               onPress={() => { const t = tracks[0]; playTrack(t.id ?? "", { title: t.title, artist: t.artist, thumbnail: t.thumbnail, duration: formatDuration(t.duration) }); }}
+                onPress={() => { const t = tracks[0]; playTrack(t.id ?? "", { queueType: "playlist", queueId: id, contextItems: playlistContextItems, startIndex: 0, title: t.title, artist: t.artist, thumbnail: t.thumbnail, duration: formatDuration(t.duration) }); }}
              >
                <Icon name="play" size={16} color="#fff" />
                <Text style={{ color: "#fff", fontSize: 13, fontWeight: "600" }}>Play</Text>
              </Pressable>
              <Pressable
                style={{ backgroundColor: theme.colors.glass, paddingHorizontal: 36, paddingVertical: 12, borderRadius: 99, flexDirection: "row", alignItems: "center", gap: 8 }}
-               onPress={() => { const randomIdx = Math.floor(Math.random() * tracks.length); const t = tracks[randomIdx]; playTrack(t.id ?? "", { title: t.title, artist: t.artist, thumbnail: t.thumbnail, duration: formatDuration(t.duration) }); }}
+                onPress={() => { const randomIdx = Math.floor(Math.random() * tracks.length); const t = tracks[randomIdx]; playTrack(t.id ?? "", { queueType: "playlist", queueId: id, contextItems: playlistContextItems, startIndex: randomIdx, title: t.title, artist: t.artist, thumbnail: t.thumbnail, duration: formatDuration(t.duration) }); }}
              >
               <Icon name="shuffle" size={16} color={theme.colors.textPrimary} />
               <Text style={{ color: theme.colors.textPrimary, fontSize: 13, fontWeight: "600" }}>Shuffle</Text>
@@ -129,7 +139,10 @@ export default function PlaylistDetailScreen() {
               <Pressable
                 key={track.id ?? idx}
                 style={{ flexDirection: "row", alignItems: "center", paddingVertical: 12, borderBottomWidth: 0.5, borderBottomColor: theme.colors.border }}
-                onPress={() => track.id && playTrack(track.id, { title: track.title, artist: track.artist, thumbnail: track.thumbnail, duration: formatDuration(track.duration) })}
+                onPress={() => {
+                  const startIdx = tracks.findIndex((t) => t.id === track.id);
+                  track.id && playTrack(track.id, { queueType: "playlist", queueId: id, contextItems: playlistContextItems, startIndex: startIdx >= 0 ? startIdx : 0, title: track.title, artist: track.artist, thumbnail: track.thumbnail, duration: formatDuration(track.duration) });
+                }}
               >
                 <Text style={{ color: theme.colors.textTertiary, fontSize: 13, width: 32 }}>{idx + 1}</Text>
                 <View style={{ flex: 1 }}>
@@ -141,7 +154,7 @@ export default function PlaylistDetailScreen() {
                     <Icon name={isLiked(track.id) ? "heart-filled" : "heart-outline"} size={15} color={isLiked(track.id) ? theme.colors.accent : theme.colors.textTertiary} />
                   </Pressable>
                 )}
-                <Text style={{ color: theme.colors.textTertiary, fontSize: 12, width: 48, textAlign: "right" }}>{String(track.duration)}</Text>
+                <Text style={{ color: theme.colors.textTertiary, fontSize: 12, width: 48, textAlign: "right" }}>{formatDuration(track.duration)}</Text>
               </Pressable>
             ))}
           </>

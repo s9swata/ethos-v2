@@ -1,4 +1,5 @@
-import { api, requestLRCLIB } from "@/api/client";
+import { api } from "@/api/client";
+import { requestLRCLIB } from "@/api/lyrics-client";
 import { parseLRC, type TimedLyricLine } from "./lrc";
 import { useLyricsStore } from "@/stores/lyrics-store";
 import { usePlayerStore } from "@/stores/player-store";

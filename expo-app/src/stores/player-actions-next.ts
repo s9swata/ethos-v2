@@ -1,8 +1,64 @@
+import type { TrackInfo, AudioFormat, QueueItem } from "@/types";
 import type { SetFn, GetFn } from "./player-types";
+import { getBestAudioStream } from "expo-youtube-audio-stream";
 import { api } from "@/api/client";
 import { recordPlay } from "@/utils/taste";
-import { formatDuration } from "@/utils/duration";
-import { shuffle, trackToHistoryEntry, addToPlayHistory, scoreRefillBatch } from "./player-utils";
+import { getTrackFromCache, setTrackCache } from "@/utils/track-cache";
+import { trackToHistoryEntry, addToPlayHistory } from "./player-utils";
+
+const REFILL_THRESHOLD = 3;
+
+export async function fetchTrack(item: QueueItem): Promise<TrackInfo> {
+  const cached = await getTrackFromCache(item.videoId);
+  if (cached) return cached;
+
+  try {
+    const stream = await getBestAudioStream(item.videoId, { preferredMimeType: "audio/mp4", minBitrate: 48000 });
+    if (stream?.url) {
+      const formats: AudioFormat[] = [{ url: stream.url, ext: stream.container, format: `${stream.container} ${Math.round(stream.bitrate / 1000)}k`, bitrate: stream.bitrate }];
+      const track: TrackInfo = {
+        id: item.videoId,
+        title: item.title,
+        artist: item.artist,
+        thumbnail: item.thumbnail,
+        duration: item.duration,
+        url: stream.url,
+        directUrl: stream.url,
+        webpageUrl: `https://www.youtube.com/watch?v=${item.videoId}`,
+        formats,
+      };
+      setTrackCache(item.videoId, track).catch(() => {});
+      return track;
+    }
+  } catch {}
+
+  throw new Error(`No stream available for ${item.videoId}`);
+}
+
+async function refillContextQueue(set: SetFn, get: GetFn): Promise<void> {
+  const state = get();
+  if (state.contextQueue.length >= REFILL_THRESHOLD) return;
+
+  try {
+    const result = await api.getWatchPlaylist(
+      state.currentTrack?.id ?? state.contextQueue[0]?.videoId ?? "",
+      state.watchPlaylistId ?? undefined,
+      25
+    );
+    const existingIds = new Set([
+      ...state.userQueue.map((i) => i.videoId),
+      ...state.contextQueue.map((i) => i.videoId),
+      ...state.history.map((i) => i.videoId),
+    ]);
+    const newTracks = (result.tracks || []).filter((t: QueueItem) => !existingIds.has(t.videoId));
+    if (newTracks.length > 0) {
+      set((s: any) => ({ contextQueue: [...s.contextQueue, ...newTracks] }));
+    }
+    set({ watchPlaylistId: result.playlistId || null });
+  } catch (e) {
+    console.warn("[playNext] refill failed:", e);
+  }
+}
 
 export async function playNextAction(set: SetFn, get: GetFn): Promise<void> {
   const state = get();
@@ -12,178 +68,65 @@ export async function playNextAction(set: SetFn, get: GetFn): Promise<void> {
     return;
   }
 
-  if (state.queueIndex + 1 < state.queue.length) {
-    const nextIndex = state.queueIndex + 1;
-    const track = state.queue[nextIndex];
-    set({ queueIndex: nextIndex });
-    if (track) {
-      if (!track.url) {
-        await get().playTrack(track.id, {
-          title: track.title,
-          artist: track.artist,
-          thumbnail: track.thumbnail,
-          duration: formatDuration(track.duration),
-        });
-        return;
-      }
-      const history = addToPlayHistory(get().playHistory, trackToHistoryEntry(track));
-      set({ currentTrack: track, isPlaying: true, currentTime: 0, duration: track.duration, playHistory: history, playedVideoIds: [...get().playedVideoIds, track.id] });
-      recordPlay(track.id).catch(() => {});
-    }
+  if (state.currentTrack) {
+    const entry = trackToHistoryEntry(state.currentTrack);
+    set((s: any) => ({ history: addToPlayHistory(s.history, entry) }));
+  }
+
+  let next: (typeof state.userQueue)[0] | undefined;
+
+  if (state.userQueue.length > 0) {
+    const shifted = [...state.userQueue];
+    next = shifted.shift();
+    set({ userQueue: shifted });
+  } else if (state.contextQueue.length > 0) {
+    const shifted = [...state.contextQueue];
+    next = shifted.shift();
+    set({ contextQueue: shifted });
+  } else {
+    set({ isPlaying: false, currentTrack: null });
     return;
   }
 
-  if (state.autoQueueIndex + 1 < state.autoQueue.length) {
-    const nextIndex = state.autoQueueIndex + 1;
-    const item = state.autoQueue[nextIndex];
-    if (item.videoId) {
-      await get().playTrack(item.videoId, {
-        title: item.title ?? undefined,
-        artist: item.artists?.join(", "),
-        thumbnail: item.thumbnail ?? undefined,
-        duration: item.duration ?? undefined,
-        albumBrowseId: item.albumBrowseId ?? undefined,
-      });
-    }
+  if (!next) {
+    set({ isPlaying: false, currentTrack: null });
     return;
   }
 
-  if (state.currentArtistId) {
-    set({ isLoading: true });
-
-    let batch = scoreRefillBatch(state.artistTrackPool, state.playedVideoIds, state.recentAlbumIds);
-
-    if (!batch && state.pendingAlbumBrowseIds.length > 0) {
-      const nextId = state.pendingAlbumBrowseIds[0];
-      set({ pendingAlbumBrowseIds: state.pendingAlbumBrowseIds.slice(1) });
-      try {
-        const album = await api.getAlbum(nextId);
-        const albumThumb = album.thumbnails?.[0]?.url;
-        const newTracks: import("./player-types").AutoQueueItem[] = album.tracks
-          .filter((t) => t.videoId)
-          .map((t) => ({
-            title: t.title,
-            videoId: t.videoId,
-            artists: t.artists,
-            thumbnail: albumThumb,
-            isTopSong: false,
-            albumBrowseId: nextId,
-            albumIndex: t.index ?? null,
-            duration: t.duration,
-          }));
-        set((s) => ({ artistTrackPool: [...s.artistTrackPool, ...newTracks] }));
-        batch = scoreRefillBatch(get().artistTrackPool, state.playedVideoIds, state.recentAlbumIds);
-      } catch {}
-    }
-
-    if (!batch) {
-      try {
-        const artist = await api.getArtist(state.currentArtistId);
-        const unplayed = artist.topSongs.filter(
-          (s) => s.videoId && !state.playedVideoIds.includes(s.videoId)
-        );
-        if (unplayed.length > 0) {
-          batch = shuffle(unplayed).slice(0, 10).map((s) => ({
-            title: s.title,
-            videoId: s.videoId,
-            artists: s.artists,
-            thumbnail: s.thumbnails?.[0]?.url,
-          }));
-        }
-      } catch {}
-    }
-
-    if (!batch && state.currentTrack?.id) {
-      try {
-        const related = await api.getTrackRelated(state.currentTrack.id);
-        if (related.results?.length > 0) {
-          const unplayed = related.results.filter(
-            (r) => r.videoId && !state.playedVideoIds.includes(r.videoId)
-          );
-          if (unplayed.length > 0) {
-            batch = shuffle(unplayed).slice(0, 10).map((r: any) => ({
-              title: r.title,
-              videoId: r.videoId,
-              artists: r.artists ?? [r.artist],
-              thumbnail: r.thumbnails?.[0]?.url ?? r.thumbnail,
-            }));
-          }
-        }
-      } catch {}
-    }
-
-    if (!batch && state.relatedArtists.length > 0) {
-      const next = state.relatedArtists.find(
-        (r) => !state.usedArtistIds.includes(r.browseId)
-      );
-      if (next) {
-        try {
-          const artist = await api.getArtist(next.browseId);
-          const topSongs = shuffle(artist.topSongs)
-            .filter((s) => s.videoId)
-            .slice(0, 10);
-          if (topSongs.length > 0) {
-            batch = topSongs.map((s) => ({
-              title: s.title,
-              videoId: s.videoId,
-              artists: s.artists,
-              thumbnail: s.thumbnails?.[0]?.url,
-            }));
-            set({
-              currentArtistId: next.browseId,
-              currentAutoQueueSource: next.artist,
-              relatedArtists: artist.related ?? [],
-              relatedArtistIndex: 0,
-              usedArtistIds: [...state.usedArtistIds, next.browseId],
-              artistTrackPool: [],
-              pendingAlbumBrowseIds: [
-                ...artist.albums.map((a) => a.browseId).filter((s): s is string => Boolean(s)),
-                ...artist.singles.map((s) => s.browseId).filter((s): s is string => Boolean(s)),
-              ],
-            });
-          }
-        } catch {}
-      }
-    }
-
-    if (batch && batch.length > 0) {
-      set({ autoQueue: batch, autoQueueIndex: 0 });
-      const first = batch[0];
-      if (first?.videoId) {
-        await get().playTrack(first.videoId, {
-          title: first.title ?? undefined,
-          artist: first.artists?.join(", "),
-          thumbnail: first.thumbnail ?? undefined,
-          duration: first.duration ?? undefined,
-          albumBrowseId: first.albumBrowseId ?? undefined,
-        });
-      } else {
-        set({ isLoading: false });
-      }
-      return;
-    }
-
-    set({ isLoading: false });
-  }
-
-  if (state.repeat === "all" && state.queue.length > 0) {
-    set({ queueIndex: 0 });
-    const track = state.queue[0];
-    if (track) {
-      if (!track.url) {
-        await get().playTrack(track.id, {
-          title: track.title,
-          artist: track.artist,
-          thumbnail: track.thumbnail,
-          duration: formatDuration(track.duration),
-        });
-        return;
-      }
-      const history = addToPlayHistory(get().playHistory, trackToHistoryEntry(track));
-      set({ currentTrack: track, isPlaying: true, currentTime: 0, playHistory: history, playedVideoIds: [...get().playedVideoIds, track.id] });
-    }
+  let info: TrackInfo;
+  try {
+    info = await fetchTrack(next);
+  } catch (e) {
+    console.warn("[playNext] fetch failed, skipping:", e);
+    const result = await get().playNext();
     return;
   }
 
-  set({ isPlaying: false });
+  set({
+    currentTrack: {
+      id: next.videoId,
+      title: info.title,
+      artist: info.artist,
+      thumbnail: info.thumbnail,
+      url: info.url,
+      duration: info.duration,
+      startTime: info.startTime,
+      endTime: info.endTime,
+      webpageUrl: info.webpageUrl,
+      directUrl: info.directUrl,
+      formats: info.formats,
+    },
+    currentTime: 0,
+    duration: 0,
+    isPlaying: true,
+  });
+
+  recordPlay(next.videoId).catch(() => {});
+
+  refillContextQueue(set, get);
+
+  const visible = [...get().userQueue, ...get().contextQueue];
+  for (let i = 0; i < Math.min(visible.length, 2); i++) {
+    fetchTrack(visible[i]).catch(() => {});
+  }
 }

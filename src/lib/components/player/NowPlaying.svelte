@@ -1,6 +1,6 @@
 <script lang="ts">
   import { fade, fly } from "svelte/transition";
-  import { Shuffle, SkipBack, SkipForward, Play, Pause, Repeat, ChevronDown, Music } from "lucide-svelte";
+  import { Shuffle, SkipBack, SkipForward, Play, Pause, Repeat, ChevronDown } from "lucide-svelte";
   import { nav } from "$lib/stores/navigation.svelte";
   import {
     player,
@@ -14,7 +14,7 @@
   import { lyrics, clearLyrics, fetch } from "$lib/stores/lyrics.svelte";
   import { upscaleThumbnail } from "$lib/utils";
   import { findActiveLine } from "$lib/utils/lrc";
-  import GlassSurface from "$lib/components/ui/GlassSurface.svelte";
+
   import ElasticSlider from "$lib/components/svelte-bits/ElasticSlider.svelte";
 
   let seeking = $state(false);
@@ -134,23 +134,12 @@
     <div class="flex flex-col items-center justify-center gap-5 min-w-0 flex-shrink-0" style="flex: 1 1 0%;">
       {#if trackThumb}
         <div class="w-full max-w-[300px] aspect-square" transition:fly={{ duration: 400, y: 30 }}>
-          <GlassSurface
-            width="100%"
-            height="100%"
-            borderRadius={20}
-            opacity={0}
-            brightness={100}
-            blur={0}
-            displace={0}
-            class="w-full h-full"
-          >
             <img
               src={trackThumb}
               alt={player.currentTrack?.title}
               class="w-full h-full object-cover"
               style="border-radius: 18px; box-shadow: 0 20px 60px rgba(0,0,0,0.6), 0 8px 24px rgba(0,0,0,0.4);"
             />
-          </GlassSurface>
         </div>
       {/if}
 
@@ -236,6 +225,7 @@
       </div>
     </div>
 
+    {#if displayMode !== "none"}
     <!-- Right: lyrics -->
     <div class="flex flex-col justify-center min-w-0 flex-1" style="flex: 1.4 1 0%;">
       {#if displayMode === "loading"}
@@ -255,6 +245,7 @@
           "
         >
           <div class="flex flex-col">
+            <div style="height: 35vh;"></div>
             {#each timedLines as line, i}
               {@const isActive = i === activeLine}
               {@const isPast = i < activeLine}
@@ -262,7 +253,7 @@
                 use:captureLine={i}
                 role="button"
                 tabindex="-1"
-                class="block cursor-pointer select-none py-1"
+                class="block cursor-pointer select-none overflow-hidden py-3"
                 onclick={() => seekTo(line.time)}
                 onkeydown={(e) => e.key === 'Enter' && seekTo(line.time)}
               >
@@ -271,16 +262,17 @@
                     display: block;
                     font-size: 22px;
                     font-weight: 700;
-                    line-height: 1.35;
+                    line-height: {isActive ? '2' : '1.35'};
                     word-break: break-word;
                     color: {isActive ? '#fff' : isPast ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.32)'};
-                    text-shadow: {isActive ? '0 0 40px rgba(255,255,255,0.35)' : 'none'};
-                    transform: {isActive ? 'scale(1.03)' : 'scale(1)'};
+                    text-shadow: {isActive ? '0 0 20px rgba(255,255,255,0.2)' : 'none'};
+                    transform: {isActive ? 'scale(1.15)' : 'scale(1)'};
                     transform-origin: left center;
                     will-change: transform, color;
                     transition:
                       color 0.45s cubic-bezier(0.4, 0, 0.2, 1),
                       transform 0.45s cubic-bezier(0.34, 1.4, 0.64, 1),
+                      line-height 0.45s cubic-bezier(0.4, 0, 0.2, 1),
                       text-shadow 0.45s ease;
                   "
                 >
@@ -296,13 +288,9 @@
             {lyrics.plainText}
           </p>
         </div>
-      {:else}
-        <div class="flex flex-col items-center justify-center h-full text-white/20 gap-3">
-          <Music size={40} />
-          <p class="text-sm">No lyrics available</p>
-        </div>
       {/if}
     </div>
+    {/if}
   </div>
 </div>
 

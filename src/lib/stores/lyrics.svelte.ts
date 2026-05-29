@@ -81,24 +81,27 @@ export async function fetch(
     return;
   }
 
+  console.log(`[lyrics] fetch id=${id} artist="${artist}" title="${title}" duration=${duration}`);
+
   inflight.add(id);
   lyrics.loading = true;
 
   try {
-    let published = false;
+    let serverResult: { timedLyrics: TimedLyricLine[] | null; plainText: string | null } | null = null;
     const lrclibPromise = fetchLRCLIB(artist, title, duration);
 
     try {
-      const serverResult = await fetchServer(id);
+      serverResult = await fetchServer(id);
       publish(id, serverResult.timedLyrics, serverResult.plainText);
-      published = true;
     } catch {}
 
     const lrclibResult = await lrclibPromise;
-    if (lrclibResult.timedLyrics || lrclibResult.plainText) {
-      publish(id, lrclibResult.timedLyrics, lrclibResult.plainText);
-      published = true;
-    } else if (!published) {
+
+    if (lrclibResult.timedLyrics) {
+      publish(id, lrclibResult.timedLyrics, null);
+    } else if (lrclibResult.plainText && !serverResult?.timedLyrics && !serverResult?.plainText) {
+      publish(id, null, lrclibResult.plainText);
+    } else if (!serverResult) {
       publish(id, null, null);
     }
   } catch {

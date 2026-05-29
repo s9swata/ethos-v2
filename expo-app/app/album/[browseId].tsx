@@ -9,6 +9,7 @@ import { useAlbumQuery } from "@/api/queries";
 import { usePlayerStore } from "@/stores/player-store";
 import { useLibraryStore } from "@/stores/library-store";
 import { SkeletonAlbumHeader, SkeletonTrackRow } from "@/components/Skeleton";
+import { parseDuration } from "@/utils/duration";
 import { theme, layout } from "@/theme";
 
 export default function AlbumScreen() {
@@ -42,10 +43,29 @@ export default function AlbumScreen() {
   const t = album.thumbnails;
   const artUrl = t?.[t.length - 1]?.url;
 
-   const handlePlayAll = () => {
-     const firstTrack = album.tracks.find((t) => t.videoId);
-     if (firstTrack?.videoId) playTrack(firstTrack.videoId, { albumBrowseId: browseId, title: firstTrack.title ?? undefined, artist: firstTrack.artists?.[0] ?? undefined, thumbnail: artUrl, duration: firstTrack.duration });
-   };
+  const albumContextItems = album.tracks
+    .filter((t) => t.videoId)
+    .map((t) => ({
+      videoId: t.videoId!,
+      title: t.title ?? "",
+      artist: t.artists?.join(", ") ?? "",
+      thumbnail: artUrl ?? "",
+      duration: parseDuration(t.duration),
+    }));
+
+  const handlePlayAll = () => {
+    const firstTrack = album.tracks.find((t) => t.videoId);
+    if (firstTrack?.videoId) playTrack(firstTrack.videoId, {
+      queueType: "album",
+      queueId: album.audioPlaylistId ?? browseId,
+      contextItems: albumContextItems,
+      startIndex: 0,
+      title: firstTrack.title ?? undefined,
+      artist: firstTrack.artists?.[0] ?? undefined,
+      thumbnail: artUrl,
+      duration: firstTrack.duration ?? undefined,
+    });
+  };
 
   const header = (
     <View style={{ marginBottom: layout.sectionGap }}>
@@ -93,7 +113,19 @@ export default function AlbumScreen() {
           <Pressable
             key={track.videoId ?? idx}
             style={{ flexDirection: "row", alignItems: "center", paddingVertical: 12, borderBottomWidth: 0.5, borderBottomColor: theme.colors.border }}
-             onPress={() => track.videoId && playTrack(track.videoId, { albumBrowseId: browseId, title: track.title ?? undefined, artist: track.artists?.[0] ?? undefined, thumbnail: artUrl, duration: track.duration })}
+             onPress={() => {
+               const idx = album.tracks.findIndex((t) => t.videoId === track.videoId);
+               track.videoId && playTrack(track.videoId, {
+                 queueType: "album",
+                 queueId: album.audioPlaylistId ?? browseId,
+                 contextItems: albumContextItems,
+                 startIndex: idx >= 0 ? idx : 0,
+                 title: track.title ?? undefined,
+                 artist: track.artists?.[0] ?? undefined,
+                 thumbnail: artUrl,
+                 duration: track.duration ?? undefined,
+               });
+             }}
           >
             <View style={{ flex: 1 }}>
               <Text style={{ color: theme.colors.textPrimary, fontSize: 14, fontWeight: "500" }} numberOfLines={1}>{track.title}</Text>

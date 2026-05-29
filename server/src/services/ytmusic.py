@@ -484,11 +484,12 @@ async def get_home_feed(profile: dict[str, Any] | None = None) -> list[dict[str,
             tracks = result.get("tracks", [])
             if not tracks:
                 continue
-            section_title = "Recommended for you"
-            sections.insert(0, {
-                "title": section_title,
-                "items": [_normalize_home_item(t) for t in tracks if isinstance(t, dict)],
-            })
+            items = [_normalize_home_item(t) for t in tracks if isinstance(t, dict)]
+            existing = next((s for s in sections if s["title"] == "Recommended for you"), None)
+            if existing:
+                existing["items"].extend(items)
+            else:
+                sections.insert(0, {"title": "Recommended for you", "items": items})
 
     _personalized_cache[key] = (now, sections)
     return sections

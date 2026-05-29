@@ -15,6 +15,7 @@ const TAB_BAR_HEIGHT = 56;
 function hasTabBar(pathname: string) {
   if (pathname === "/") return true;
   if (pathname.startsWith("/search")) return true;
+  if (pathname.startsWith("/charts")) return true;
   if (pathname.startsWith("/library")) return true;
   return false;
 }
