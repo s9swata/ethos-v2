@@ -14,6 +14,7 @@ _ytmusic: YTMusic | None = None
 
 _personalized_cache: dict[str, tuple[float, list[dict[str, Any]]]] = {}
 PERSONALIZED_CACHE_TTL = 60
+_PERSONALIZED_CACHE_MAXSIZE = 50
 
 
 def _best_thumb(thumbnails: list[dict[str, Any]] | None) -> str:
@@ -490,6 +491,12 @@ async def get_home_feed(profile: dict[str, Any] | None = None) -> list[dict[str,
                 existing["items"].extend(items)
             else:
                 sections.insert(0, {"title": "Recommended for you", "items": items})
+
+    if len(_personalized_cache) >= _PERSONALIZED_CACHE_MAXSIZE:
+        cutoff = now - PERSONALIZED_CACHE_TTL
+        stale = [k for k, (t, _) in _personalized_cache.items() if t < cutoff]
+        for k in stale:
+            del _personalized_cache[k]
 
     _personalized_cache[key] = (now, sections)
     return sections

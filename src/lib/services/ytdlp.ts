@@ -73,3 +73,5 @@ export async function getPlaylistInfo(playlistId: string): Promise<PlaylistResul
 
   return invoke<PlaylistResult>("fetch_playlist", { playlistId });
 }
+
+

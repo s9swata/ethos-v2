@@ -144,6 +144,8 @@ export const api = {
     return await getPlaylistInfo(playlistId);
   },
 
+
+
   searchArtists: async (q: string, limit = 5) => {
     const res = await fetch(`${serverUrl()}/api/search-v2?q=${encodeURIComponent(q)}&limit=${limit * 3}`);
     if (!res.ok) return { results: [] };
