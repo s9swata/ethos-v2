@@ -22,24 +22,16 @@ export function AudioPlayerProvider() {
   const setDuration    = usePlayerStore((s) => s.setDuration);
   const setPlaying     = usePlayerStore((s) => s.setPlaying);
   const playNext       = usePlayerStore((s) => s.playNext);
-  const playPrev       = usePlayerStore((s) => s.playPrev);
   const pendingSeekTo  = usePlayerStore((s) => s.pendingSeekTo);
 
   const prevTrackId         = useRef<string | null>(null);
   const isSyncingFromNative = useRef(false);
   const isLoadingTrack      = useRef(false);
+  const commandsSet         = useRef(false);
 
   useEffect(() => {
     seekToGlobal = (time: number) => { TrackPlayer.seekTo(time); };
     return () => { seekToGlobal = null; };
-  }, []);
-
-  useEffect(() => {
-    TrackPlayer.setCommands({
-      capabilities: [PlayerCommand.Previous, PlayerCommand.PlayPause, PlayerCommand.Next, PlayerCommand.Seek],
-      handling: "hybrid",
-      perCommandHandling: { [PlayerCommand.Next]: "js", [PlayerCommand.Previous]: "js" },
-    });
   }, []);
 
   useEffect(() => {
@@ -94,6 +86,16 @@ export function AudioPlayerProvider() {
 
         try {
           const thumb = currentTrack.thumbnail ? upscaleThumbnail(currentTrack.thumbnail, 640) : undefined;
+
+          if (!commandsSet.current) {
+            TrackPlayer.setCommands({
+              capabilities: [PlayerCommand.Previous, PlayerCommand.PlayPause, PlayerCommand.Next, PlayerCommand.Seek, PlayerCommand.Like],
+              handling: "hybrid",
+              perCommandHandling: { [PlayerCommand.Next]: "js", [PlayerCommand.Previous]: "js" },
+            });
+            commandsSet.current = true;
+          }
+
           await TrackPlayer.setMediaItem({
             mediaId:    currentTrack.id,
             url:        currentTrack.url,
@@ -128,7 +130,7 @@ export function AudioPlayerProvider() {
   useEffect(() => { TrackPlayer.setVolume(volume); }, [volume]);
 
   useEffect(() => {
-    TrackPlayer.setRepeatMode(repeat === "one" ? RepeatMode.One : RepeatMode.Off);
+    TrackPlayer.setRepeatMode(repeat === "one" ? RepeatMode.One : repeat === "all" ? RepeatMode.All : RepeatMode.Off);
   }, [repeat]);
 
   useEffect(() => {
@@ -152,18 +154,6 @@ export function AudioPlayerProvider() {
     });
     return () => sub.remove();
   }, [playNext, repeat]);
-
-  useEffect(() => {
-    const subs = [
-      TrackPlayer.addEventListener(Event.RemoteNext,     ()         => playNext()),
-      TrackPlayer.addEventListener(Event.RemotePrevious, ()         => playPrev()),
-      TrackPlayer.addEventListener(Event.RemotePlay,     ()         => TrackPlayer.play()),
-      TrackPlayer.addEventListener(Event.RemotePause,    ()         => TrackPlayer.pause()),
-      TrackPlayer.addEventListener(Event.RemoteStop,     ()         => TrackPlayer.stop()),
-      TrackPlayer.addEventListener(Event.RemoteSeek,     (event)    => TrackPlayer.seekTo(event.position)),
-    ];
-    return () => subs.forEach((s) => s.remove());
-  }, [playNext, playPrev]);
 
   return null;
 }

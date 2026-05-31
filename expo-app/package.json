@@ -21,6 +21,7 @@
     "expo-sqlite": "^56.0.4",
     "expo-status-bar": "~56.0.4",
     "expo-system-ui": "~56.0.5",
+    "expo-music-controls": "../packages/expo-music-controls",
     "expo-youtube-audio-stream": "../packages/expo-youtube-audio-stream",
     "fast-xml-parser": "^5.8.0",
     "react": "19.2.3",

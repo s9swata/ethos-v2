@@ -1,0 +1,46 @@
+import TrackPlayer, { Event } from "@rntp/player";
+import type { BackgroundEvent } from "@rntp/player";
+import { usePlayerStore } from "@/stores/player-store";
+import { setLikeState, emitLikePressed } from "expo-music-controls";
+
+const g = globalThis as typeof globalThis & {
+  __ethosServiceRegistered?: boolean;
+};
+
+if (!g.__ethosServiceRegistered) {
+  g.__ethosServiceRegistered = true;
+
+  TrackPlayer.registerBackgroundEventHandler(() => async (event: BackgroundEvent) => {
+    switch (event.type) {
+      case Event.RemotePlay:
+        TrackPlayer.play();
+        break;
+      case Event.RemotePause:
+        TrackPlayer.pause();
+        break;
+      case Event.RemoteStop:
+        TrackPlayer.stop();
+        break;
+      case Event.RemoteNext:
+        usePlayerStore.getState().playNext();
+        break;
+      case Event.RemotePrevious:
+        usePlayerStore.getState().playPrev();
+        break;
+      case Event.RemoteSeek:
+        TrackPlayer.seekTo(event.position);
+        break;
+      case Event.RemoteLike: {
+        const store = usePlayerStore.getState();
+        store.toggleLike();
+        const track = store.currentTrack;
+        if (track) {
+          const nextLiked = !store.likedTrackIds.has(track.id);
+          setLikeState(track.id, nextLiked);
+        }
+        emitLikePressed();
+        break;
+      }
+    }
+  });
+}

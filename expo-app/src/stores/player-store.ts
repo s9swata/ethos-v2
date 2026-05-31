@@ -3,6 +3,7 @@ import type { PlayerStore } from "./player-types";
 import { playTrackAction } from "./player-actions-playback";
 import { playNextAction } from "./player-actions-next";
 import { setQueueAction, playPrevAction, addToQueueAction, playNextInlineAction, removeFromQueueAction, restoreQueueAction, getNextTrackValue, getTasteProfileValue } from "./player-actions-queue";
+import { clearQueue as clearPersistedQueue } from "@/utils/queue-store";
 
 const initialPlayerState = {
   currentTrack: null,
@@ -22,7 +23,8 @@ const initialPlayerState = {
   isLoading: false,
   error: null,
   pendingSeekTo: null,
-} satisfies Omit<PlayerStore, "playTrack" | "setQueue" | "playNext" | "playPrev" | "togglePlay" | "setPlaying" | "setCurrentTime" | "setDuration" | "setVolume" | "setRepeat" | "toggleShuffle" | "addToQueue" | "playNextInline" | "removeFromQueue" | "clearQueue" | "restoreQueue" | "getNextTrack" | "getTasteProfile">;
+  likedTrackIds: new Set<string>(),
+} satisfies Omit<PlayerStore, "playTrack" | "setQueue" | "playNext" | "playPrev" | "togglePlay" | "setPlaying" | "setCurrentTime" | "setDuration" | "setVolume" | "setRepeat" | "toggleShuffle" | "addToQueue" | "playNextInline" | "removeFromQueue" | "clearQueue" | "restoreQueue" | "getNextTrack" | "getTasteProfile" | "dismissError" | "toggleLike">;
 
 export const usePlayerStore = create<PlayerStore>((set, get) => ({
   ...initialPlayerState,
@@ -42,9 +44,21 @@ export const usePlayerStore = create<PlayerStore>((set, get) => ({
   removeFromQueue: (videoId) => removeFromQueueAction(set, get, videoId),
   clearQueue: () => {
     set({ userQueue: [], contextQueue: [], watchPlaylistId: null, history: [], context: { type: "radio" } });
-    import("@/utils/queue-store").then((m) => m.clearQueue()).catch(() => {});
+    clearPersistedQueue().catch(() => {});
   },
   restoreQueue: () => restoreQueueAction(set),
   getNextTrack: () => getNextTrackValue(get),
   getTasteProfile: () => getTasteProfileValue(get),
+  dismissError: () => set({ error: null }),
+  toggleLike: () => {
+    const track = get().currentTrack;
+    if (!track) return;
+    const id = track.id;
+    set((s) => {
+      const next = new Set(s.likedTrackIds);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return { likedTrackIds: next };
+    });
+  },
 }));

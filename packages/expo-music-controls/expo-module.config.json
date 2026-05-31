@@ -1,0 +1,10 @@
+{
+  "platforms": ["android", "ios"],
+  "android": {
+    "modules": ["expo.music.controls.ExpoMusicControlsModule"]
+  },
+  "ios": {
+    "modules": ["ExpoMusicControlsModule"],
+    "podspecPath": "ios/ExpoMusicControls.podspec"
+  }
+}

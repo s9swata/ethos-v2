@@ -97,8 +97,8 @@ export async function playNextAction(set: SetFn, get: GetFn): Promise<void> {
   try {
     info = await fetchTrack(next);
   } catch (e) {
-    console.warn("[playNext] fetch failed, skipping:", e);
-    const result = await get().playNext();
+    console.warn("[playNext] fetch failed:", e);
+    set({ error: e instanceof Error ? e.message : "Failed to load track", currentTrack: null, isPlaying: false, isLoading: false });
     return;
   }
 

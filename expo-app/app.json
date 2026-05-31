@@ -63,7 +63,8 @@
       ],
       "expo-image",
       "expo-font",
-      "./plugins/withCleartextDebug"
+      "./plugins/withCleartextDebug",
+      "./plugins/withLikeNotification"
     ],
     "extra": {
       "router": {},

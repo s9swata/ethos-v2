@@ -18,6 +18,7 @@ export interface PlayerState {
   isLoading: boolean;
   error: string | null;
   pendingSeekTo: number | null;
+  likedTrackIds: Set<string>;
 }
 
 export interface PlayerActions {
@@ -39,6 +40,8 @@ export interface PlayerActions {
   restoreQueue: () => Promise<boolean>;
   getNextTrack: () => TrackInfo | null;
   getTasteProfile: () => string;
+  dismissError: () => void;
+  toggleLike: () => void;
 }
 
 export type PlayerStore = PlayerState & PlayerActions;

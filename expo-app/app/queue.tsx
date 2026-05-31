@@ -150,7 +150,7 @@ export default function QueueScreen() {
           </>
         ) : history.length > 0 ? (
           history.slice(0, 20).map((item) => (
-            <TrackRow key={`hist-${item.videoId}`} item={item} onPress={() => playTrack(item.videoId)} />
+            <TrackRow key={`hist-${item.videoId}`} item={item} onPress={() => playTrack(item.videoId, { title: item.title, artist: item.artist, thumbnail: item.thumbnail })} />
           ))
         ) : (
           <View style={{ alignItems: "center", paddingVertical: 60, gap: 12 }}>

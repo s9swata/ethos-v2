@@ -1,44 +1,10 @@
-import type { TrackInfo, QueueContext, AudioFormat } from "@/types";
+import type { QueueContext, QueueItem } from "@/types";
 import type { SetFn, GetFn } from "./player-types";
 import { api } from "@/api/client";
-import { getBestAudioStream } from "expo-youtube-audio-stream";
 import { parseDuration } from "@/utils/duration";
 import { fetchTrack } from "./player-actions-next";
 import { recordPlay } from "@/utils/taste";
 import { trackToHistoryEntry, addToPlayHistory } from "./player-utils";
-
-async function extractStream(trackId: string, context?: QueueContext): Promise<TrackInfo | null> {
-  if (!(context?.title && context?.artist)) return null;
-  try {
-    const stream = await getBestAudioStream(trackId, {
-      preferredMimeType: "audio/mp4",
-      minBitrate: 48000,
-    });
-    if (stream?.url) {
-      const durationNum = context.duration ? parseDuration(context.duration) : 0;
-      const formats: AudioFormat[] = [{
-        url: stream.url,
-        ext: stream.container,
-        format: `${stream.container} ${Math.round(stream.bitrate / 1000)}k`,
-        bitrate: stream.bitrate,
-      }];
-      return {
-        id: trackId,
-        title: context.title!,
-        artist: context.artist!,
-        duration: durationNum,
-        url: stream.url,
-        directUrl: stream.url,
-        thumbnail: context.thumbnail ?? "",
-        webpageUrl: `https://www.youtube.com/watch?v=${trackId}`,
-        formats,
-      };
-    }
-  } catch (e) {
-    console.warn("[playTrack] Local stream extraction failed:", e);
-  }
-  return null;
-}
 
 async function seedContextQueue(videoId: string, context?: QueueContext): Promise<{ contextQueue: any[]; watchPlaylistId: string | null }> {
   let contextQueue: any[] = [];
@@ -66,18 +32,21 @@ async function seedContextQueue(videoId: string, context?: QueueContext): Promis
 export async function playTrackAction(set: SetFn, get: GetFn, trackId: string, context?: QueueContext): Promise<void> {
   const state = get();
   if (state.currentTrack?.id === trackId) {
-    set({ isPlaying: true });
+    set({ isPlaying: true, error: null });
     return;
   }
   set({ isLoading: true, error: null });
 
   try {
-    let track = await extractStream(trackId, context);
+    const item: QueueItem = {
+      videoId: trackId,
+      title: context?.title ?? "Unknown track",
+      artist: context?.artist ?? "",
+      thumbnail: context?.thumbnail ?? "",
+      duration: context?.duration ? parseDuration(context.duration) : 0,
+    };
 
-    if (!track) {
-      set({ error: "No stream available", isLoading: false });
-      return;
-    }
+    const track = await fetchTrack(item);
 
     const { contextQueue, watchPlaylistId } = await seedContextQueue(trackId, context);
     const historyEntry = trackToHistoryEntry(track);
