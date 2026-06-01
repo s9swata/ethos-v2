@@ -63,38 +63,17 @@ function ResultRow({
       accessibilityLabel={`${TYPE_LABELS[item.type]}: ${item.name}`}
       accessibilityRole="button"
     >
-      <View style={{ position: "relative" }}>
-        <Image
-          source={{ uri: upscaleThumbnail(item.imageUrl) }}
-          style={{
-            width: isArtist ? 56 : 52,
-            height: isArtist ? 56 : 52,
-            borderRadius: isArtist ? radius.full : radius.md,
-            backgroundColor: theme.colors.surfaceElevated,
-          }}
-          contentFit="cover"
-          transition={300}
-        />
-        {/* Type indicator badge */}
-        {!isArtist && (
-          <View
-            style={{
-              position: "absolute",
-              top: -4,
-              left: -4,
-              backgroundColor: "rgba(0,0,0,0.75)",
-              borderRadius: radius.full,
-              paddingHorizontal: 6,
-              paddingVertical: 2,
-              ...theme.shadows.sm,
-            }}
-          >
-            <Text style={{ color: "#fff", fontSize: 9, fontWeight: "700" }}>
-              {TYPE_LABELS[item.type].charAt(0)}
-            </Text>
-          </View>
-        )}
-      </View>
+      <Image
+        source={{ uri: upscaleThumbnail(item.imageUrl) }}
+        style={{
+          width: isArtist ? 56 : 52,
+          height: isArtist ? 56 : 52,
+          borderRadius: isArtist ? radius.full : radius.md,
+          backgroundColor: theme.colors.surfaceElevated,
+        }}
+        contentFit="cover"
+        transition={300}
+      />
       
       <View style={{ flex: 1, gap: 3 }}>
         <Text style={{ color: theme.colors.textPrimary, fontSize: 15, fontWeight: "500", letterSpacing: -0.01 }} numberOfLines={1}>
