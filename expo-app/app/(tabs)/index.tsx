@@ -15,13 +15,6 @@ import type { HomeSection } from "@/types";
 
 const GREETINGS = ["Good morning", "Good afternoon", "Good evening"];
 
-const TYPE_COLORS: Record<string, string> = {
-  track: theme.colors.accent,
-  album: "#a78bfa",
-  artist: "#22d3ee",
-  playlist: "#fbbf24",
-};
-
 const TYPE_LABELS: Record<string, string> = {
   track: "Song",
   album: "Album",
@@ -117,7 +110,7 @@ function SectionRow({
                       position: "absolute", 
                       top: 8, 
                       left: 8, 
-                      backgroundColor: TYPE_COLORS[item.type],
+                      backgroundColor: "rgba(0,0,0,0.75)",
                       borderRadius: radius.full, 
                       paddingHorizontal: 8, 
                       paddingVertical: 3,

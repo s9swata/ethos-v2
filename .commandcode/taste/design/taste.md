@@ -6,3 +6,5 @@
 - Design should have playful animations. Confidence: 0.80
 - Use spacious, breathable layouts with immersive browsing experience. Confidence: 0.80
 - Allow text to overlay images. Confidence: 0.75
+- For Search page: Keep design simple and functional, avoid heavy styling changes. Confidence: 0.75
+- For song, playlist, and identifier badges: Use monochrome (black and white), avoid colored badges like red or yellow. Confidence: 0.80

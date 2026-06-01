@@ -17,13 +17,6 @@ interface Props {
   query: string;
 }
 
-const TYPE_COLORS: Record<string, string> = {
-  track: theme.colors.accent,
-  album: "#a78bfa",
-  artist: "#22d3ee",
-  playlist: "#fbbf24",
-};
-
 const TYPE_LABELS: Record<string, string> = {
   track: "Song",
   album: "Album",
@@ -89,7 +82,7 @@ function ResultRow({
               position: "absolute",
               top: -4,
               left: -4,
-              backgroundColor: TYPE_COLORS[item.type],
+              backgroundColor: "rgba(0,0,0,0.75)",
               borderRadius: radius.full,
               paddingHorizontal: 6,
               paddingVertical: 2,
@@ -119,10 +112,10 @@ function ResultRow({
             </Text>
           )}
           {item.type === "artist" && (
-            <Text style={{ color: TYPE_COLORS.artist, fontSize: 13, fontWeight: "500" }}>Artist</Text>
+            <Text style={{ color: theme.colors.textSecondary, fontSize: 13, fontWeight: "500" }}>Artist</Text>
           )}
           {item.type === "playlist" && (
-            <Text style={{ color: TYPE_COLORS.playlist, fontSize: 13, fontWeight: "500" }}>Playlist</Text>
+            <Text style={{ color: theme.colors.textSecondary, fontSize: 13, fontWeight: "500" }}>Playlist</Text>
           )}
         </View>
       </View>
@@ -276,46 +269,18 @@ export function SearchResults({ results, query }: Props) {
       keyboardShouldPersistTaps="handled"
       contentContainerStyle={{ paddingBottom: 140 }}
       ListHeaderComponent={
-        <View style={{ 
-          flexDirection: "row", 
-          alignItems: "center", 
-          justifyContent: "space-between",
+        <Text style={{ 
+          color: theme.colors.textTertiary, 
+          fontSize: 11, 
+          fontWeight: "600", 
+          letterSpacing: 0.5, 
+          textTransform: "uppercase",
           paddingHorizontal: 16, 
           paddingTop: 8, 
           paddingBottom: 8 
         }}>
-          <Text style={{ 
-            color: theme.colors.textTertiary, 
-            fontSize: 11, 
-            fontWeight: "600", 
-            letterSpacing: 0.5, 
-            textTransform: "uppercase" 
-          }}>
-            {results.length} result{results.length !== 1 ? "s" : ""}
-          </Text>
-          <View style={{ flexDirection: "row", gap: 8 }}>
-            {["Song", "Album", "Artist", "Playlist"].map((type) => (
-              <View 
-                key={type}
-                style={{ 
-                  flexDirection: "row", 
-                  alignItems: "center", 
-                  gap: 4 
-                }}
-              >
-                <View style={{
-                  width: 6,
-                  height: 6,
-                  borderRadius: 3,
-                  backgroundColor: TYPE_COLORS[type.toLowerCase()],
-                }} />
-                <Text style={{ color: theme.colors.textTertiary, fontSize: 10 }}>
-                  {type}
-                </Text>
-              </View>
-            ))}
-          </View>
-        </View>
+          {results.length} result{results.length !== 1 ? "s" : ""}
+        </Text>
       }
     />
   );
