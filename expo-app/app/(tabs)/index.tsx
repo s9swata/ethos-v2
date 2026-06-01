@@ -1,6 +1,6 @@
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 import { useRouter } from "expo-router";
-import { View, Text, Pressable, ScrollView } from "react-native";
+import { View, Text, Pressable, ScrollView, Animated } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQueryClient } from "@tanstack/react-query";
 import { Image } from "expo-image";
@@ -9,10 +9,25 @@ import { SkeletonCard } from "@/components/Skeleton";
 import { api, upscaleThumbnail } from "@/api/client";
 import { queryKeys, useHomeFeedQuery } from "@/api/queries";
 import { usePlayerStore } from "@/stores/player-store";
-import { theme, layout, typography } from "@/theme";
+import { theme, layout, typography, radius } from "@/theme";
+import { haptics } from "@/utils/animations";
 import type { HomeSection } from "@/types";
 
 const GREETINGS = ["Good morning", "Good afternoon", "Good evening"];
+
+const TYPE_COLORS: Record<string, string> = {
+  track: theme.colors.accent,
+  album: "#a78bfa",
+  artist: "#22d3ee",
+  playlist: "#fbbf24",
+};
+
+const TYPE_LABELS: Record<string, string> = {
+  track: "Song",
+  album: "Album",
+  artist: "Artist",
+  playlist: "Playlist",
+};
 
 function greeting(): string {
   const h = new Date().getHours();
@@ -21,54 +36,119 @@ function greeting(): string {
   return GREETINGS[2];
 }
 
-function SectionRow({ section, onItemPress, onItemPressIn }: { section: HomeSection; onItemPress: (item: HomeSection["items"][number]) => void; onItemPressIn?: (item: HomeSection["items"][number]) => void }) {
+function SectionRow({ 
+  section, 
+  onItemPress, 
+  onItemPressIn 
+}: { 
+  section: HomeSection; 
+  onItemPress: (item: HomeSection["items"][number]) => void; 
+  onItemPressIn?: (item: HomeSection["items"][number]) => void;
+}) {
   return (
-    <View style={{ marginBottom: layout.sectionGap }}>
-      <Text style={[typography.h3, { paddingHorizontal: layout.px, marginBottom: 12 }]}>{section.title}</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: layout.px, gap: 12 }}>
+    <View style={{ marginBottom: layout.space[8] }}>
+      <Text style={{ 
+        color: theme.colors.textPrimary, 
+        fontSize: 20, 
+        fontWeight: "700", 
+        letterSpacing: -0.3,
+        paddingHorizontal: layout.px, 
+        marginBottom: layout.space[4] 
+      }}>
+        {section.title}
+      </Text>
+      <ScrollView 
+        horizontal 
+        showsHorizontalScrollIndicator={false} 
+        contentContainerStyle={{ paddingHorizontal: layout.px, gap: layout.space[3] }}
+        decelerationRate="fast"
+        snapToInterval={162}
+      >
         {section.items.filter((item) => item.type !== "mood").map((item, i) => {
           const isArtist = item.type === "artist";
+          const cardWidth = isArtist ? 140 : 160;
+          const imageSize = isArtist ? 140 : 160;
+          
           return (
             <Pressable
               key={`${item.id}-${i}`}
-              style={{ width: isArtist ? 120 : 150 }}
+              style={({ pressed }) => ({
+                width: cardWidth,
+                opacity: pressed ? 0.8 : 1,
+                transform: [{ scale: pressed ? 0.98 : 1 }],
+              })}
               onPressIn={() => onItemPressIn?.(item)}
               onPress={() => onItemPress(item)}
+              accessibilityLabel={`${TYPE_LABELS[item.type]}: ${item.title}`}
+              accessibilityRole="button"
             >
-              {item.imageUrl ? (
-                <View>
+              <View style={{ position: "relative" }}>
+                {item.imageUrl ? (
                   <Image
-                    source={{ uri: upscaleThumbnail(item.imageUrl, isArtist ? 160 : 240) }}
+                    source={{ uri: upscaleThumbnail(item.imageUrl, isArtist ? 280 : 320) }}
                     style={{
-                      width: isArtist ? 120 : 150,
-                      height: isArtist ? 120 : 150,
-                      borderRadius: isArtist ? 60 : 12,
-                      backgroundColor: theme.colors.surface3,
+                      width: imageSize,
+                      height: imageSize,
+                      borderRadius: isArtist ? radius.full : radius.md,
+                      backgroundColor: theme.colors.surfaceElevated,
+                      ...theme.shadows.sm,
                     }}
+                    contentFit="cover"
+                    transition={300}
                   />
-                  {!isArtist && (
-                    <View style={{ position: "absolute", top: 4, left: 4, backgroundColor: "rgba(0,0,0,0.65)", borderRadius: 4, paddingHorizontal: 5, paddingVertical: 2 }}>
-                      <Text style={{ color: "#fff", fontSize: 9, fontWeight: "600" }}>
-                        {item.type === "album" ? "Album" : item.type === "playlist" ? "Playlist" : "Song"}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-              ) : (
-                <View style={{
-                  width: isArtist ? 120 : 150,
-                  height: isArtist ? 120 : 150,
-                  borderRadius: isArtist ? 60 : 12,
-                  backgroundColor: theme.colors.surface3,
-                  justifyContent: "center",
-                  alignItems: "center",
-                }}>
-                  <Icon name="music-note" size={24} color={theme.colors.textTertiary} />
-                </View>
-              )}
-              <Text style={{ color: theme.colors.textPrimary, fontSize: 13, fontWeight: "500", marginTop: 8 }} numberOfLines={1}>{item.title}</Text>
+                ) : (
+                  <View style={{
+                    width: imageSize,
+                    height: imageSize,
+                    borderRadius: isArtist ? radius.full : radius.md,
+                    backgroundColor: theme.colors.surfaceElevated,
+                    justifyContent: "center",
+                    alignItems: "center",
+                    ...theme.shadows.sm,
+                  }}>
+                    <Icon name="music-note" size={32} color={theme.colors.textTertiary} />
+                  </View>
+                )}
+                
+                {/* Type badge */}
+                {!isArtist && (
+                  <View 
+                    style={{ 
+                      position: "absolute", 
+                      top: 8, 
+                      left: 8, 
+                      backgroundColor: TYPE_COLORS[item.type],
+                      borderRadius: radius.full, 
+                      paddingHorizontal: 8, 
+                      paddingVertical: 3,
+                      ...theme.shadows.sm,
+                    }}
+                  >
+                    <Text style={{ color: "#fff", fontSize: 10, fontWeight: "700" }}>
+                      {TYPE_LABELS[item.type]}
+                    </Text>
+                  </View>
+                )}
+              </View>
+              
+              <Text style={{ 
+                color: theme.colors.textPrimary, 
+                fontSize: 14, 
+                fontWeight: "500", 
+                marginTop: layout.space[3],
+                letterSpacing: -0.01,
+              }} numberOfLines={1}>
+                {item.title}
+              </Text>
+              
               {item.subtitle ? (
-                <Text style={{ color: theme.colors.textSecondary, fontSize: 11, marginTop: 2 }} numberOfLines={1}>{item.subtitle}</Text>
+                <Text style={{ 
+                  color: theme.colors.textSecondary, 
+                  fontSize: 12, 
+                  marginTop: 2 
+                }} numberOfLines={1}>
+                  {item.subtitle}
+                </Text>
               ) : null}
             </Pressable>
           );
@@ -109,7 +189,6 @@ export default function HomeScreen() {
           queryFn: () => api.getPlaylistV2(id),
           staleTime: 1000 * 60 * 2,
         });
-      } else if (item.type === "track") {
       }
     },
     [queryClient]
@@ -117,6 +196,7 @@ export default function HomeScreen() {
 
   const handleItemPress = useCallback(
     (item: HomeSection["items"][number]) => {
+      haptics.light();
       try {
         if (item.type === "track") {
           playTrack(item.id, { title: item.title, artist: item.subtitle, thumbnail: item.imageUrl });
@@ -139,24 +219,41 @@ export default function HomeScreen() {
     <View style={{ flex: 1, backgroundColor: theme.colors.surface }}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 140 }}
+        contentContainerStyle={{ paddingBottom: 160 }}
       >
         <View
           style={{
-            paddingTop: insets.top + 40,
-            paddingBottom: 24,
+            paddingTop: insets.top + layout.space[10],
+            paddingBottom: layout.space[6],
             paddingHorizontal: layout.px,
           }}
         >
-          <Text style={[typography.h1, { fontSize: 34, letterSpacing: -1 }]}>{greeting()}</Text>
+          <Text style={{ 
+            color: theme.colors.textPrimary,
+            fontSize: 32,
+            fontWeight: "700",
+            letterSpacing: -0.02,
+          }}>
+            {greeting()}
+          </Text>
         </View>
 
         {isLoading ? (
-          <View style={{ gap: layout.sectionGap }}>
+          <View style={{ gap: layout.space[8] }}>
             {Array.from({ length: 4 }).map((_, i) => (
               <View key={i} style={{ paddingHorizontal: layout.px }}>
-                <View style={{ height: 18, width: "40%", backgroundColor: theme.colors.surface3, borderRadius: 4, marginBottom: 12 }} />
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12 }}>
+                <View style={{ 
+                  height: 20, 
+                  width: "40%", 
+                  backgroundColor: theme.colors.surfaceElevated, 
+                  borderRadius: radius.sm, 
+                  marginBottom: layout.space[4] 
+                }} />
+                <ScrollView 
+                  horizontal 
+                  showsHorizontalScrollIndicator={false} 
+                  contentContainerStyle={{ gap: layout.space[3] }}
+                >
                   {Array.from({ length: 4 }).map((_, j) => (
                     <SkeletonCard key={j} />
                   ))}
@@ -165,14 +262,40 @@ export default function HomeScreen() {
             ))}
           </View>
         ) : error ? (
-          <View style={{ justifyContent: "center", alignItems: "center", paddingHorizontal: 32, gap: 16, paddingVertical: 60 }}>
-            <Icon name="x-circle" size={36} color={theme.colors.textTertiary} />
-            <Text style={{ color: theme.colors.textSecondary, fontSize: 14, textAlign: "center" }}>{error.message}</Text>
+          <View style={{ 
+            justifyContent: "center", 
+            alignItems: "center", 
+            paddingHorizontal: 32, 
+            gap: 16, 
+            paddingVertical: 80 
+          }}>
+            <View style={{
+              width: 72,
+              height: 72,
+              borderRadius: radius.xl,
+              backgroundColor: theme.colors.surfaceElevated,
+              justifyContent: "center",
+              alignItems: "center",
+            }}>
+              <Icon name="x-circle" size={32} color={theme.colors.textTertiary} />
+            </View>
+            <Text style={{ 
+              color: theme.colors.textSecondary, 
+              fontSize: 15, 
+              textAlign: "center" 
+            }}>
+              {error.message}
+            </Text>
           </View>
         ) : (
-          <View style={{ gap: layout.sectionGap }}>
+          <View style={{ gap: layout.space[6] }}>
             {sections.map((section, i) => (
-              <SectionRow key={`${section.title}-${i}`} section={section} onItemPress={handleItemPress} onItemPressIn={handleItemPressIn} />
+              <SectionRow 
+                key={`${section.title}-${i}`} 
+                section={section} 
+                onItemPress={handleItemPress} 
+                onItemPressIn={handleItemPressIn} 
+              />
             ))}
           </View>
         )}

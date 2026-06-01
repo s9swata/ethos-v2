@@ -1,6 +1,6 @@
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 import { useRouter } from "expo-router";
-import { FlatList, View, Text, Pressable } from "react-native";
+import { FlatList, View, Text, Pressable, Animated } from "react-native";
 import { useQueryClient } from "@tanstack/react-query";
 import { Icon } from "@/components/icons";
 import { Image } from "expo-image";
@@ -8,15 +8,148 @@ import { usePlayerStore } from "@/stores/player-store";
 import { useLibraryStore } from "@/stores/library-store";
 import { api, upscaleThumbnail } from "@/api/client";
 import { queryKeys } from "@/api/queries";
+import { theme, radius, typography } from "@/theme";
+import { haptics, animateHeart as triggerHeartAnimation } from "@/utils/animations";
 import type { SearchResult } from "@/types";
-import { theme } from "@/theme";
 
 interface Props {
   results: SearchResult[];
   query: string;
 }
 
-const MAX_SONG_SUBTITLE = 2;
+const TYPE_COLORS: Record<string, string> = {
+  track: theme.colors.accent,
+  album: "#a78bfa",
+  artist: "#22d3ee",
+  playlist: "#fbbf24",
+};
+
+const TYPE_LABELS: Record<string, string> = {
+  track: "Song",
+  album: "Album",
+  artist: "Artist",
+  playlist: "Playlist",
+};
+
+function ResultRow({ 
+  item, 
+  onPressIn, 
+  onPress, 
+  onLike, 
+  isLiked 
+}: { 
+  item: SearchResult; 
+  onPressIn: (item: SearchResult) => void;
+  onPress: (item: SearchResult) => void;
+  onLike?: () => void;
+  isLiked?: boolean;
+}) {
+  const heartScale = useRef(new Animated.Value(1)).current;
+  const isArtist = item.type === "artist";
+  const isTrack = item.type === "track";
+  
+  const handleLike = () => {
+    if (!onLike) return;
+    haptics.medium();
+    triggerHeartAnimation(heartScale);
+    onLike();
+  };
+
+  return (
+    <Pressable
+      style={({ pressed }) => ({
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 12,
+        paddingVertical: 10,
+        paddingHorizontal: 16,
+        backgroundColor: pressed ? theme.colors.surfaceElevated : "transparent",
+      })}
+      onPressIn={() => onPressIn(item)}
+      onPress={() => onPress(item)}
+      accessibilityLabel={`${TYPE_LABELS[item.type]}: ${item.name}`}
+      accessibilityRole="button"
+    >
+      <View style={{ position: "relative" }}>
+        <Image
+          source={{ uri: upscaleThumbnail(item.imageUrl) }}
+          style={{
+            width: isArtist ? 56 : 52,
+            height: isArtist ? 56 : 52,
+            borderRadius: isArtist ? radius.full : radius.md,
+            backgroundColor: theme.colors.surfaceElevated,
+          }}
+          contentFit="cover"
+          transition={300}
+        />
+        {/* Type indicator badge */}
+        {!isArtist && (
+          <View
+            style={{
+              position: "absolute",
+              top: -4,
+              left: -4,
+              backgroundColor: TYPE_COLORS[item.type],
+              borderRadius: radius.full,
+              paddingHorizontal: 6,
+              paddingVertical: 2,
+              ...theme.shadows.sm,
+            }}
+          >
+            <Text style={{ color: "#fff", fontSize: 9, fontWeight: "700" }}>
+              {TYPE_LABELS[item.type].charAt(0)}
+            </Text>
+          </View>
+        )}
+      </View>
+      
+      <View style={{ flex: 1, gap: 3 }}>
+        <Text style={{ color: theme.colors.textPrimary, fontSize: 15, fontWeight: "500", letterSpacing: -0.01 }} numberOfLines={1}>
+          {item.name}
+        </Text>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+          {item.type === "track" && item.artists && item.artists.length > 0 && (
+            <Text style={{ color: theme.colors.textSecondary, fontSize: 13 }} numberOfLines={1}>
+              {item.artists.join(", ")}
+            </Text>
+          )}
+          {item.type === "album" && (
+            <Text style={{ color: theme.colors.textSecondary, fontSize: 13 }} numberOfLines={1}>
+              {item.year ? `${item.year} • ` : ""}Album
+            </Text>
+          )}
+          {item.type === "artist" && (
+            <Text style={{ color: TYPE_COLORS.artist, fontSize: 13, fontWeight: "500" }}>Artist</Text>
+          )}
+          {item.type === "playlist" && (
+            <Text style={{ color: TYPE_COLORS.playlist, fontSize: 13, fontWeight: "500" }}>Playlist</Text>
+          )}
+        </View>
+      </View>
+      
+      {isTrack ? (
+        <Pressable 
+          style={{ padding: 10 }} 
+          onPress={handleLike}
+          hitSlop={12}
+          accessibilityLabel={isLiked ? "Unlike song" : "Like song"}
+          accessibilityRole="button"
+          accessibilityState={{ selected: isLiked }}
+        >
+          <Animated.View style={{ transform: [{ scale: heartScale }] }}>
+            <Icon 
+              name={isLiked ? "heart-filled" : "heart-outline"} 
+              size={18} 
+              color={isLiked ? theme.colors.accent : theme.colors.textTertiary} 
+            />
+          </Animated.View>
+        </Pressable>
+      ) : (
+        <Icon name="chevron-right" size={16} color={theme.colors.textTertiary} />
+      )}
+    </Pressable>
+  );
+}
 
 export function SearchResults({ results, query }: Props) {
   const router = useRouter();
@@ -58,19 +191,19 @@ export function SearchResults({ results, query }: Props) {
 
   const handlePress = useCallback(
     (result: SearchResult) => {
-      console.log(`[SearchResults] pressed ${result.type}: "${result.name}" (${result.id})`);
+      haptics.light();
       switch (result.type) {
-         case "track":
-            if (!result.id) return;
-            playTrack(result.id, {
-             artistBrowseId: result.artistId,
-             albumBrowseId: result.albumId ?? undefined,
-             title: result.name,
-             artist: result.artists?.[0] ?? "",
-             thumbnail: result.imageUrl,
-             duration: result.duration,
-           });
-           break;
+        case "track":
+          if (!result.id) return;
+          playTrack(result.id, {
+            artistBrowseId: result.artistId,
+            albumBrowseId: result.albumId ?? undefined,
+            title: result.name,
+            artist: result.artists?.[0] ?? "",
+            thumbnail: result.imageUrl,
+            duration: result.duration,
+          });
+          break;
         case "artist":
           router.push(`/artist/${result.id}`);
           break;
@@ -85,52 +218,28 @@ export function SearchResults({ results, query }: Props) {
     [playTrack, router]
   );
 
+  const handleLike = useCallback((item: SearchResult) => {
+    toggleLike({ 
+      id: item.id, 
+      title: item.name, 
+      artist: item.artists?.[0] ?? "", 
+      album: item.album, 
+      thumbnail: item.imageUrl, 
+      duration: item.duration 
+    });
+  }, [toggleLike]);
+
   const renderItem = useCallback(
     ({ item }: { item: SearchResult }) => (
-      <Pressable
-        style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 10, paddingHorizontal: 16 }}
-        onPressIn={() => handlePressIn(item)}
-        onPress={() => handlePress(item)}
-      >
-        <Image
-          source={{ uri: upscaleThumbnail(item.imageUrl) }}
-          style={{
-            width: item.type === "artist" ? 56 : 52,
-            height: item.type === "artist" ? 56 : 52,
-            borderRadius: item.type === "artist" ? 28 : 6,
-          }}
-        />
-        <View style={{ flex: 1 }}>
-          <Text style={{ color: theme.colors.textPrimary, fontSize: 15, fontWeight: "500" }} numberOfLines={1}>{item.name}</Text>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 2 }}>
-            {item.type === "track" && item.artists && item.artists.length > 0 && (
-              <Text style={{ color: theme.colors.textSecondary, fontSize: 13 }} numberOfLines={1}>
-                Song • {item.artists.join(", ")}
-              </Text>
-            )}
-            {item.type === "album" && (
-              <Text style={{ color: theme.colors.textSecondary, fontSize: 13 }} numberOfLines={1}>
-                Album {item.year ? `• ${item.year}` : ""}
-              </Text>
-            )}
-            {item.type === "artist" && (
-              <Text style={{ color: theme.colors.textSecondary, fontSize: 13 }}>Artist</Text>
-            )}
-            {item.type === "playlist" && (
-              <Text style={{ color: theme.colors.textSecondary, fontSize: 13 }}>Playlist</Text>
-            )}
-          </View>
-        </View>
-        {item.type === "track" ? (
-          <Pressable style={{ padding: 8 }} onPress={() => toggleLike({ id: item.id, title: item.name, artist: item.artists?.[0] ?? "", album: item.album, thumbnail: item.imageUrl, duration: item.duration })}>
-            <Icon name={isLiked(item.id) ? "heart-filled" : "heart-outline"} size={16} color={isLiked(item.id) ? theme.colors.accent : theme.colors.textTertiary} />
-          </Pressable>
-        ) : item.type === "album" || item.type === "playlist" ? (
-          <Icon name="chevron-right" size={14} color={theme.colors.textTertiary} />
-        ) : null}
-      </Pressable>
+      <ResultRow
+        item={item}
+        onPressIn={handlePressIn}
+        onPress={handlePress}
+        onLike={item.type === "track" ? () => handleLike(item) : undefined}
+        isLiked={item.type === "track" ? isLiked(item.id) : undefined}
+      />
     ),
-    [handlePress, toggleLike, isLiked]
+    [handlePressIn, handlePress, handleLike, isLiked]
   );
 
   const keyExtractor = useCallback((item: SearchResult, index: number) => `${item.type}-${item.id}-${index}`, []);
@@ -138,8 +247,23 @@ export function SearchResults({ results, query }: Props) {
   if (results.length === 0) {
     return (
       <View style={{ flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 32 }}>
+        <View style={{
+          width: 80,
+          height: 80,
+          borderRadius: radius.xl,
+          backgroundColor: theme.colors.surfaceElevated,
+          justifyContent: "center",
+          alignItems: "center",
+          marginBottom: 16,
+        }}>
           <Icon name="search" size={36} color={theme.colors.textTertiary} />
-        <Text style={{ color: theme.colors.textSecondary, fontSize: 16, marginTop: 12, textAlign: "center" }}>No results for "{query}"</Text>
+        </View>
+        <Text style={{ color: theme.colors.textSecondary, fontSize: 16, textAlign: "center" }}>
+          No results for "{query}"
+        </Text>
+        <Text style={{ color: theme.colors.textTertiary, fontSize: 13, marginTop: 8, textAlign: "center" }}>
+          Try a different search term
+        </Text>
       </View>
     );
   }
@@ -150,11 +274,48 @@ export function SearchResults({ results, query }: Props) {
       keyExtractor={keyExtractor}
       renderItem={renderItem}
       keyboardShouldPersistTaps="handled"
-      contentContainerStyle={{ paddingBottom: 120 }}
+      contentContainerStyle={{ paddingBottom: 140 }}
       ListHeaderComponent={
-        <Text style={{ color: theme.colors.textTertiary, fontSize: 11, fontWeight: "600", letterSpacing: 0.8, textTransform: "uppercase", paddingHorizontal: 16, paddingTop: 4, paddingBottom: 6 }}>
-          {results.length} result{results.length !== 1 ? "s" : ""}
-        </Text>
+        <View style={{ 
+          flexDirection: "row", 
+          alignItems: "center", 
+          justifyContent: "space-between",
+          paddingHorizontal: 16, 
+          paddingTop: 8, 
+          paddingBottom: 8 
+        }}>
+          <Text style={{ 
+            color: theme.colors.textTertiary, 
+            fontSize: 11, 
+            fontWeight: "600", 
+            letterSpacing: 0.5, 
+            textTransform: "uppercase" 
+          }}>
+            {results.length} result{results.length !== 1 ? "s" : ""}
+          </Text>
+          <View style={{ flexDirection: "row", gap: 8 }}>
+            {["Song", "Album", "Artist", "Playlist"].map((type) => (
+              <View 
+                key={type}
+                style={{ 
+                  flexDirection: "row", 
+                  alignItems: "center", 
+                  gap: 4 
+                }}
+              >
+                <View style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: 3,
+                  backgroundColor: TYPE_COLORS[type.toLowerCase()],
+                }} />
+                <Text style={{ color: theme.colors.textTertiary, fontSize: 10 }}>
+                  {type}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </View>
       }
     />
   );

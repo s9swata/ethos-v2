@@ -6,7 +6,7 @@ export interface LRCLIBResponse {
   duration: number;
 }
 
-const LRCLIB_TIMEOUT_MS = 8_000;
+const LRCLIB_TIMEOUT_MS = 30_000;
 
 function normalizeQuery(s: string): string {
   return s

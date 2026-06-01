@@ -1,6 +1,6 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useRef } from "react";
 import { useFocusEffect, useRouter } from "expo-router";
-import { View, Text, Pressable, TextInput, Alert, ScrollView, Dimensions } from "react-native";
+import { View, Text, Pressable, TextInput, Alert, ScrollView, Dimensions, Animated } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Icon } from "@/components/icons";
 import { Image } from "expo-image";
@@ -8,7 +8,8 @@ import { useLibraryStore } from "@/stores/library-store";
 import { usePlayerStore } from "@/stores/player-store";
 import { upscaleThumbnail } from "@/api/client";
 import { SkeletonTrackRow } from "@/components/Skeleton";
-import { theme, layout } from "@/theme";
+import { theme, layout, radius, typography } from "@/theme";
+import { haptics } from "@/utils/animations";
 
 type Filter = "playlists" | "songs" | "artists";
 const { width: SCREEN_W } = Dimensions.get("window");
@@ -20,6 +21,63 @@ const PILLS: { key: Filter; label: string }[] = [
   { key: "songs", label: "Songs" },
   { key: "artists", label: "Artists" },
 ];
+
+function FilterPill({ 
+  label, 
+  isActive, 
+  onPress 
+}: { 
+  label: string; 
+  isActive: boolean; 
+  onPress: () => void;
+}) {
+  const scale = useRef(new Animated.Value(1)).current;
+  
+  const handlePress = () => {
+    haptics.light();
+    Animated.spring(scale, {
+      toValue: 0.96,
+      friction: 8,
+      tension: 400,
+      useNativeDriver: true,
+    }).start(() => {
+      Animated.spring(scale, {
+        toValue: 1,
+        friction: 8,
+        tension: 400,
+        useNativeDriver: true,
+      }).start();
+    });
+    onPress();
+  };
+
+  return (
+    <Animated.View style={{ transform: [{ scale }] }}>
+      <Pressable 
+        onPress={handlePress}
+        style={{ 
+          paddingHorizontal: layout.space[4], 
+          paddingVertical: layout.space[2], 
+          borderRadius: radius.full, 
+          backgroundColor: isActive ? theme.colors.accent : theme.colors.surfaceElevated,
+          borderWidth: isActive ? 0 : 1,
+          borderColor: theme.colors.border,
+        }}
+        accessibilityLabel={`Filter by ${label}`}
+        accessibilityRole="button"
+        accessibilityState={{ selected: isActive }}
+      >
+        <Text style={{ 
+          fontSize: 13, 
+          fontWeight: "600", 
+          color: isActive ? "#fff" : theme.colors.textSecondary 
+        }}>
+          {label}
+        </Text>
+      </Pressable>
+    </Animated.View>
+  );
+}
 
 export default function LibraryScreen() {
   const insets = useSafeAreaInsets();
@@ -54,72 +112,262 @@ export default function LibraryScreen() {
   const fPlaylists = useMemo(() => query ? playlists.filter((p) => match(p.name)) : playlists, [playlists, query]);
 
   const header = (
-    <View style={{ paddingTop: insets.top + 8, paddingHorizontal: layout.px, paddingBottom: 8, backgroundColor: theme.colors.surface }}>
-      <Text style={{ color: theme.colors.textPrimary, fontSize: 28, fontWeight: "700", letterSpacing: -0.5 }}>Library</Text>
-      <View style={{ flexDirection: "row", alignItems: "center", backgroundColor: theme.colors.surface3, borderRadius: 10, paddingHorizontal: 12, marginTop: 12 }}>
-        <Icon name="search" size={14} color={theme.colors.textTertiary} />
-        <TextInput style={{ flex: 1, paddingVertical: 10, paddingHorizontal: 8, color: theme.colors.textPrimary, fontSize: 14 }} placeholder="Search in library" placeholderTextColor={theme.colors.textTertiary} value={query} onChangeText={setQuery} />
-        {query.length > 0 && <Pressable onPress={() => setQuery("")}><Icon name="xmark" size={14} color={theme.colors.textTertiary} /></Pressable>}
-      </View>
-      <View style={{ flexDirection: "row", gap: 8, marginTop: 12 }}>
-        {PILLS.map((p) => (
-          <Pressable key={p.key} onPress={() => setFilter(p.key)} style={{ paddingHorizontal: 16, paddingVertical: 8, borderRadius: 99, backgroundColor: filter === p.key ? theme.colors.textPrimary : theme.colors.glass }}>
-            <Text style={{ fontSize: 13, fontWeight: "600", color: filter === p.key ? "#000" : theme.colors.textSecondary }}>{p.label}</Text>
+    <View style={{ 
+      paddingTop: insets.top + layout.space[4], 
+      paddingHorizontal: layout.px, 
+      paddingBottom: layout.space[4], 
+      backgroundColor: theme.colors.surface 
+    }}>
+      <Text style={{ 
+        color: theme.colors.textPrimary, 
+        fontSize: 32, 
+        fontWeight: "700", 
+        letterSpacing: -0.02 
+      }}>
+        Library
+      </Text>
+      
+      {/* Search Field */}
+      <View style={{ 
+        flexDirection: "row", 
+        alignItems: "center", 
+        backgroundColor: theme.colors.surfaceElevated, 
+        borderRadius: radius.md, 
+        paddingHorizontal: layout.space[3],
+        marginTop: layout.space[4],
+        borderWidth: 1,
+        borderColor: theme.colors.border,
+      }}>
+        <Icon name="search" size={16} color={theme.colors.textTertiary} />
+        <TextInput 
+          style={{ 
+            flex: 1, 
+            paddingVertical: layout.space[3], 
+            paddingHorizontal: layout.space[3], 
+            color: theme.colors.textPrimary, 
+            fontSize: 15 
+          }} 
+          placeholder="Search in library" 
+          placeholderTextColor={theme.colors.textTertiary} 
+          value={query} 
+          onChangeText={setQuery} 
+        />
+        {query.length > 0 && (
+          <Pressable 
+            onPress={() => setQuery("")}
+            hitSlop={12}
+            accessibilityLabel="Clear search"
+            accessibilityRole="button"
+          >
+            <Icon name="xmark" size={16} color={theme.colors.textTertiary} />
           </Pressable>
-        ))}
+        )}
       </View>
+      
+      {/* Filter Pills */}
+      <ScrollView 
+        horizontal 
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ flexDirection: "row", gap: layout.space[2], marginTop: layout.space[4] }}
+      >
+        {PILLS.map((p) => (
+          <FilterPill 
+            key={p.key} 
+            label={p.label} 
+            isActive={filter === p.key} 
+            onPress={() => setFilter(p.key)} 
+          />
+        ))}
+      </ScrollView>
     </View>
   );
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.surface }}>
       {header}
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: layout.px, paddingTop: 16, paddingBottom: 140, gap: 2 }}>
+      <ScrollView 
+        showsVerticalScrollIndicator={false} 
+        contentContainerStyle={{ 
+          paddingHorizontal: layout.px, 
+          paddingTop: layout.space[4], 
+          paddingBottom: 160, 
+          gap: layout.space[1] 
+        }}
+      >
 
         {filter === "playlists" && (
           <>
             {likedSongs.length > 0 && (
-              <Pressable style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 8 }} onPress={() => setFilter("songs")}>
-                <View style={{ width: 48, height: 48, borderRadius: 6, backgroundColor: theme.colors.accent, justifyContent: "center", alignItems: "center" }}>
-                  <Icon name="heart-filled" size={20} color="#fff" />
+              <Pressable 
+                style={({ pressed }) => ({ 
+                  flexDirection: "row", 
+                  alignItems: "center", 
+                  gap: layout.space[3], 
+                  paddingVertical: layout.space[3],
+                  backgroundColor: pressed ? theme.colors.surfaceElevated : "transparent",
+                  borderRadius: radius.md,
+                })} 
+                onPress={() => { haptics.light(); setFilter("songs"); }}
+                accessibilityLabel="Liked Songs playlist"
+                accessibilityRole="button"
+              >
+                <View style={{ 
+                  width: 56, 
+                  height: 56, 
+                  borderRadius: radius.sm, 
+                  backgroundColor: theme.colors.accent, 
+                  justifyContent: "center", 
+                  alignItems: "center",
+                  ...theme.shadows.sm,
+                }}>
+                  <Icon name="heart-filled" size={24} color="#fff" />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ color: theme.colors.textPrimary, fontSize: 14, fontWeight: "500" }}>Liked Songs</Text>
-                  <Text style={{ color: theme.colors.textSecondary, fontSize: 13 }}>{likedSongs.length} songs</Text>
+                  <Text style={{ color: theme.colors.textPrimary, fontSize: 15, fontWeight: "600" }}>Liked Songs</Text>
+                  <Text style={{ color: theme.colors.textSecondary, fontSize: 13, marginTop: 2 }}>{likedSongs.length} songs</Text>
                 </View>
-                <Icon name="chevron-right" size={14} color={theme.colors.textTertiary} />
+                <Icon name="chevron-right" size={16} color={theme.colors.textTertiary} />
               </Pressable>
             )}
 
             {fPlaylists.map((pl) => (
-              <Pressable key={pl.id} style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 8 }} onPress={() => router.push(`/playlist/${pl.id}`)} onLongPress={() => Alert.alert("Delete Playlist", `Delete "${pl.name}"?`, [{ text: "Cancel", style: "cancel" }, { text: "Delete", style: "destructive", onPress: () => deletePlaylist(pl.id) }])}>
-                <View style={{ width: 48, height: 48, borderRadius: 6, backgroundColor: theme.colors.surface3, justifyContent: "center", alignItems: "center" }}>
-                  <Icon name="music-note" size={18} color={theme.colors.textPrimary} />
+              <Pressable 
+                key={pl.id} 
+                style={({ pressed }) => ({ 
+                  flexDirection: "row", 
+                  alignItems: "center", 
+                  gap: layout.space[3], 
+                  paddingVertical: layout.space[3],
+                  backgroundColor: pressed ? theme.colors.surfaceElevated : "transparent",
+                  borderRadius: radius.md,
+                })} 
+                onPress={() => { haptics.light(); router.push(`/playlist/${pl.id}`); }}
+                onLongPress={() => {
+                  haptics.medium();
+                  Alert.alert(
+                    "Delete Playlist", 
+                    `Delete "${pl.name}"?`, 
+                    [
+                      { text: "Cancel", style: "cancel" }, 
+                      { text: "Delete", style: "destructive", onPress: () => deletePlaylist(pl.id) }
+                    ]
+                  );
+                }}
+                accessibilityLabel={`Playlist: ${pl.name}`}
+                accessibilityRole="button"
+              >
+                <View style={{ 
+                  width: 56, 
+                  height: 56, 
+                  borderRadius: radius.sm, 
+                  backgroundColor: theme.colors.surfaceElevated, 
+                  justifyContent: "center", 
+                  alignItems: "center",
+                  borderWidth: 1,
+                  borderColor: theme.colors.border,
+                }}>
+                  <Icon name="music-note" size={22} color={theme.colors.textPrimary} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ color: theme.colors.textPrimary, fontSize: 14, fontWeight: "500" }}>{pl.name}</Text>
-                  <Text style={{ color: theme.colors.textSecondary, fontSize: 13 }}>{pl.track_count ?? 0} songs</Text>
+                  <Text style={{ color: theme.colors.textPrimary, fontSize: 15, fontWeight: "600" }}>{pl.name}</Text>
+                  <Text style={{ color: theme.colors.textSecondary, fontSize: 13, marginTop: 2 }}>{pl.track_count ?? 0} songs</Text>
                 </View>
-                <Icon name="chevron-right" size={14} color={theme.colors.textTertiary} />
+                <Icon name="chevron-right" size={16} color={theme.colors.textTertiary} />
               </Pressable>
             ))}
 
             {showName ? (
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 10 }}>
-                <TextInput style={{ flex: 1, backgroundColor: theme.colors.surface3, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, color: theme.colors.textPrimary, fontSize: 14 }} placeholder="Playlist name" placeholderTextColor={theme.colors.textTertiary} value={newName} onChangeText={setNewName} autoFocus onSubmitEditing={() => { if (newName.trim()) { createPlaylist(newName.trim()); setNewName(""); setShowName(false); } }} />
-                <Pressable style={{ backgroundColor: theme.colors.accent, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10 }} onPress={() => { if (newName.trim()) { createPlaylist(newName.trim()); setNewName(""); setShowName(false); } }}>
-                  <Text style={{ color: "#fff", fontSize: 13, fontWeight: "600" }}>Create</Text>
+              <View style={{ 
+                flexDirection: "row", 
+                alignItems: "center", 
+                gap: layout.space[2], 
+                paddingVertical: layout.space[3],
+                marginTop: layout.space[2],
+              }}>
+                <TextInput 
+                  style={{ 
+                    flex: 1, 
+                    backgroundColor: theme.colors.surfaceElevated, 
+                    borderRadius: radius.md, 
+                    paddingHorizontal: layout.space[4], 
+                    paddingVertical: layout.space[3], 
+                    color: theme.colors.textPrimary, 
+                    fontSize: 15,
+                    borderWidth: 1,
+                    borderColor: theme.colors.border,
+                  }} 
+                  placeholder="Playlist name" 
+                  placeholderTextColor={theme.colors.textTertiary} 
+                  value={newName} 
+                  onChangeText={setNewName} 
+                  autoFocus 
+                  onSubmitEditing={() => { 
+                    if (newName.trim()) { 
+                      haptics.success();
+                      createPlaylist(newName.trim()); 
+                      setNewName(""); 
+                      setShowName(false); 
+                    } 
+                  }} 
+                />
+                <Pressable 
+                  style={{ 
+                    backgroundColor: theme.colors.accent, 
+                    paddingHorizontal: layout.space[4], 
+                    paddingVertical: layout.space[3], 
+                    borderRadius: radius.md,
+                    ...theme.shadows.sm,
+                  }} 
+                  onPress={() => { 
+                    if (newName.trim()) { 
+                      haptics.success();
+                      createPlaylist(newName.trim()); 
+                      setNewName(""); 
+                      setShowName(false); 
+                    } 
+                  }}
+                  accessibilityLabel="Create playlist"
+                  accessibilityRole="button"
+                >
+                  <Text style={{ color: "#fff", fontSize: 14, fontWeight: "600" }}>Create</Text>
                 </Pressable>
-                <Pressable style={{ padding: 10 }} onPress={() => { setShowName(false); setNewName(""); }}>
-                  <Icon name="xmark" size={16} color={theme.colors.textSecondary} />
+                <Pressable 
+                  style={{ padding: layout.space[3] }} 
+                  onPress={() => { setShowName(false); setNewName(""); }}
+                  accessibilityLabel="Cancel"
+                  accessibilityRole="button"
+                >
+                  <Icon name="xmark" size={18} color={theme.colors.textSecondary} />
                 </Pressable>
               </View>
             ) : (
-              <Pressable style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 10, marginTop: 4 }} onPress={() => setShowName(true)}>
-                <View style={{ width: 48, height: 48, borderRadius: 6, borderWidth: 1.5, borderColor: theme.colors.textTertiary, borderStyle: "dashed", justifyContent: "center", alignItems: "center" }}>
-                  <Icon name="plus" size={18} color={theme.colors.textTertiary} />
+              <Pressable 
+                style={({ pressed }) => ({ 
+                  flexDirection: "row", 
+                  alignItems: "center", 
+                  gap: layout.space[3], 
+                  paddingVertical: layout.space[3],
+                  marginTop: layout.space[2],
+                  backgroundColor: pressed ? theme.colors.surfaceElevated : "transparent",
+                  borderRadius: radius.md,
+                })} 
+                onPress={() => { haptics.light(); setShowName(true); }}
+                accessibilityLabel="Create new playlist"
+                accessibilityRole="button"
+              >
+                <View style={{ 
+                  width: 56, 
+                  height: 56, 
+                  borderRadius: radius.sm, 
+                  borderWidth: 2, 
+                  borderColor: theme.colors.textTertiary, 
+                  borderStyle: "dashed", 
+                  justifyContent: "center", 
+                  alignItems: "center" 
+                }}>
+                  <Icon name="plus" size={24} color={theme.colors.textTertiary} />
                 </View>
-                <Text style={{ color: theme.colors.textTertiary, fontSize: 14, fontWeight: "500" }}>New Playlist</Text>
+                <Text style={{ color: theme.colors.textTertiary, fontSize: 15, fontWeight: "600" }}>New Playlist</Text>
               </Pressable>
             )}
           </>
@@ -129,22 +377,75 @@ export default function LibraryScreen() {
           loading ? (
             Array.from({ length: 6 }).map((_, i) => <SkeletonTrackRow key={i} />)
           ) : fSongs.length === 0 ? (
-            <View style={{ alignItems: "center", paddingVertical: 48, gap: 12 }}>
-              <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: theme.colors.surface3, justifyContent: "center", alignItems: "center" }}>
-                <Icon name="heart-outline" size={22} color={theme.colors.textTertiary} />
+            <View style={{ alignItems: "center", paddingVertical: layout.space[12], gap: layout.space[4] }}>
+              <View style={{ 
+                width: 72, 
+                height: 72, 
+                borderRadius: radius.xl, 
+                backgroundColor: theme.colors.surfaceElevated, 
+                justifyContent: "center", 
+                alignItems: "center",
+                borderWidth: 1,
+                borderColor: theme.colors.border,
+              }}>
+                <Icon name="heart-outline" size={32} color={theme.colors.textTertiary} />
               </View>
-              <Text style={{ color: theme.colors.textSecondary, fontSize: 14 }}>{query ? "No matching songs" : "No liked songs yet"}</Text>
-              {!query && <Pressable style={{ backgroundColor: theme.colors.accent, paddingHorizontal: 20, paddingVertical: 8, borderRadius: 99 }} onPress={() => router.replace("/search")}><Text style={{ color: "#fff", fontSize: 13, fontWeight: "600" }}>Browse Music</Text></Pressable>}
+              <Text style={{ color: theme.colors.textSecondary, fontSize: 15 }}>
+                {query ? "No matching songs" : "No liked songs yet"}
+              </Text>
+              {!query && (
+                <Pressable 
+                  style={{ 
+                    backgroundColor: theme.colors.accent, 
+                    paddingHorizontal: layout.space[5], 
+                    paddingVertical: layout.space[3], 
+                    borderRadius: radius.full,
+                    ...theme.shadows.sm,
+                  }} 
+                  onPress={() => { haptics.light(); router.replace("/search"); }}
+                  accessibilityLabel="Browse music"
+                  accessibilityRole="button"
+                >
+                  <Text style={{ color: "#fff", fontSize: 14, fontWeight: "600" }}>Browse Music</Text>
+                </Pressable>
+              )}
             </View>
           ) : (
             fSongs.map((song) => (
-              <Pressable key={song.id} style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 8 }} onPress={() => playTrack(song.id)}>
-                <Image source={{ uri: upscaleThumbnail(song.thumbnail ?? "") }} style={{ width: 48, height: 48, borderRadius: 6 }} />
+              <Pressable 
+                key={song.id} 
+                style={({ pressed }) => ({ 
+                  flexDirection: "row", 
+                  alignItems: "center", 
+                  gap: layout.space[3], 
+                  paddingVertical: layout.space[2],
+                  backgroundColor: pressed ? theme.colors.surfaceElevated : "transparent",
+                  borderRadius: radius.md,
+                })} 
+                onPress={() => { haptics.light(); playTrack(song.id); }}
+                accessibilityLabel={`Play ${song.title} by ${song.artist}`}
+                accessibilityRole="button"
+              >
+                <Image 
+                  source={{ uri: upscaleThumbnail(song.thumbnail ?? "") }} 
+                  style={{ 
+                    width: 52, 
+                    height: 52, 
+                    borderRadius: radius.sm,
+                    backgroundColor: theme.colors.surfaceElevated,
+                  }} 
+                  contentFit="cover"
+                  transition={300}
+                />
                 <View style={{ flex: 1 }}>
-                  <Text style={{ color: theme.colors.textPrimary, fontSize: 14, fontWeight: "500" }} numberOfLines={1}>{song.title}</Text>
-                  <Text style={{ color: theme.colors.textSecondary, fontSize: 13 }} numberOfLines={1}>{song.artist}</Text>
+                  <Text style={{ color: theme.colors.textPrimary, fontSize: 15, fontWeight: "500" }} numberOfLines={1}>
+                    {song.title}
+                  </Text>
+                  <Text style={{ color: theme.colors.textSecondary, fontSize: 13, marginTop: 2 }} numberOfLines={1}>
+                    {song.artist}
+                  </Text>
                 </View>
-                <Icon name="heart-filled" size={16} color={theme.colors.accent} />
+                <Icon name="heart-filled" size={18} color={theme.colors.accent} />
               </Pressable>
             ))
           )
@@ -152,19 +453,76 @@ export default function LibraryScreen() {
 
         {filter === "artists" && (
           fArtists.length === 0 ? (
-            <View style={{ alignItems: "center", paddingVertical: 48, gap: 12 }}>
-              <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: theme.colors.surface3, justifyContent: "center", alignItems: "center" }}>
-                <Icon name="music-note" size={22} color={theme.colors.textTertiary} />
+            <View style={{ alignItems: "center", paddingVertical: layout.space[12], gap: layout.space[4] }}>
+              <View style={{ 
+                width: 72, 
+                height: 72, 
+                borderRadius: radius.xl, 
+                backgroundColor: theme.colors.surfaceElevated, 
+                justifyContent: "center", 
+                alignItems: "center",
+                borderWidth: 1,
+                borderColor: theme.colors.border,
+              }}>
+                <Icon name="music-note" size={32} color={theme.colors.textTertiary} />
               </View>
-              <Text style={{ color: theme.colors.textSecondary, fontSize: 14 }}>{query ? "No matching artists" : "No followed artists yet"}</Text>
-              {!query && <Pressable style={{ backgroundColor: theme.colors.accent, paddingHorizontal: 20, paddingVertical: 8, borderRadius: 99 }} onPress={() => router.replace("/search")}><Text style={{ color: "#fff", fontSize: 13, fontWeight: "600" }}>Find Artists</Text></Pressable>}
+              <Text style={{ color: theme.colors.textSecondary, fontSize: 15 }}>
+                {query ? "No matching artists" : "No followed artists yet"}
+              </Text>
+              {!query && (
+                <Pressable 
+                  style={{ 
+                    backgroundColor: theme.colors.accent, 
+                    paddingHorizontal: layout.space[5], 
+                    paddingVertical: layout.space[3], 
+                    borderRadius: radius.full,
+                    ...theme.shadows.sm,
+                  }} 
+                  onPress={() => { haptics.light(); router.replace("/search"); }}
+                  accessibilityLabel="Find artists"
+                  accessibilityRole="button"
+                >
+                  <Text style={{ color: "#fff", fontSize: 14, fontWeight: "600" }}>Find Artists</Text>
+                </Pressable>
+              )}
             </View>
           ) : (
             <View style={{ flexDirection: "row", flexWrap: "wrap", gap: GAP }}>
               {fArtists.map((artist) => (
-                <Pressable key={artist.id} style={{ width: GRID_W, alignItems: "center", gap: 8, paddingVertical: 12 }} onPress={() => router.push(`/artist/${artist.id}`)}>
-                  <Image source={{ uri: upscaleThumbnail(artist.thumbnail ?? "", 160) }} style={{ width: GRID_W - 32, height: GRID_W - 32, borderRadius: (GRID_W - 32) / 2 }} />
-                  <Text style={{ color: theme.colors.textPrimary, fontSize: 13, fontWeight: "500" }} numberOfLines={2}>{artist.name}</Text>
+                <Pressable 
+                  key={artist.id} 
+                  style={({ pressed }) => ({ 
+                    width: GRID_W, 
+                    alignItems: "center", 
+                    gap: layout.space[2], 
+                    paddingVertical: layout.space[3],
+                    opacity: pressed ? 0.8 : 1,
+                    transform: [{ scale: pressed ? 0.98 : 1 }],
+                  })} 
+                  onPress={() => { haptics.light(); router.push(`/artist/${artist.id}`); }}
+                  accessibilityLabel={`View artist: ${artist.name}`}
+                  accessibilityRole="button"
+                >
+                  <Image 
+                    source={{ uri: upscaleThumbnail(artist.thumbnail ?? "", 280) }} 
+                    style={{ 
+                      width: GRID_W - 32, 
+                      height: GRID_W - 32, 
+                      borderRadius: (GRID_W - 32) / 2,
+                      backgroundColor: theme.colors.surfaceElevated,
+                      ...theme.shadows.sm,
+                    }} 
+                    contentFit="cover"
+                    transition={300}
+                  />
+                  <Text style={{ 
+                    color: theme.colors.textPrimary, 
+                    fontSize: 14, 
+                    fontWeight: "500",
+                    textAlign: "center",
+                  }} numberOfLines={2}>
+                    {artist.name}
+                  </Text>
                 </Pressable>
               ))}
             </View>

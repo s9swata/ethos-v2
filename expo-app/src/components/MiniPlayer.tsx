@@ -7,7 +7,8 @@ import { Image } from "expo-image";
 import { usePlayerStore } from "@/stores/player-store";
 import { useLibraryStore } from "@/stores/library-store";
 import { upscaleThumbnail } from "@/api/client";
-import { theme } from "@/theme";
+import { theme, radius, springs } from "@/theme";
+import { haptics, animateHeart as triggerHeartAnimation } from "@/utils/animations";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const TAB_BAR_HEIGHT = 56;
@@ -37,21 +38,27 @@ export function MiniPlayer() {
   const isLiked = useLibraryStore((s) => s.isLiked);
 
   const heartScale = useRef(new Animated.Value(1)).current;
+  const playScale = useRef(new Animated.Value(1)).current;
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
 
   const animateHeart = useCallback(() => {
-    heartScale.setValue(0.7);
-    Animated.spring(heartScale, {
+    triggerHeartAnimation(heartScale);
+  }, [heartScale]);
+
+  const animatePlayButton = useCallback(() => {
+    playScale.setValue(0.92);
+    Animated.spring(playScale, {
       toValue: 1,
-      friction: 6,
-      tension: 200,
+      friction: springs.button.friction,
+      tension: springs.button.tension,
       useNativeDriver: true,
     }).start();
-  }, [heartScale]);
+  }, [playScale]);
 
   const handleHeartPress = useCallback((e: any) => {
     e.stopPropagation();
     if (!currentTrack) return;
+    haptics.medium();
     animateHeart();
     toggleLike({
       id: currentTrack.id,
@@ -61,8 +68,16 @@ export function MiniPlayer() {
     });
   }, [currentTrack, animateHeart, toggleLike]);
 
+  const handlePlayPress = useCallback((e: any) => {
+    e.stopPropagation();
+    haptics.light();
+    animatePlayButton();
+    togglePlay();
+  }, [animatePlayButton, togglePlay]);
+
   const handleControlPress = useCallback((fn: () => void) => (e: any) => {
     e.stopPropagation();
+    haptics.light();
     fn();
   }, []);
 
@@ -75,75 +90,113 @@ export function MiniPlayer() {
       left: 0,
       right: 0,
       zIndex: 100,
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 6 },
-      shadowOpacity: 0.5,
-      shadowRadius: 16,
-      elevation: 10,
+      ...theme.shadows.lg,
     }}>
-      <View style={{ paddingHorizontal: "5%", paddingBottom: insets.bottom > 0 ? insets.bottom : 8 }}>
+      <View style={{ paddingHorizontal: 16, paddingBottom: insets.bottom > 0 ? insets.bottom : 12 }}>
         <View style={{
-          borderRadius: 999,
+          borderRadius: radius.full,
           borderCurve: "continuous",
-          backgroundColor: "#1c1c1e",
-          shadowColor: "#000",
-          shadowOffset: { width: 0, height: 8 },
-          shadowOpacity: 0.4,
-          shadowRadius: 20,
-          elevation: 12,
+          backgroundColor: theme.colors.surfaceSecondary,
+          ...theme.shadows.xl,
         }}>
-        <Pressable
-          onPress={() => router.push("/player")}
-          style={{
-            borderRadius: 999,
-            borderCurve: "continuous",
-            overflow: "hidden",
-            backgroundColor: "#1c1c1e",
-            borderWidth: 0.5,
-            borderColor: "rgba(255,255,255,0.08)",
-          }}
-        >
-          {/* Single row: art + title/artist + heart + prev + play/pause + next */}
-          <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 12, paddingVertical: 8, gap: 8 }}>
-            <Pressable onPress={() => router.push("/player")} style={{ justifyContent: "center" }}>
-              <Image
-                source={{ uri: upscaleThumbnail(currentTrack.thumbnail || "") }}
-                style={{ width: 40, height: 40, borderRadius: 8 }}
-              />
-            </Pressable>
-            <View style={{ flex: 1, justifyContent: "center" }}>
-              <MarqueeText duration={8000} delay={1000} style={{ color: theme.colors.textPrimary, fontSize: 13, fontWeight: "600" }}>
-                {currentTrack.title}
-              </MarqueeText>
-              <Text style={{ color: theme.colors.textSecondary, fontSize: 11 }} numberOfLines={1}>
-                {currentTrack.artist}
-              </Text>
-            </View>
-            <Animated.View style={{ justifyContent: "center", transform: [{ scale: heartScale }] }}>
-              <Pressable onPress={handleHeartPress} hitSlop={8} style={{ padding: 4 }}>
-                <Icon
-                  name={isLiked(currentTrack.id) ? "heart-filled" : "heart-outline"}
-                  size={16}
-                  color={isLiked(currentTrack.id) ? theme.colors.accent : theme.colors.textTertiary}
+          <Pressable
+            onPress={() => router.push("/player")}
+            style={{
+              borderRadius: radius.full,
+              borderCurve: "continuous",
+              overflow: "hidden",
+              backgroundColor: theme.colors.surfaceSecondary,
+              borderWidth: 1,
+              borderColor: theme.colors.border,
+            }}
+          >
+            {/* Single row: art + title/artist + heart + prev + play/pause + next */}
+            <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 12, paddingVertical: 10, gap: 10 }}>
+              <Pressable 
+                onPress={() => router.push("/player")} 
+                style={{ justifyContent: "center" }}
+                accessibilityLabel="Open full player"
+                accessibilityRole="button"
+              >
+                <Image
+                  source={{ uri: upscaleThumbnail(currentTrack.thumbnail || "") }}
+                  style={{ width: 44, height: 44, borderRadius: radius.sm }}
+                  contentFit="cover"
+                  transition={300}
                 />
               </Pressable>
-            </Animated.View>
-            <Pressable onPress={handleControlPress(playPrev)} hitSlop={6} style={{ padding: 4, justifyContent: "center" }}>
-              <Icon name="backward" size={17} color={theme.colors.textSecondary} />
-            </Pressable>
-            <Pressable onPress={handleControlPress(togglePlay)} hitSlop={8} style={{ padding: 4, justifyContent: "center" }}>
-              <Icon name={isPlaying ? "pause" : "play"} size={17} color={theme.colors.textPrimary} />
-            </Pressable>
-            <Pressable onPress={handleControlPress(playNext)} hitSlop={6} style={{ padding: 4, justifyContent: "center" }}>
-              <Icon name="forward" size={17} color={theme.colors.textSecondary} />
-            </Pressable>
-          </View>
+              <View style={{ flex: 1, justifyContent: "center", marginRight: 4 }}>
+                <MarqueeText 
+                  duration={8000} 
+                  delay={1000} 
+                  style={{ color: theme.colors.textPrimary, fontSize: 14, fontWeight: "600", letterSpacing: -0.01 }}
+                >
+                  {currentTrack.title}
+                </MarqueeText>
+                <Text style={{ color: theme.colors.textSecondary, fontSize: 12, marginTop: 2 }} numberOfLines={1}>
+                  {currentTrack.artist}
+                </Text>
+              </View>
+              <Animated.View style={{ justifyContent: "center", transform: [{ scale: heartScale }] }}>
+                <Pressable 
+                  onPress={handleHeartPress} 
+                  hitSlop={12} 
+                  style={{ padding: 6 }}
+                  accessibilityLabel={isLiked(currentTrack.id) ? "Unlike song" : "Like song"}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: isLiked(currentTrack.id) }}
+                >
+                  <Icon
+                    name={isLiked(currentTrack.id) ? "heart-filled" : "heart-outline"}
+                    size={18}
+                    color={isLiked(currentTrack.id) ? theme.colors.accent : theme.colors.textTertiary}
+                  />
+                </Pressable>
+              </Animated.View>
+              <Pressable 
+                onPress={handleControlPress(playPrev)} 
+                hitSlop={12} 
+                style={{ padding: 6, justifyContent: "center" }}
+                accessibilityLabel="Previous track"
+                accessibilityRole="button"
+              >
+                <Icon name="backward" size={18} color={theme.colors.textSecondary} />
+              </Pressable>
+              <Animated.View style={{ transform: [{ scale: playScale }] }}>
+                <Pressable 
+                  onPress={handlePlayPress} 
+                  hitSlop={12} 
+                  style={{ padding: 6, justifyContent: "center" }}
+                  accessibilityLabel={isPlaying ? "Pause" : "Play"}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: isPlaying }}
+                >
+                  <Icon name={isPlaying ? "pause" : "play"} size={20} color={theme.colors.textPrimary} />
+                </Pressable>
+              </Animated.View>
+              <Pressable 
+                onPress={handleControlPress(playNext)} 
+                hitSlop={12} 
+                style={{ padding: 6, justifyContent: "center" }}
+                accessibilityLabel="Next track"
+                accessibilityRole="button"
+              >
+                <Icon name="forward" size={18} color={theme.colors.textSecondary} />
+              </Pressable>
+            </View>
 
-          {/* Thin progress bar at bottom of pill */}
-          <View style={{ height: 3, backgroundColor: "#2a2a2a" }}>
-            <View style={{ width: `${progress}%`, height: "100%", backgroundColor: theme.colors.accent }} />
-          </View>
-        </Pressable>
+            {/* Progress bar at bottom of pill */}
+            <View style={{ height: 3, backgroundColor: theme.colors.surfaceTertiary }}>
+              <View 
+                style={{ 
+                  width: `${progress}%`, 
+                  height: "100%", 
+                  backgroundColor: theme.colors.accent,
+                  borderBottomLeftRadius: progress > 95 ? radius.full : 0,
+                }} 
+              />
+            </View>
+          </Pressable>
         </View>
       </View>
     </View>
