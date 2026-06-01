@@ -1,7 +1,12 @@
+import { Platform } from "react-native";
 import TrackPlayer, { Event, PlaybackState } from "@rntp/player";
 import type { BackgroundEvent } from "@rntp/player";
 import { usePlayerStore } from "@/stores/player-store";
-import { setLikeState, emitLikePressed } from "expo-music-controls";
+
+const { setLikeState, emitLikePressed } = Platform.select({
+  ios: () => require("expo-music-controls"),
+  default: () => ({ setLikeState: () => {}, emitLikePressed: () => {} }),
+})();
 
 const g = globalThis as typeof globalThis & {
   __ethosServiceRegistered?: boolean;

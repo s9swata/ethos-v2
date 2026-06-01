@@ -8,9 +8,9 @@ try {
   console.error('[expo-music-controls] Failed to load native module:', e)
 }
 
-const emitter = new EventEmitter(NativeModule) as unknown as {
+const emitter = NativeModule ? new EventEmitter(NativeModule) as unknown as {
   addListener(event: string, callback: (...args: any[]) => void): EventSubscription;
-}
+} : null
 
 export function setLikeState(videoId: string, isLiked: boolean): void {
   NativeModule?.setLikeState(videoId, isLiked)
@@ -21,6 +21,7 @@ export function emitLikePressed(): void {
 }
 
 export function addLikeListener(callback: (event: LikePressedEvent) => void): EventSubscription {
+  if (!emitter) return { remove() {} }
   return emitter.addListener('onLikePressed', callback)
 }
 
