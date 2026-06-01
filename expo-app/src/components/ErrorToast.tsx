@@ -1,17 +1,15 @@
 import { useEffect, useRef } from "react";
-import { Animated, Text, Pressable } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Animated, Text, Pressable, Dimensions } from "react-native";
 import { usePlayerStore } from "@/stores/player-store";
 
-const AUTO_DISMISS_MS = 5000;
+const AUTO_DISMISS_MS = 4000;
 
 export function ErrorToast() {
   const error = usePlayerStore((s) => s.error);
   const dismissError = usePlayerStore((s) => s.dismissError);
-  const insets = useSafeAreaInsets();
 
   const opacity = useRef(new Animated.Value(0)).current;
-  const timerRef = useRef<ReturnType<typeof setTimeout>>();
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!error) {
@@ -39,32 +37,25 @@ export function ErrorToast() {
       onPress={dismissError}
       style={{
         position: "absolute",
-        top: insets.top + 8,
-        left: 16,
-        right: 16,
+        bottom: 100,
+        left: 0,
+        right: 0,
+        alignItems: "center",
         zIndex: 200,
       }}
     >
       <Animated.View
         style={{
           opacity,
-          backgroundColor: "#ef4444",
-          borderRadius: 12,
-          paddingVertical: 12,
-          paddingHorizontal: 16,
-          flexDirection: "row",
-          alignItems: "center",
-          gap: 10,
-          shadowColor: "#ef4444",
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.4,
-          shadowRadius: 12,
-          elevation: 8,
+          backgroundColor: "rgba(60,60,60,0.95)",
+          borderRadius: 20,
+          paddingVertical: 10,
+          paddingHorizontal: 20,
+          maxWidth: Dimensions.get("window").width - 64,
         }}
       >
-        <Text style={{ color: "#fff", fontSize: 14, fontWeight: "600" }}>!</Text>
         <Text
-          style={{ color: "#fff", fontSize: 13, fontWeight: "500", flex: 1 }}
+          style={{ color: "#e0e0e0", fontSize: 13, fontWeight: "500", textAlign: "center" }}
           numberOfLines={2}
         >
           {error}

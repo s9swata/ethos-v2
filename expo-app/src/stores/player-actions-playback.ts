@@ -2,7 +2,7 @@ import type { QueueContext, QueueItem } from "@/types";
 import type { SetFn, GetFn } from "./player-types";
 import { api } from "@/api/client";
 import { parseDuration } from "@/utils/duration";
-import { fetchTrack } from "./player-actions-next";
+import { fetchTrack, prefetchUpcoming } from "./player-actions-next";
 import { recordPlay } from "@/utils/taste";
 import { trackToHistoryEntry, addToPlayHistory } from "./player-utils";
 
@@ -70,13 +70,10 @@ export async function playTrackAction(set: SetFn, get: GetFn, trackId: string, c
 
     recordPlay(trackId).catch(() => {});
 
-    const visible = [...get().userQueue, ...get().contextQueue];
-    for (let i = 0; i < Math.min(visible.length, 2); i++) {
-      fetchTrack(visible[i]).catch(() => {});
-    }
+    prefetchUpcoming(get).catch(() => {});
   } catch (err) {
     set({
-      error: err instanceof Error ? err.message : "Failed to load track",
+      error: "Song unavailable",
       isLoading: false,
     });
   }

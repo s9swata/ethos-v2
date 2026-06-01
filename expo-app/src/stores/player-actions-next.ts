@@ -30,9 +30,12 @@ export async function fetchTrack(item: QueueItem): Promise<TrackInfo> {
       setTrackCache(item.videoId, track).catch(() => {});
       return track;
     }
-  } catch {}
+    console.warn(`[fetchTrack] getBestAudioStream returned null/no url for ${item.videoId}:`, JSON.stringify(stream));
+  } catch (e) {
+    console.error(`[fetchTrack] getBestAudioStream threw for ${item.videoId}:`, e);
+  }
 
-  throw new Error(`No stream available for ${item.videoId}`);
+  throw new Error("This song is not available");
 }
 
 async function refillContextQueue(set: SetFn, get: GetFn): Promise<void> {
@@ -97,10 +100,18 @@ export async function playNextAction(set: SetFn, get: GetFn): Promise<void> {
   try {
     info = await fetchTrack(next);
   } catch (e) {
-    console.warn("[playNext] fetch failed:", e);
-    set({ error: e instanceof Error ? e.message : "Failed to load track", currentTrack: null, isPlaying: false, isLoading: false });
+    set({ error: "Song unavailable" });
+    console.warn("[playNext] fetch failed, skipping:", e);
+    const retries = (globalThis as any).__ethosPlayNextRetries ?? 0;
+    if (retries >= 5) {
+      set({ error: "Song unavailable", currentTrack: null, isPlaying: false, isLoading: false });
+      return;
+    }
+    (globalThis as any).__ethosPlayNextRetries = retries + 1;
+    await get().playNext();
     return;
   }
+  (globalThis as any).__ethosPlayNextRetries = 0;
 
   set({
     currentTrack: {
@@ -125,8 +136,26 @@ export async function playNextAction(set: SetFn, get: GetFn): Promise<void> {
 
   refillContextQueue(set, get);
 
-  const visible = [...get().userQueue, ...get().contextQueue];
-  for (let i = 0; i < Math.min(visible.length, 2); i++) {
-    fetchTrack(visible[i]).catch(() => {});
-  }
+  prefetchUpcoming(get).catch(() => {});
+}
+
+const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
+let prefetchChain: Promise<void> = Promise.resolve();
+
+export async function prefetchUpcoming(get: GetFn): Promise<void> {
+  prefetchChain = prefetchChain.then(async () => {
+    const state = get();
+    const visible = [...state.userQueue, ...state.contextQueue];
+    const track = visible[0];
+    if (!track) return;
+    try {
+      await delay(5000);
+      console.log("[prefetch] starting", track.videoId);
+      await fetchTrack(track);
+      console.log("[prefetch] done", track.videoId);
+    } catch (e) {
+      console.warn("[prefetch] failed:", track.videoId, e);
+    }
+  });
+  await prefetchChain;
 }

@@ -1,4 +1,4 @@
-import TrackPlayer, { Event } from "@rntp/player";
+import TrackPlayer, { Event, PlaybackState } from "@rntp/player";
 import type { BackgroundEvent } from "@rntp/player";
 import { usePlayerStore } from "@/stores/player-store";
 import { setLikeState, emitLikePressed } from "expo-music-controls";
@@ -29,6 +29,17 @@ if (!g.__ethosServiceRegistered) {
         break;
       case Event.RemoteSeek:
         TrackPlayer.seekTo(event.position);
+        break;
+      case Event.PlaybackStateChanged:
+        if (event.state === PlaybackState.Ended) {
+          const state = usePlayerStore.getState();
+          if (state.repeat === "one" && state.currentTrack) {
+            TrackPlayer.seekTo(0);
+            TrackPlayer.play();
+          } else {
+            state.playNext();
+          }
+        }
         break;
       case Event.RemoteLike: {
         const store = usePlayerStore.getState();

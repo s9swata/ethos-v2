@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import TrackPlayer from "@rntp/player";
-import { Event, RepeatMode, PlaybackState, PlayerCommand } from "@rntp/player";
+import { Event, RepeatMode, PlayerCommand } from "@rntp/player";
 import { usePlayerStore } from "@/stores/player-store";
 import { fetchTrack } from "@/stores/player-actions-next";
 import { upscaleThumbnail } from "@/api/client";
@@ -21,12 +21,10 @@ export function AudioPlayerProvider() {
   const setCurrentTime = usePlayerStore((s) => s.setCurrentTime);
   const setDuration    = usePlayerStore((s) => s.setDuration);
   const setPlaying     = usePlayerStore((s) => s.setPlaying);
-  const playNext       = usePlayerStore((s) => s.playNext);
   const pendingSeekTo  = usePlayerStore((s) => s.pendingSeekTo);
 
   const prevTrackId         = useRef<string | null>(null);
   const isSyncingFromNative = useRef(false);
-  const isLoadingTrack      = useRef(false);
   const commandsSet         = useRef(false);
 
   useEffect(() => {
@@ -81,7 +79,6 @@ export function AudioPlayerProvider() {
 
     const run = async () => {
       if (trackChanged) {
-        isLoadingTrack.current = true;
         prevTrackId.current = currentTrack.id;
 
         try {
@@ -106,11 +103,9 @@ export function AudioPlayerProvider() {
           });
         } catch (err) {
           console.warn("[AudioPlayerProvider] setMediaItem failed:", err);
-          isLoadingTrack.current = false;
           return;
         }
 
-        isLoadingTrack.current = false;
         setCurrentTime(0);
       }
 
@@ -139,21 +134,6 @@ export function AudioPlayerProvider() {
       usePlayerStore.setState({ pendingSeekTo: null });
     }
   }, [pendingSeekTo]);
-
-  useEffect(() => {
-    const sub = TrackPlayer.addEventListener(Event.PlaybackStateChanged, (event: { state: PlaybackState }) => {
-      if (event.state === PlaybackState.Ended) {
-        if (isLoadingTrack.current) return;
-        if (repeat === "one") {
-          TrackPlayer.seekTo(0);
-          TrackPlayer.play();
-        } else {
-          playNext();
-        }
-      }
-    });
-    return () => sub.remove();
-  }, [playNext, repeat]);
 
   return null;
 }
