@@ -1,14 +1,13 @@
 import { Animated } from "react-native";
-import * as Haptics from "expo-haptics";
 import { springs, durations } from "@/theme";
 
-// Haptic feedback helpers
+// Haptic feedback helpers (disabled)
 export const haptics = {
-  light: () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light),
-  medium: () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium),
-  heavy: () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy),
-  success: () => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success),
-  error: () => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error),
+  light: () => {},
+  medium: () => {},
+  heavy: () => {},
+  success: () => {},
+  error: () => {},
 };
 
 // Spring animation helpers
