@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import TrackPlayer from "@rntp/player";
-import { Event, RepeatMode, PlayerCommand } from "@rntp/player";
+import { Event, PlaybackState, RepeatMode, PlayerCommand } from "@rntp/player";
 import { usePlayerStore } from "@/stores/player-store";
 import { fetchTrack } from "@/stores/player-actions-next";
 import { upscaleThumbnail } from "@/api/client";
@@ -51,6 +51,21 @@ export function AudioPlayerProvider() {
     });
     return () => sub.remove();
   }, [setPlaying]);
+
+  useEffect(() => {
+    const sub = TrackPlayer.addEventListener(Event.PlaybackStateChanged, (event: { state: PlaybackState }) => {
+      if (event.state === PlaybackState.Ended) {
+        const state = usePlayerStore.getState();
+        if (state.repeat === "one" && state.currentTrack) {
+          TrackPlayer.seekTo(0);
+          TrackPlayer.play();
+        } else {
+          state.playNext();
+        }
+      }
+    });
+    return () => sub.remove();
+  }, []);
 
   useEffect(() => {
     if (!currentTrack) return;
