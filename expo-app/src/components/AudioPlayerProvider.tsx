@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
-import TrackPlayer from "@rntp/player";
-import { Event, PlaybackState, RepeatMode, PlayerCommand } from "@rntp/player";
+import { View } from "react-native";
+import { useVideoPlayer, VideoView } from "expo-video";
 import { usePlayerStore } from "@/stores/player-store";
 import { fetchTrack } from "@/stores/player-actions-next";
 import { upscaleThumbnail } from "@/api/client";
@@ -23,49 +23,62 @@ export function AudioPlayerProvider() {
   const setPlaying     = usePlayerStore((s) => s.setPlaying);
   const pendingSeekTo  = usePlayerStore((s) => s.pendingSeekTo);
 
-  const prevTrackId         = useRef<string | null>(null);
-  const isSyncingFromNative = useRef(false);
-  const commandsSet         = useRef(false);
+  const prevTrackId = useRef<string | null>(null);
+  const pendingPlay = useRef(false);
+  const lastSeek = useRef(0);
+
+  const player = useVideoPlayer(null, (p) => {
+    p.showNowPlayingNotification = true;
+    p.staysActiveInBackground = true;
+    p.loop = false;
+    p.audioMixingMode = "duckOthers";
+    p.timeUpdateEventInterval = 0.25;
+  });
 
   useEffect(() => {
-    seekToGlobal = (time: number) => { TrackPlayer.seekTo(time); };
+    seekToGlobal = (time: number) => {
+      lastSeek.current = Date.now();
+      const wasPlaying = usePlayerStore.getState().isPlaying;
+      player.currentTime = time;
+      if (wasPlaying) player.play();
+    };
     return () => { seekToGlobal = null; };
-  }, []);
+  }, [player]);
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      try {
-        const { position, duration } = TrackPlayer.getProgress();
-        if (isFinite(position) && position >= 0 && position < 1000000) setCurrentTime(position);
-        if (isFinite(duration) && duration >= 0 && duration < 1000000) setDuration(duration);
-      } catch {}
-    }, 250);
-    return () => clearInterval(interval);
-  }, [setCurrentTime, setDuration]);
-
-  useEffect(() => {
-    const sub = TrackPlayer.addEventListener(Event.IsPlayingChanged, (event: { playing: boolean }) => {
-      isSyncingFromNative.current = true;
-      setPlaying(event.playing);
-      setTimeout(() => { isSyncingFromNative.current = false; }, 0);
+    const sub = player.addListener("playingChange", (e) => {
+      if (Date.now() - lastSeek.current < 500) return;
+      setPlaying(e.isPlaying);
     });
     return () => sub.remove();
-  }, [setPlaying]);
+  }, [player, setPlaying]);
 
   useEffect(() => {
-    const sub = TrackPlayer.addEventListener(Event.PlaybackStateChanged, (event: { state: PlaybackState }) => {
-      if (event.state === PlaybackState.Ended) {
-        const state = usePlayerStore.getState();
-        if (state.repeat === "one" && state.currentTrack) {
-          TrackPlayer.seekTo(0);
-          TrackPlayer.play();
-        } else {
-          state.playNext();
-        }
+    const sub = player.addListener("playToEnd", () => {
+      const state = usePlayerStore.getState();
+      if (state.repeat === "one" && state.currentTrack) {
+        player.currentTime = 0;
+        player.play();
+      } else {
+        state.playNext();
       }
     });
     return () => sub.remove();
-  }, []);
+  }, [player]);
+
+  useEffect(() => {
+    const sub = player.addListener("timeUpdate", (e) => {
+      setCurrentTime(e.currentTime);
+    });
+    const subLoad = player.addListener("sourceLoad", (e) => {
+      if (isFinite(e.duration) && e.duration >= 0) setDuration(e.duration);
+      if (pendingPlay.current) {
+        pendingPlay.current = false;
+        player.play();
+      }
+    });
+    return () => { sub.remove(); subLoad.remove(); };
+  }, [player, setCurrentTime, setDuration]);
 
   useEffect(() => {
     if (!currentTrack) return;
@@ -83,72 +96,56 @@ export function AudioPlayerProvider() {
           const store = usePlayerStore.getState();
           if (!store.currentTrack || store.currentTrack.id !== info.id) return;
           usePlayerStore.setState({
-            currentTrack: { ...store.currentTrack, url: info.url, directUrl: info.directUrl, webpageUrl: info.webpageUrl, formats: info.formats }
+            currentTrack: { ...store.currentTrack, url: info.url, directUrl: info.directUrl, webpageUrl: info.webpageUrl, formats: info.formats, isMuxed: info.isMuxed }
           });
         })
         .catch((err) => console.warn("[AudioPlayerProvider] fetch url failed:", err));
       return;
     }
 
-    const trackChanged = currentTrack.id !== prevTrackId.current;
+    if (currentTrack.id !== prevTrackId.current) {
+      prevTrackId.current = currentTrack.id;
+      setCurrentTime(0);
 
-    const run = async () => {
-      if (trackChanged) {
-        prevTrackId.current = currentTrack.id;
+      const thumb = currentTrack.thumbnail ? upscaleThumbnail(currentTrack.thumbnail, 640) : undefined;
 
-        try {
-          const thumb = currentTrack.thumbnail ? upscaleThumbnail(currentTrack.thumbnail, 640) : undefined;
+      player.replace({
+        uri: currentTrack.url,
+        metadata: {
+          title: currentTrack.title,
+          artist: currentTrack.artist,
+          artwork: thumb,
+        },
+      });
 
-          if (!commandsSet.current) {
-            TrackPlayer.setCommands({
-              capabilities: [PlayerCommand.Previous, PlayerCommand.PlayPause, PlayerCommand.Next, PlayerCommand.Seek, PlayerCommand.Like],
-              handling: "hybrid",
-              perCommandHandling: { [PlayerCommand.Next]: "js", [PlayerCommand.Previous]: "js" },
-            });
-            commandsSet.current = true;
-          }
+      if (isPlaying) pendingPlay.current = true;
+      return;
+    }
 
-          await TrackPlayer.setMediaItem({
-            mediaId:    currentTrack.id,
-            url:        currentTrack.url,
-            title:      currentTrack.title,
-            artist:     currentTrack.artist,
-            artworkUrl: thumb,
-            duration:   currentTrack.duration,
-          });
-        } catch (err) {
-          console.warn("[AudioPlayerProvider] setMediaItem failed:", err);
-          return;
-        }
-
-        setCurrentTime(0);
-      }
-
-      if (isSyncingFromNative.current) return;
-
-      try {
-        if (isPlaying) await TrackPlayer.play();
-        else await TrackPlayer.pause();
-      } catch (err) {
-        console.warn("[AudioPlayerProvider] play/pause failed:", err);
-      }
-    };
-
-    run();
+    if (isPlaying) player.play();
+    else player.pause();
   }, [currentTrack?.id, currentTrack?.url, isPlaying]);
 
-  useEffect(() => { TrackPlayer.setVolume(volume); }, [volume]);
+  useEffect(() => { player.volume = volume; }, [player, volume]);
 
   useEffect(() => {
-    TrackPlayer.setRepeatMode(repeat === "one" ? RepeatMode.One : repeat === "all" ? RepeatMode.All : RepeatMode.Off);
-  }, [repeat]);
+    player.loop = repeat === "one";
+  }, [player, repeat]);
 
   useEffect(() => {
     if (pendingSeekTo !== null && pendingSeekTo !== undefined) {
-      TrackPlayer.seekTo(pendingSeekTo);
+      player.currentTime = pendingSeekTo;
       usePlayerStore.setState({ pendingSeekTo: null });
     }
-  }, [pendingSeekTo]);
+  }, [player, pendingSeekTo]);
 
-  return null;
+  return (
+    <>
+      {currentTrack?.isMuxed && (
+        <View style={{ width: 0, height: 0, overflow: "hidden" }}>
+          <VideoView player={player} style={{ width: 1, height: 1 }} nativeControls={false} />
+        </View>
+      )}
+    </>
+  );
 }

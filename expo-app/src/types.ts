@@ -32,6 +32,7 @@ export interface TrackInfo {
   webpageUrl: string;
   directUrl: string;
   formats: AudioFormat[];
+  isMuxed?: boolean;
 }
 
 export interface AudioFormat {

@@ -63,8 +63,13 @@
       ],
       "expo-image",
       "expo-font",
-      "./plugins/withCleartextDebug",
-      "./plugins/withLikeNotification"
+      [
+        "expo-video",
+        {
+          "supportsBackgroundPlayback": true
+        }
+      ],
+      "./plugins/withCleartextDebug"
     ],
     "extra": {
       "router": {},

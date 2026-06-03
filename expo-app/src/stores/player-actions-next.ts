@@ -10,7 +10,10 @@ const REFILL_THRESHOLD = 3;
 
 export async function fetchTrack(item: QueueItem): Promise<TrackInfo> {
   const cached = await getTrackFromCache(item.videoId);
-  if (cached) return cached;
+  if (cached) {
+    console.log(`[fetchTrack] cache hit ${item.videoId} title="${item.title}" url=${cached.url?.slice(0,60)}...`);
+    return cached;
+  }
 
   try {
     const stream = await getBestAudioStream(item.videoId, { preferredMimeType: "audio/mp4", minBitrate: 48000 });
@@ -26,6 +29,7 @@ export async function fetchTrack(item: QueueItem): Promise<TrackInfo> {
         directUrl: stream.url,
         webpageUrl: `https://www.youtube.com/watch?v=${item.videoId}`,
         formats,
+        isMuxed: stream.mimeType?.startsWith("video/") ?? false,
       };
       setTrackCache(item.videoId, track).catch(() => {});
       return track;
@@ -114,19 +118,20 @@ export async function playNextAction(set: SetFn, get: GetFn): Promise<void> {
   (globalThis as any).__ethosPlayNextRetries = 0;
 
   set({
-    currentTrack: {
-      id: next.videoId,
-      title: info.title,
-      artist: info.artist,
-      thumbnail: info.thumbnail,
-      url: info.url,
-      duration: info.duration,
-      startTime: info.startTime,
-      endTime: info.endTime,
-      webpageUrl: info.webpageUrl,
-      directUrl: info.directUrl,
-      formats: info.formats,
-    },
+      currentTrack: {
+        id: next.videoId,
+        title: info.title,
+        artist: info.artist,
+        thumbnail: info.thumbnail,
+        url: info.url,
+        duration: info.duration,
+        startTime: info.startTime,
+        endTime: info.endTime,
+        webpageUrl: info.webpageUrl,
+        directUrl: info.directUrl,
+        formats: info.formats,
+        isMuxed: info.isMuxed,
+      },
     currentTime: 0,
     duration: 0,
     isPlaying: true,

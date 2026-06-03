@@ -4,9 +4,7 @@ import { Stack } from "expo-router/stack";
 import { StatusBar } from "expo-status-bar";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import TrackPlayer, { PlayerCommand } from "@rntp/player";
 import { AudioPlayerProvider } from "@/components/AudioPlayerProvider";
-import { stop as stopAudioProxy } from "expo-youtube-audio-stream";
 import { MiniPlayer } from "@/components/MiniPlayer";
 import { ErrorToast } from "@/components/ErrorToast";
 import { useLibraryStore } from "@/stores/library-store";
@@ -14,7 +12,6 @@ import { usePlayerStore } from "@/stores/player-store";
 import { initLyricsStoreListener } from "@/utils/lyrics-cache";
 import { initTaste } from "@/utils/taste";
 import { saveQueue, serializeQueue } from "@/utils/queue-store";
-import "@/service";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -34,34 +31,7 @@ export default function RootLayout() {
     if (setupDone) return;
     setupDone = true;
 
-    try {
-      TrackPlayer.setupPlayer({
-        contentType: "music",
-        autoUpdateMetadataFromStream: false,
-        android: {
-          notification: {
-            channelId: "ethos-music",
-            channelName: "Ethos",
-            smallIcon: "ic_launcher",
-          },
-        },
-      });
-    } catch {}
-
-    TrackPlayer.setCommands({
-      capabilities: [
-        PlayerCommand.Previous,
-        PlayerCommand.PlayPause,
-        PlayerCommand.Next,
-        PlayerCommand.Seek,
-      ],
-      handling: "hybrid",
-      perCommandHandling: {
-        [PlayerCommand.Next]: "js",
-        [PlayerCommand.Previous]: "js",
-      },
-    });
-     return () => { stopAudioProxy().catch(() => {}); };
+    return () => { import("expo-youtube-audio-stream").then((m) => m.stop().catch(() => {})); };
    }, []);
 
   useEffect(() => {

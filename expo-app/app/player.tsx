@@ -7,9 +7,8 @@ import { useLyricsStore } from "@/stores/lyrics-store";
 import { seekTo } from "@/components/AudioPlayerProvider";
 import { upscaleThumbnail } from "@/api/client";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import TrackPlayer from "@rntp/player";
 import { MarqueeText } from "@/components/MarqueeText";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const ART_SIZE = SCREEN_WIDTH - 64;
@@ -38,35 +37,8 @@ export default function PlayerScreen() {
   const plainText = useLyricsStore((s) => s.plainText);
   const hasLyrics = lyricsTrackId === currentTrack?.id && (!!timedLyrics || !!plainText);
 
-  // Direct progress polling (sync, no native module issues)
-  const [rntpCurrentTime, setRntpCurrentTime] = useState(0);
-  const [rntpDuration, setRntpDuration] = useState(0);
-
-  // Reset local progress on track change to avoid showing garbage values
-  // from TrackPlayer.getProgress() during the load transition.
-  useEffect(() => {
-    setRntpCurrentTime(0);
-    setRntpDuration(0);
-  }, [currentTrack?.id]);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      try {
-        const { position, duration } = TrackPlayer.getProgress();
-        if (isFinite(position) && position >= 0 && position < 1000000) {
-          setRntpCurrentTime(position);
-        }
-        if (isFinite(duration) && duration >= 0 && duration < 1000000) {
-          setRntpDuration(duration);
-        }
-      } catch {}
-    }, 200);
-    return () => clearInterval(interval);
-  }, []);
-
-  // Use store values if RNTP not ready, otherwise use direct polling
-  const displayCurrentTime = rntpCurrentTime === 0 && storeCurrentTime > 0 ? storeCurrentTime : rntpCurrentTime;
-  const displayDuration = rntpDuration === 0 && storeDuration > 0 ? storeDuration : rntpDuration;
+  const displayCurrentTime = storeCurrentTime;
+  const displayDuration = storeDuration;
 
   // Keep a ref so scrubPanResponder (created once) always reads the latest value
   const displayDurationRef = useRef(displayDuration);
