@@ -3,9 +3,18 @@ import { View, AppState } from "react-native";
 import { useRouter } from "expo-router";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { usePlayerStore } from "@/stores/player-store";
+import { useLibraryStore } from "@/stores/library-store";
 import { fetchTrack } from "@/stores/player-actions-next";
 import { upscaleThumbnail } from "@/api/client";
 import { useMediaControls } from "@/hooks/useMediaControls";
+import {
+  addEventListener as addMediaEventListener,
+  enableControls,
+  disableControls,
+  setMetadata,
+  setPlayback,
+  setProgress,
+} from "expo-music-controls";
 import type { QueueItem } from "@/types";
 
 let seekToGlobal: ((time: number) => void) | null = null;
@@ -34,7 +43,7 @@ export function AudioPlayerProvider() {
   const establishedRef = useRef(false);
 
   const player = useVideoPlayer(null, (p) => {
-    p.showNowPlayingNotification = true;
+    p.showNowPlayingNotification = false;
     p.staysActiveInBackground = true;
     p.loop = false;
     p.audioMixingMode = "duckOthers";
@@ -180,6 +189,70 @@ export function AudioPlayerProvider() {
       usePlayerStore.setState({ pendingSeekTo: null });
     }
   }, [player, pendingSeekTo]);
+
+  // -- Media notification controls --
+
+  useEffect(() => {
+    enableControls();
+    return () => disableControls();
+  }, []);
+
+  useEffect(() => {
+    if (!currentTrack?.url) return;
+    setMetadata({
+      title: currentTrack.title,
+      artist: currentTrack.artist,
+      artworkUrl: currentTrack.thumbnail ? upscaleThumbnail(currentTrack.thumbnail, 640) : undefined,
+      duration: currentTrack.duration ?? 0,
+    });
+  }, [currentTrack?.id, currentTrack?.url]);
+
+  useEffect(() => {
+    const subPlayPause = player.addListener("playingChange", (e) => {
+      const state = usePlayerStore.getState();
+      const isLiked = state.currentTrack ? useLibraryStore.getState().likedIds.has(state.currentTrack.id) : false;
+      setPlayback(e.isPlaying, state.currentTime, state.duration, isLiked);
+    });
+    return () => subPlayPause.remove();
+  }, [player]);
+
+  useEffect(() => {
+    const subTime = player.addListener("timeUpdate", (e) => {
+      const state = usePlayerStore.getState();
+      if (state.duration > 0) {
+        setProgress(e.currentTime, state.duration);
+      }
+    });
+    return () => subTime.remove();
+  }, [player]);
+
+  useEffect(() => {
+    const subs: ReturnType<typeof addMediaEventListener>[] = [];
+
+    subs.push(addMediaEventListener("onPlay", () => {
+      player.play();
+    }));
+
+    subs.push(addMediaEventListener("onPause", () => {
+      player.pause();
+    }));
+
+    subs.push(addMediaEventListener("onNext", () => {
+      usePlayerStore.getState().playNext();
+    }));
+
+    subs.push(addMediaEventListener("onPrevious", () => {
+      usePlayerStore.getState().playPrev();
+    }));
+
+    subs.push(addMediaEventListener("onSeek", (e: any) => {
+      if (e?.position != null) {
+        player.currentTime = e.position;
+      }
+    }));
+
+    return () => subs.forEach((s) => s.remove());
+  }, [player]);
 
   return (
     <>

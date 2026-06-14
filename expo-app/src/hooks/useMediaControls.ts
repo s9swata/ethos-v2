@@ -1,5 +1,8 @@
 import { useEffect, useCallback } from "react";
-import { addLikeListener, setLikeState } from "expo-music-controls";
+import {
+  addEventListener as addMediaEventListener,
+  setLikeState,
+} from "expo-music-controls";
 import { usePlayerStore } from "@/stores/player-store";
 import { useLibraryStore } from "@/stores/library-store";
 
@@ -20,7 +23,7 @@ export function useMediaControls() {
   }, [currentTrack, toggleLikeInStore]);
 
   useEffect(() => {
-    const sub = addLikeListener(handleLike);
+    const sub = addMediaEventListener("onLikePressed", handleLike);
     return () => sub.remove();
   }, [handleLike]);
 
