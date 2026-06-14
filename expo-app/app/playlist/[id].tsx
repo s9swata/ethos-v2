@@ -150,7 +150,7 @@ export default function PlaylistDetailScreen() {
                   <Text style={{ color: theme.colors.textSecondary, fontSize: 13 }} numberOfLines={1}>{track.artist}</Text>
                 </View>
                 {track.id && (
-                  <Pressable style={{ padding: 10 }} onPress={() => toggleLike({ id: track.id!, title: track.title, artist: track.artist, thumbnail: "" })}>
+                  <Pressable style={{ padding: 10 }} onPress={() => toggleLike({ id: track.id!, title: track.title, artist: track.artist, thumbnail: track.thumbnail ?? "", duration: formatDuration(track.duration) })}>
                     <Icon name={isLiked(track.id) ? "heart-filled" : "heart-outline"} size={15} color={isLiked(track.id) ? theme.colors.accent : theme.colors.textTertiary} />
                   </Pressable>
                 )}

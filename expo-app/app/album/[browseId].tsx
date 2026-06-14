@@ -61,7 +61,7 @@ export default function AlbumScreen() {
       contextItems: albumContextItems,
       startIndex: 0,
       title: firstTrack.title ?? undefined,
-      artist: firstTrack.artists?.[0] ?? undefined,
+      artist: firstTrack.artists?.join(", ") ?? undefined,
       thumbnail: artUrl,
       duration: firstTrack.duration ?? undefined,
     });
@@ -121,7 +121,7 @@ export default function AlbumScreen() {
                  contextItems: albumContextItems,
                  startIndex: idx >= 0 ? idx : 0,
                  title: track.title ?? undefined,
-                 artist: track.artists?.[0] ?? undefined,
+                  artist: track.artists?.join(", ") ?? undefined,
                  thumbnail: artUrl,
                  duration: track.duration ?? undefined,
                });
@@ -132,7 +132,7 @@ export default function AlbumScreen() {
               <Text style={{ color: theme.colors.textSecondary, fontSize: 13 }} numberOfLines={1}>{track.artists?.join(", ")}</Text>
             </View>
             {track.videoId && (
-              <Pressable style={{ padding: 10 }} onPress={() => toggleLike({ id: track.videoId!, title: track.title ?? "", artist: track.artists?.[0] ?? "", thumbnail: album.thumbnails?.[0]?.url })}>
+              <Pressable style={{ padding: 10 }} onPress={() => toggleLike({ id: track.videoId!, title: track.title ?? "", artist: track.artists?.join(", ") ?? "", album: album.title, thumbnail: album.thumbnails?.[0]?.url, duration: track.duration ?? undefined })}>
                 <Icon name={isLiked(track.videoId) ? "heart-filled" : "heart-outline"} size={15} color={isLiked(track.videoId) ? theme.colors.accent : theme.colors.textTertiary} />
               </Pressable>
             )}

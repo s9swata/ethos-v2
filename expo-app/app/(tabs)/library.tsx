@@ -422,7 +422,7 @@ export default function LibraryScreen() {
                   backgroundColor: pressed ? theme.colors.surfaceElevated : "transparent",
                   borderRadius: radius.md,
                 })} 
-                onPress={() => { haptics.light(); playTrack(song.id); }}
+                onPress={() => { haptics.light(); playTrack(song.id, { title: song.title, artist: song.artist, thumbnail: song.thumbnail ?? undefined, duration: song.duration ?? undefined }); }}
                 accessibilityLabel={`Play ${song.title} by ${song.artist}`}
                 accessibilityRole="button"
               >

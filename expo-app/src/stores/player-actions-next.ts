@@ -144,22 +144,22 @@ export async function playNextAction(set: SetFn, get: GetFn): Promise<void> {
   prefetchUpcoming(get).catch(() => {});
 }
 
-const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 let prefetchChain: Promise<void> = Promise.resolve();
 
 export async function prefetchUpcoming(get: GetFn): Promise<void> {
   prefetchChain = prefetchChain.then(async () => {
     const state = get();
     const visible = [...state.userQueue, ...state.contextQueue];
-    const track = visible[0];
-    if (!track) return;
-    try {
-      await delay(5000);
-      console.log("[prefetch] starting", track.videoId);
-      await fetchTrack(track);
-      console.log("[prefetch] done", track.videoId);
-    } catch (e) {
-      console.warn("[prefetch] failed:", track.videoId, e);
+    const tracks = visible.slice(0, 2);
+    if (tracks.length === 0) return;
+    for (const track of tracks) {
+      try {
+        console.log("[prefetch] starting", track.videoId);
+        await fetchTrack(track);
+        console.log("[prefetch] done", track.videoId);
+      } catch (e) {
+        console.warn("[prefetch] failed:", track.videoId, e);
+      }
     }
   });
   await prefetchChain;

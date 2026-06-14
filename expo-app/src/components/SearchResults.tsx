@@ -171,7 +171,7 @@ export function SearchResults({ results, query }: Props) {
             artistBrowseId: result.artistId,
             albumBrowseId: result.albumId ?? undefined,
             title: result.name,
-            artist: result.artists?.[0] ?? "",
+            artist: result.artists?.join(", ") ?? "",
             thumbnail: result.imageUrl,
             duration: result.duration,
           });
@@ -194,7 +194,7 @@ export function SearchResults({ results, query }: Props) {
     toggleLike({ 
       id: item.id, 
       title: item.name, 
-      artist: item.artists?.[0] ?? "", 
+      artist: item.artists?.join(", ") ?? "", 
       album: item.album, 
       thumbnail: item.imageUrl, 
       duration: item.duration 

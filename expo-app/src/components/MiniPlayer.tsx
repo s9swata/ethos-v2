@@ -65,6 +65,7 @@ export function MiniPlayer() {
       title: currentTrack.title,
       artist: currentTrack.artist,
       thumbnail: currentTrack.thumbnail,
+      duration: currentTrack.duration > 0 ? `${currentTrack.duration}` : undefined,
     });
   }, [currentTrack, animateHeart, toggleLike]);
 
